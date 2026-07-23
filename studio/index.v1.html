@@ -1,0 +1,4281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>Orbit Studio</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='16' fill='%230A84FF'/><ellipse cx='32' cy='33' rx='20' ry='9' fill='none' stroke='white' stroke-width='4.5' transform='rotate(-18 32 33)'/><circle cx='32' cy='33' r='5.5' fill='white'/></svg>">
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/",
+    "@sparkjsdev/spark": "https://sparkjs.dev/releases/spark/2.1.0/spark.module.js"
+  }
+}
+</script>
+<style>
+:root {
+  --bg: #F2F2F7;
+  --bg-elevated: #FFFFFF;
+  --glass: rgba(255,255,255,.72);
+  --glass-strong: rgba(255,255,255,.88);
+  --glass-tint: rgba(255,255,255,.5);
+  --hairline: rgba(60,60,67,.12);
+  --hairline-strong: rgba(60,60,67,.2);
+  --text: #1C1C1E;
+  --text-secondary: rgba(60,60,67,.6);
+  --text-tertiary: rgba(60,60,67,.38);
+  --accent: #0A84FF;
+  --accent-ink: #ffffff;
+  --accent-soft: rgba(10,132,255,.12);
+  --success: #30D158;
+  --success-soft: rgba(48,209,88,.14);
+  --warning: #FF9F0A;
+  --warning-soft: rgba(255,159,10,.14);
+  --danger: #FF453A;
+  --danger-soft: rgba(255,69,58,.14);
+  --processing-a: #5856D6;
+  --processing-b: #64D2FF;
+  --stage-line: rgba(60,60,67,.5);
+  --radius-card: 20px;
+  --radius-button: 12px;
+  --radius-pill: 999px;
+  --shadow-soft: 0 1px 2px rgba(30,30,40,.05), 0 8px 24px rgba(30,30,40,.07);
+  --shadow-lifted: 0 6px 16px rgba(30,30,40,.08), 0 20px 44px rgba(30,30,40,.14);
+  --shadow-sheet: 0 -8px 40px rgba(20,20,30,.22);
+  --ease-spring: cubic-bezier(.32,.72,0,1);
+  --duration: 280ms;
+  --duration-fast: 160ms;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --stage-canvas: #0b0b0e;
+  color-scheme: light;
+}
+html.dark {
+  --bg: #000000;
+  --bg-elevated: #1C1C1E;
+  --glass: rgba(28,28,30,.68);
+  --glass-strong: rgba(38,38,41,.86);
+  --glass-tint: rgba(28,28,30,.5);
+  --hairline: rgba(255,255,255,.12);
+  --hairline-strong: rgba(255,255,255,.18);
+  --text: #F2F2F7;
+  --text-secondary: rgba(235,235,245,.6);
+  --text-tertiary: rgba(235,235,245,.38);
+  --accent-soft: rgba(10,132,255,.2);
+  --success-soft: rgba(48,209,88,.2);
+  --warning-soft: rgba(255,159,10,.2);
+  --danger-soft: rgba(255,69,58,.2);
+  --shadow-soft: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.32);
+  --shadow-lifted: 0 6px 20px rgba(0,0,0,.34), 0 24px 48px rgba(0,0,0,.4);
+  color-scheme: dark;
+}
+* {
+  box-sizing: border-box;
+}
+html, body {
+  height: 100%;
+}
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI Variable Display", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow: hidden;
+  transition: background-color var(--duration) var(--ease-spring), color var(--duration) var(--ease-spring);
+}
+button, input, select {
+  font-family: inherit;
+  color: inherit;
+}
+button {
+  border: none;
+  background: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+button:disabled {
+  cursor: not-allowed;
+}
+a {
+  color: var(--accent);
+}
+h1, h2, h3, p {
+  margin: 0;
+}
+svg.icon {
+  width: 20px;
+  height: 20px;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex-shrink: 0;
+  display: block;
+}
+svg.icon.filled {
+  fill: currentColor;
+  stroke: none;
+}
+:focus {
+  outline: none;
+}
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+::selection {
+  background: var(--accent-soft);
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+#appRoot {
+  position: fixed;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 420ms var(--ease-spring);
+}
+#appRoot.is-ready {
+  opacity: 1;
+}
+#fileGate {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6);
+  background:
+    radial-gradient(circle at 18% 20%, rgba(88,86,214,.35), transparent 55%),
+    radial-gradient(circle at 82% 78%, rgba(100,210,255,.3), transparent 55%),
+    #05060a;
+}
+#fileGate.is-visible {
+  display: flex;
+}
+.gate-card {
+  max-width: 460px;
+  width: 100%;
+  background: rgba(28,28,32,.7);
+  backdrop-filter: blur(30px) saturate(180%);
+  -webkit-backdrop-filter: blur(30px) saturate(180%);
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 28px;
+  padding: var(--space-10) var(--space-8);
+  text-align: center;
+  color: #F2F2F7;
+  box-shadow: 0 30px 80px rgba(0,0,0,.5);
+}
+.gate-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 20px;
+  margin: 0 auto var(--space-6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--processing-a), var(--processing-b));
+  box-shadow: 0 12px 28px rgba(88,86,214,.4);
+}
+.gate-icon svg {
+  width: 32px;
+  height: 32px;
+  stroke: white;
+}
+.gate-card h1 {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -.01em;
+  margin-bottom: var(--space-3);
+}
+.gate-card p {
+  font-size: 15px;
+  line-height: 1.5;
+  color: rgba(242,242,247,.68);
+  margin-bottom: var(--space-6);
+}
+.gate-card code {
+  display: block;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 13px;
+  background: rgba(0,0,0,.35);
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 12px;
+  padding: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-3);
+  color: #64D2FF;
+  text-align: left;
+}
+.gate-card .gate-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: 600;
+  font-size: 15px;
+  color: white;
+  background: var(--accent);
+  padding: 12px 22px;
+  border-radius: var(--radius-pill);
+  text-decoration: none;
+  transition: transform var(--duration-fast) var(--ease-spring);
+}
+.gate-card .gate-link:active {
+  transform: scale(.97);
+}
+
+.app-shell {
+  position: absolute;
+  inset: 0;
+  display: none;
+}
+.app-shell.is-active {
+  display: block;
+}
+
+.toast-stack {
+  position: fixed;
+  top: max(var(--space-5), env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 800;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  pointer-events: none;
+}
+.toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  background: var(--glass-strong);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid var(--hairline);
+  box-shadow: var(--shadow-lifted);
+  border-radius: var(--radius-pill);
+  padding: 11px 18px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+  opacity: 0;
+  transform: translateY(-14px) scale(.96);
+  transition: opacity var(--duration) var(--ease-spring), transform var(--duration) var(--ease-spring);
+  max-width: min(420px, 84vw);
+  cursor: pointer;
+}
+.toast.is-visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+.toast-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+}
+.toast-success .toast-dot { background: var(--success); }
+.toast-warning .toast-dot { background: var(--warning); }
+.toast-danger .toast-dot { background: var(--danger); }
+
+.view-stack {
+  position: absolute;
+  inset: 0;
+}
+.view {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(18px);
+  transition: opacity var(--duration) var(--ease-spring), transform var(--duration) var(--ease-spring);
+}
+.view.is-active {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(0);
+}
+.view.is-leaving-back {
+  transform: translateX(-18px);
+}
+.view.is-leaving-forward {
+  transform: translateX(18px);
+}
+.view-scroll {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 132px;
+}
+.view-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  padding: max(var(--space-6), env(safe-area-inset-top)) var(--space-6) var(--space-4);
+  background: transparent;
+}
+.view-header::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--glass);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border-bottom: 1px solid transparent;
+  opacity: 0;
+  transition: opacity var(--duration) var(--ease-spring), border-color var(--duration) var(--ease-spring);
+}
+.view-header.is-collapsed::before {
+  opacity: 1;
+  border-bottom-color: var(--hairline);
+}
+.header-inner {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  max-width: 1240px;
+  margin: 0 auto;
+}
+.large-title {
+  font-size: 34px;
+  font-weight: 700;
+  letter-spacing: -.02em;
+  transition: font-size var(--duration) var(--ease-spring);
+}
+.view-header.is-collapsed .large-title {
+  font-size: 20px;
+}
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.view-body {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 0 var(--space-6) var(--space-10);
+}
+
+.icon-button {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--glass);
+  border: 1px solid var(--hairline);
+  color: var(--text);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  transition: transform var(--duration-fast) var(--ease-spring), background var(--duration-fast) var(--ease-spring);
+}
+.icon-button:hover {
+  background: var(--glass-strong);
+}
+.icon-button:active {
+  transform: scale(.93);
+}
+.icon-button:disabled {
+  opacity: .35;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  font-size: 15px;
+  font-weight: 600;
+  padding: 12px 20px;
+  border-radius: var(--radius-button);
+  transition: transform var(--duration-fast) var(--ease-spring), opacity var(--duration-fast) var(--ease-spring), background var(--duration-fast) var(--ease-spring);
+  white-space: nowrap;
+}
+.btn:active {
+  transform: scale(.97);
+}
+.btn:disabled {
+  opacity: .38;
+  transform: none;
+}
+.btn-primary {
+  background: var(--accent);
+  color: white;
+  box-shadow: 0 8px 20px rgba(10,132,255,.28);
+}
+.btn-primary:hover:not(:disabled) {
+  background: #1a8cff;
+}
+.btn-secondary {
+  background: var(--glass);
+  color: var(--text);
+  border: 1px solid var(--hairline);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+}
+.btn-secondary:hover:not(:disabled) {
+  background: var(--glass-strong);
+}
+.btn-danger {
+  background: var(--danger);
+  color: white;
+}
+.btn-ghost {
+  background: transparent;
+  color: var(--accent);
+  padding: 12px 14px;
+}
+.btn-ghost:hover:not(:disabled) {
+  background: var(--accent-soft);
+}
+.btn-block {
+  width: 100%;
+}
+.btn-sm {
+  padding: 8px 14px;
+  font-size: 13px;
+  border-radius: 10px;
+}
+.btn[data-disabled-reason]:disabled {
+  cursor: help;
+}
+
+.glass-card {
+  background: var(--glass);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-soft);
+}
+.solid-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-soft);
+}
+
+.tab-bar {
+  position: fixed;
+  left: 50%;
+  bottom: max(var(--space-5), env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 700;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 6px;
+  background: var(--glass-strong);
+  backdrop-filter: blur(30px) saturate(180%);
+  -webkit-backdrop-filter: blur(30px) saturate(180%);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-lifted);
+}
+.tab-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 46px;
+  padding: 0 16px;
+  border-radius: var(--radius-pill);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  transition: color var(--duration-fast) var(--ease-spring), background var(--duration) var(--ease-spring);
+}
+.tab-item svg {
+  width: 21px;
+  height: 21px;
+}
+.tab-item span {
+  max-width: 80px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.tab-item.is-active {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.tab-item:active {
+  transform: scale(.95);
+}
+.tab-item[hidden] {
+  display: none;
+}
+.tab-divider {
+  width: 1px;
+  height: 24px;
+  background: var(--hairline-strong);
+  margin: 0 2px;
+}
+.tab-gear {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  transition: color var(--duration-fast) var(--ease-spring), background var(--duration) var(--ease-spring), transform 480ms var(--ease-spring);
+}
+.tab-gear:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.tab-gear:active {
+  transform: scale(.93) rotate(28deg);
+}
+
+.sheet-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 850;
+  background: rgba(10,10,14,.42);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--duration) var(--ease-spring);
+}
+.sheet-scrim.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+.sheet {
+  position: fixed;
+  left: 50%;
+  bottom: 0;
+  transform: translate(-50%, 100%);
+  z-index: 860;
+  width: min(560px, 100vw);
+  max-height: min(84vh, 780px);
+  background: var(--bg-elevated);
+  border-radius: 26px 26px 0 0;
+  box-shadow: var(--shadow-sheet);
+  padding: var(--space-3) 0 max(var(--space-8), env(safe-area-inset-bottom));
+  transition: transform 380ms var(--ease-spring);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+@media (min-width: 620px) {
+  .sheet {
+    bottom: 5vh;
+    border-radius: 26px;
+  }
+}
+.sheet.is-visible {
+  transform: translate(-50%, 0);
+}
+.sheet-grabber {
+  width: 36px;
+  height: 5px;
+  border-radius: 3px;
+  background: var(--hairline-strong);
+  margin: 6px auto 14px;
+  flex-shrink: 0;
+}
+.sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--space-6) var(--space-4);
+  flex-shrink: 0;
+}
+.sheet-head h2 {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -.01em;
+}
+.sheet-body {
+  overflow-y: auto;
+  padding: 0 var(--space-6) var(--space-4);
+}
+
+.skeleton {
+  background: linear-gradient(100deg, rgba(120,120,128,.1) 30%, rgba(120,120,128,.2) 45%, rgba(120,120,128,.1) 60%);
+  background-size: 220% 100%;
+  animation: shimmer 1.7s ease-in-out infinite;
+  border-radius: 14px;
+}
+@keyframes shimmer {
+  0% { background-position: 140% 0; }
+  100% { background-position: -60% 0; }
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: var(--space-10) var(--space-6);
+  color: var(--text-secondary);
+}
+.empty-state svg {
+  width: 96px;
+  height: 96px;
+  color: var(--text-tertiary);
+  margin-bottom: var(--space-4);
+}
+.empty-state p {
+  font-size: 15px;
+  max-width: 320px;
+  line-height: 1.5;
+}
+
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: .01em;
+  padding: 5px 10px 5px 8px;
+  border-radius: var(--radius-pill);
+  text-transform: uppercase;
+}
+.status-chip .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.status-ready { background: var(--success-soft); color: #1f9946; }
+html.dark .status-ready { color: #43e072; }
+.status-new { background: rgba(120,120,128,.16); color: var(--text-secondary); }
+.status-error { background: var(--danger-soft); color: var(--danger); }
+.status-processing {
+  background: linear-gradient(120deg, var(--processing-a), var(--processing-b));
+  color: white;
+  background-size: 200% 200%;
+  animation: gradientDrift 3.2s ease infinite;
+}
+.status-processing .dot {
+  background: white;
+  animation: pulseDot 1.1s ease-in-out infinite;
+}
+@keyframes gradientDrift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+@keyframes pulseDot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: .45; transform: scale(.7); }
+}
+
+.masonry {
+  columns: 4 280px;
+  column-gap: var(--space-5);
+}
+@media (max-width: 1180px) {
+  .masonry { columns: 3 240px; }
+}
+@media (max-width: 860px) {
+  .masonry { columns: 2 200px; }
+}
+@media (max-width: 560px) {
+  .masonry { columns: 1; }
+}
+.project-card {
+  break-inside: avoid;
+  margin-bottom: var(--space-5);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+  background: var(--bg-elevated);
+  border: 1px solid var(--hairline);
+  box-shadow: var(--shadow-soft);
+  transition: transform var(--duration) var(--ease-spring), box-shadow var(--duration) var(--ease-spring);
+  position: relative;
+}
+.project-card:hover {
+  transform: translateY(-5px);
+  box-shadow: var(--shadow-lifted);
+}
+.card-poster {
+  position: relative;
+  width: 100%;
+  background: linear-gradient(150deg, #6f6fe0, #58c7e8);
+  overflow: hidden;
+}
+.card-poster img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.card-monogram {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 64px;
+  font-weight: 700;
+  color: rgba(255,255,255,.55);
+  letter-spacing: -.02em;
+}
+.card-poster.is-demo {
+  background: linear-gradient(125deg, #5856D6, #0A84FF 38%, #64D2FF 68%, #30D158 100%);
+  background-size: 260% 260%;
+  animation: auroraShift 9s ease-in-out infinite;
+}
+@keyframes auroraShift {
+  0%, 100% { background-position: 0% 30%; }
+  50% { background-position: 100% 70%; }
+}
+.card-ring {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
+}
+.card-body {
+  padding: var(--space-4);
+}
+.card-title {
+  font-size: 15.5px;
+  font-weight: 600;
+  letter-spacing: -.01em;
+  margin-bottom: 3px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.card-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+.card-time {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+}
+.card-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.card-open {
+  flex: 1;
+  justify-content: space-between;
+  padding: 9px 12px;
+  font-size: 13.5px;
+}
+.card-menu-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  background: rgba(120,120,128,.1);
+}
+.card-menu-btn:hover {
+  background: rgba(120,120,128,.2);
+  color: var(--text);
+}
+.card-menu {
+  position: absolute;
+  z-index: 60;
+  min-width: 176px;
+  background: var(--glass-strong);
+  backdrop-filter: blur(26px) saturate(180%);
+  -webkit-backdrop-filter: blur(26px) saturate(180%);
+  border: 1px solid var(--hairline);
+  border-radius: 14px;
+  box-shadow: var(--shadow-lifted);
+  padding: 6px;
+  opacity: 0;
+  transform: translateY(-6px) scale(.96);
+  transition: opacity var(--duration-fast) var(--ease-spring), transform var(--duration-fast) var(--ease-spring);
+  pointer-events: none;
+}
+.card-menu.is-open {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+.card-menu button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 9px 10px;
+  border-radius: 9px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--text);
+  text-align: left;
+}
+.card-menu button:hover {
+  background: rgba(120,120,128,.12);
+}
+.card-menu button.danger {
+  color: var(--danger);
+}
+.progress-ring-label {
+  font-size: 10px;
+  font-weight: 800;
+  fill: white;
+}
+
+.hero-drop {
+  border-radius: 28px;
+  padding: var(--space-10) var(--space-6);
+  text-align: center;
+  background: linear-gradient(150deg, rgba(88,86,214,.12), rgba(100,210,255,.12));
+  border: 2px dashed var(--hairline-strong);
+  margin-bottom: var(--space-8);
+  transition: border-color var(--duration) var(--ease-spring), background var(--duration) var(--ease-spring);
+}
+.hero-drop.is-dragover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.hero-drop svg {
+  width: 64px;
+  height: 64px;
+  color: var(--accent);
+  margin-bottom: var(--space-4);
+}
+.hero-drop h2 {
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: var(--space-2);
+}
+.hero-drop p {
+  font-size: 14.5px;
+  color: var(--text-secondary);
+  max-width: 420px;
+  margin: 0 auto var(--space-5);
+  line-height: 1.5;
+}
+
+.wizard-shell {
+  max-width: 620px;
+  margin: 0 auto;
+  padding: var(--space-4) var(--space-6) 60px;
+}
+.progress-capsule {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(120,120,128,.14);
+  border-radius: var(--radius-pill);
+  padding: 5px;
+  margin-bottom: var(--space-8);
+}
+.progress-capsule .step {
+  flex: 1;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  position: relative;
+  overflow: hidden;
+}
+.progress-capsule .step::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: left;
+  border-radius: var(--radius-pill);
+  transition: transform var(--duration) var(--ease-spring);
+}
+.progress-capsule .step.is-filled::after {
+  transform: scaleX(1);
+}
+.progress-capsule .step.is-current::after {
+  transform: scaleX(.5);
+}
+.wizard-step-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  margin-bottom: var(--space-2);
+}
+.wizard-title {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -.02em;
+  margin-bottom: var(--space-2);
+}
+.wizard-subtitle {
+  font-size: 15px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: var(--space-6);
+}
+.wizard-subtitle a {
+  font-weight: 600;
+  text-decoration: none;
+}
+.field-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-2);
+  display: block;
+}
+.text-input {
+  width: 100%;
+  font-size: 16px;
+  padding: 13px 16px;
+  border-radius: var(--radius-button);
+  border: 1px solid var(--hairline-strong);
+  background: var(--bg-elevated);
+  color: var(--text);
+  transition: border-color var(--duration-fast) var(--ease-spring);
+}
+.text-input:focus {
+  border-color: var(--accent);
+}
+.dropzone {
+  margin-top: var(--space-5);
+  border: 2px dashed var(--hairline-strong);
+  border-radius: 20px;
+  padding: var(--space-8) var(--space-5);
+  text-align: center;
+  transition: border-color var(--duration) var(--ease-spring), background var(--duration) var(--ease-spring);
+  cursor: pointer;
+}
+.dropzone.is-dragover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.dropzone svg {
+  width: 44px;
+  height: 44px;
+  color: var(--text-tertiary);
+  margin-bottom: var(--space-3);
+}
+.dropzone p {
+  font-size: 14.5px;
+  color: var(--text-secondary);
+}
+.dropzone strong {
+  color: var(--accent);
+  font-weight: 600;
+}
+.media-summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  margin-top: var(--space-5);
+  padding: var(--space-4);
+  border-radius: 16px;
+  background: rgba(120,120,128,.08);
+}
+.media-summary-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.media-summary-info {
+  flex: 1;
+  min-width: 0;
+}
+.media-summary-name {
+  font-size: 14.5px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.media-summary-badges {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+.mini-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: var(--radius-pill);
+  background: rgba(120,120,128,.16);
+  color: var(--text-secondary);
+}
+.mini-badge.good { background: var(--success-soft); color: #1f9946; }
+.mini-badge.warn { background: var(--warning-soft); color: #a35f00; }
+html.dark .mini-badge.good { color: #43e072; }
+html.dark .mini-badge.warn { color: #ffb340; }
+
+.slider-row {
+  margin-bottom: var(--space-6);
+}
+.slider-row .slider-value {
+  float: right;
+  font-weight: 700;
+  color: var(--accent);
+}
+input[type="range"] {
+  -webkit-appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(120,120,128,.22);
+  margin-top: var(--space-3);
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 2px 6px rgba(0,0,0,.24), 0 0 0 1px rgba(0,0,0,.05);
+  cursor: pointer;
+  margin-top: -10px;
+  transition: transform var(--duration-fast) var(--ease-spring);
+}
+input[type="range"]::-webkit-slider-thumb:active {
+  transform: scale(1.12);
+}
+input[type="range"]::-moz-range-thumb {
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 2px 6px rgba(0,0,0,.24);
+  cursor: pointer;
+}
+.slider-hint {
+  font-size: 12.5px;
+  color: var(--text-tertiary);
+  margin-top: var(--space-2);
+}
+
+.segmented {
+  position: relative;
+  display: flex;
+  background: rgba(120,120,128,.14);
+  border-radius: 12px;
+  padding: 4px;
+}
+.segmented-thumb {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 4px;
+  width: calc((100% - 8px) / var(--seg-count));
+  background: var(--bg-elevated);
+  border-radius: 9px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.16);
+  transform: translateX(calc(var(--seg-index) * 100%));
+  transition: transform var(--duration) var(--ease-spring);
+}
+.segmented button {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  padding: 9px 6px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  border-radius: 9px;
+  transition: color var(--duration-fast) linear;
+}
+.segmented button.is-active {
+  color: var(--text);
+}
+.crop-diagram {
+  display: flex;
+  justify-content: center;
+  gap: 3px;
+  margin: var(--space-4) 0;
+}
+.crop-diagram span {
+  width: 5px;
+  height: 22px;
+  border-radius: 3px;
+  background: var(--accent-soft);
+}
+.crop-diagram span.lit {
+  background: var(--accent);
+}
+
+.option-card {
+  border-radius: 22px;
+  padding: var(--space-6);
+  margin-bottom: var(--space-5);
+  border: 1px solid var(--hairline);
+  background: var(--bg-elevated);
+  position: relative;
+  overflow: hidden;
+}
+.option-card.recommended {
+  border-color: rgba(10,132,255,.4);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.option-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  color: white;
+  margin-bottom: var(--space-3);
+}
+.option-card.experimental .option-badge {
+  background: var(--warning);
+}
+.option-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--processing-a), var(--processing-b));
+  color: white;
+  margin-bottom: var(--space-4);
+}
+.option-card h3 {
+  font-size: 19px;
+  font-weight: 700;
+  margin-bottom: var(--space-2);
+}
+.option-card p {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.55;
+  margin-bottom: var(--space-5);
+}
+
+.console-card {
+  background: #0d0f14;
+  border-radius: 18px;
+  padding: var(--space-4);
+  margin-top: var(--space-5);
+  border: 1px solid rgba(255,255,255,.08);
+}
+.console-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-3);
+}
+.console-stage-label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #a9b4c4;
+  text-transform: capitalize;
+}
+.console-log {
+  height: 168px;
+  overflow-y: auto;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.7;
+  color: #cbd4e1;
+}
+.console-log div {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.console-log .line-system { color: #7d8899; }
+.console-log .line-error { color: #ff6b64; }
+.console-log .line-done { color: #35e08a; }
+.progress-track {
+  height: 8px;
+  border-radius: 4px;
+  background: rgba(255,255,255,.08);
+  margin: var(--space-3) 0;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--processing-a), var(--processing-b));
+  width: 0%;
+  transition: width var(--duration) var(--ease-spring);
+}
+.console-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.console-pct {
+  font-size: 12px;
+  color: #a9b4c4;
+  font-weight: 600;
+}
+
+.crops-strip {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: var(--space-2) 0;
+  margin-top: var(--space-3);
+}
+.crops-strip img {
+  height: 64px;
+  width: 96px;
+  object-fit: cover;
+  border-radius: 8px;
+  flex-shrink: 0;
+  border: 1px solid var(--hairline);
+}
+
+.success-card {
+  text-align: center;
+  padding: var(--space-8) var(--space-6);
+}
+.success-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--success-soft);
+  color: var(--success);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto var(--space-4);
+}
+.success-card h3 {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: var(--space-2);
+}
+.success-card p {
+  font-size: 14.5px;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-5);
+  line-height: 1.5;
+}
+.colab-steps {
+  text-align: left;
+  margin: var(--space-5) 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.colab-step {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+}
+.colab-step-num {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 12.5px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.colab-step p {
+  font-size: 13.5px;
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.wizard-nav {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-top: var(--space-8);
+}
+
+.guide-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-5);
+}
+@media (min-width: 760px) {
+  .guide-grid.two-col {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+.guide-card {
+  padding: var(--space-6);
+}
+.guide-card h3 {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: var(--space-4);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.guide-card h3 svg {
+  color: var(--accent);
+}
+.checklist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.checklist li {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  font-size: 14.5px;
+  line-height: 1.5;
+}
+.checklist svg {
+  color: var(--success);
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.export-block {
+  margin-bottom: var(--space-5);
+}
+.export-block:last-child {
+  margin-bottom: 0;
+}
+.export-block h4 {
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: var(--space-2);
+}
+.export-block p {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.55;
+  margin: 0;
+}
+.faq-item {
+  border-bottom: 1px solid var(--hairline);
+}
+.faq-item:last-child {
+  border-bottom: none;
+}
+.faq-question {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-4) 0;
+  font-size: 15px;
+  font-weight: 600;
+  text-align: left;
+}
+.faq-question svg {
+  transition: transform var(--duration) var(--ease-spring);
+  flex-shrink: 0;
+  color: var(--text-tertiary);
+}
+.faq-item.is-open .faq-question svg {
+  transform: rotate(180deg);
+}
+.faq-answer {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height var(--duration) var(--ease-spring);
+}
+.faq-answer p {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  padding-bottom: var(--space-4);
+  margin: 0;
+}
+
+.player-view {
+  background: var(--stage-canvas);
+}
+.player-stage {
+  position: absolute;
+  inset: 0;
+}
+.player-stage canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.player-hud {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.hud-top {
+  position: absolute;
+  top: max(var(--space-5), env(safe-area-inset-top));
+  left: var(--space-5);
+  right: var(--space-5);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  pointer-events: none;
+}
+.hud-back-pill {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  background: var(--glass-strong);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: var(--radius-pill);
+  padding: 8px 16px 8px 8px;
+  color: white;
+  max-width: 62vw;
+}
+.hud-back-pill button {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: rgba(255,255,255,.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  flex-shrink: 0;
+}
+.hud-title {
+  font-size: 14.5px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hud-chips {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.hud-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--glass-strong);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: var(--radius-pill);
+  padding: 7px 12px;
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.hud-chip svg {
+  width: 15px;
+  height: 15px;
+}
+.quality-toggle {
+  display: flex;
+  padding: 3px;
+  gap: 2px;
+}
+.quality-toggle button {
+  padding: 5px 9px;
+  border-radius: var(--radius-pill);
+  font-size: 11.5px;
+  font-weight: 700;
+  color: rgba(255,255,255,.55);
+}
+.quality-toggle button.is-active {
+  background: rgba(255,255,255,.18);
+  color: white;
+}
+.rec-pill {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  background: var(--danger);
+  color: white;
+  border-radius: var(--radius-pill);
+  padding: 7px 13px;
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.rec-pill.is-active {
+  display: flex;
+}
+.rec-pill .rec-blink {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: white;
+  animation: pulseDot 1s ease-in-out infinite;
+}
+
+.hud-hint {
+  position: absolute;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  background: rgba(0,0,0,.28);
+  opacity: 0;
+  transition: opacity var(--duration) var(--ease-spring);
+}
+.hud-hint.is-visible {
+  display: flex;
+  opacity: 1;
+}
+.hint-card {
+  pointer-events: auto;
+  background: var(--glass-strong);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  border: 1px solid rgba(255,255,255,.16);
+  border-radius: 22px;
+  padding: var(--space-6);
+  color: white;
+  max-width: 320px;
+  text-align: center;
+}
+.hint-card h4 {
+  font-size: 17px;
+  font-weight: 700;
+  margin-bottom: var(--space-4);
+}
+.hint-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: 13.5px;
+  color: rgba(255,255,255,.82);
+  margin-bottom: var(--space-3);
+  text-align: left;
+}
+.hint-row svg {
+  color: white;
+  flex-shrink: 0;
+}
+.hint-key {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 5px;
+  border-radius: 6px;
+  background: rgba(255,255,255,.16);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.hud-bottom {
+  position: absolute;
+  bottom: max(112px, calc(var(--space-5) + 96px));
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(680px, calc(100vw - 32px));
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  align-items: center;
+}
+.dock-card {
+  width: 100%;
+  background: var(--glass-strong);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 22px;
+  padding: var(--space-3) var(--space-4);
+  color: white;
+}
+.dock-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  justify-content: space-between;
+}
+.dock-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.dock-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  background: rgba(255,255,255,.1);
+}
+.dock-btn:hover {
+  background: rgba(255,255,255,.2);
+}
+.dock-btn.record-on {
+  background: var(--danger);
+}
+.dock-btn:disabled {
+  opacity: .3;
+}
+.mode-seg {
+  --seg-count: 2;
+  background: rgba(255,255,255,.1);
+  min-width: 128px;
+}
+.mode-seg .segmented-thumb {
+  background: rgba(255,255,255,.22);
+  box-shadow: none;
+}
+.mode-seg button {
+  color: rgba(255,255,255,.6);
+}
+.mode-seg button.is-active {
+  color: white;
+}
+.duration-stepper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: rgba(255,255,255,.8);
+}
+.duration-stepper button {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(255,255,255,.12);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.duration-stepper span {
+  min-width: 40px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.fly-speed-row {
+  display: none;
+  align-items: center;
+  gap: var(--space-3);
+  padding-top: var(--space-3);
+  margin-top: var(--space-3);
+  border-top: 1px solid rgba(255,255,255,.12);
+}
+.fly-speed-row.is-visible {
+  display: flex;
+}
+.fly-speed-row label {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255,255,255,.7);
+  flex-shrink: 0;
+}
+.fly-speed-row input[type="range"] {
+  background: rgba(255,255,255,.16);
+}
+.fly-speed-row input[type="range"]::-webkit-slider-thumb {
+  width: 20px;
+  height: 20px;
+  margin-top: -7px;
+}
+.keyframe-strip {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 4px 2px;
+  margin: var(--space-3) 0;
+  scroll-behavior: smooth;
+}
+.keyframe-strip:empty {
+  display: none;
+}
+.kf-chip {
+  position: relative;
+  flex-shrink: 0;
+  width: 64px;
+  height: 44px;
+  border-radius: 12px;
+  background: rgba(255,255,255,.1);
+  border: 1.5px solid transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: grab;
+  transition: border-color var(--duration-fast) var(--ease-spring), background var(--duration-fast) var(--ease-spring);
+}
+.kf-chip.is-selected {
+  border-color: white;
+  background: rgba(255,255,255,.22);
+}
+.kf-chip.is-dragging {
+  opacity: .4;
+}
+.kf-chip-remove {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--danger);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity var(--duration-fast) linear;
+}
+.kf-chip:hover .kf-chip-remove {
+  opacity: 1;
+}
+.kf-chip-remove svg {
+  width: 11px;
+  height: 11px;
+  stroke-width: 2.4;
+}
+.kf-add-chip {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  border: 1.5px dashed rgba(255,255,255,.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+}
+.kf-add-chip:hover {
+  background: rgba(255,255,255,.1);
+}
+.kf-empty-hint {
+  font-size: 12px;
+  color: rgba(255,255,255,.5);
+  text-align: center;
+  padding: 6px 0;
+}
+
+.doctor-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--hairline);
+}
+.doctor-row:last-child {
+  border-bottom: none;
+}
+.doctor-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--text-tertiary);
+}
+.doctor-dot.ok { background: var(--success); }
+.doctor-dot.warn { background: var(--warning); }
+.doctor-dot.bad { background: var(--danger); }
+.doctor-label {
+  flex: 1;
+  font-size: 14.5px;
+  font-weight: 600;
+}
+.doctor-value {
+  font-size: 13px;
+  color: var(--text-secondary);
+  text-align: right;
+}
+.settings-section {
+  margin-bottom: var(--space-6);
+}
+.settings-section-title {
+  font-size: 12.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--text-tertiary);
+  margin-bottom: var(--space-2);
+}
+.about-block p {
+  font-size: 13.5px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-bottom: var(--space-3);
+}
+.credit-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.credit-pills span {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 11px;
+  border-radius: var(--radius-pill);
+  background: rgba(120,120,128,.14);
+  color: var(--text-secondary);
+}
+.theme-seg {
+  --seg-count: 3;
+}
+
+[data-tooltip] {
+  position: relative;
+}
+.confirm-body {
+  padding: 0 var(--space-6) var(--space-5);
+}
+.confirm-body p {
+  font-size: 14.5px;
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+.confirm-actions {
+  display: flex;
+  gap: var(--space-3);
+  padding: 0 var(--space-6);
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,.35);
+  border-top-color: white;
+  animation: spin .7s linear infinite;
+}
+.spinner.dark-spin {
+  border-color: rgba(10,132,255,.25);
+  border-top-color: var(--accent);
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+@media (max-width: 640px) {
+  .hud-top { flex-direction: column; align-items: stretch; }
+  .hud-chips { justify-content: flex-start; }
+}
+</style>
+</head>
+<body>
+<div id="fileGate">
+  <div class="gate-card">
+    <div class="gate-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="12" rx="9" ry="4.2" transform="rotate(-18 12 12)"></ellipse><circle cx="12" cy="12" r="2" fill="white" stroke="none"></circle></svg>
+    </div>
+    <h1>Orbit Studio needs its local server</h1>
+    <p>You are opening this file directly. Start the local server first, then load the studio from there.</p>
+    <code>Start Orbit Studio.bat</code>
+    <code>python server.py</code>
+    <a class="gate-link" href="http://localhost:7360">
+      <span>Open localhost:7360</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 5h5v5M19 5l-9 9M7 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-1"></path></svg>
+    </a>
+  </div>
+</div>
+
+<div id="appRoot">
+<div class="app-shell" id="appShell">
+
+  <div class="toast-stack" id="toastStack" aria-live="polite"></div>
+
+  <main class="view-stack" id="viewStack">
+
+    <section class="view" data-view="library" data-index="0" id="viewLibrary">
+      <div class="view-scroll" data-scroll>
+        <header class="view-header" data-header>
+          <div class="header-inner">
+            <h1 class="large-title">Library</h1>
+            <div class="header-actions">
+              <button class="icon-button" id="libraryRefreshBtn" aria-label="Refresh library">
+                <svg class="icon" viewBox="0 0 24 24"><path d="M20 12a8 8 0 10-2.6 5.9"></path><path d="M20 8v5h-5"></path></svg>
+              </button>
+            </div>
+          </div>
+        </header>
+        <div class="view-body">
+          <div id="viewerHero"></div>
+          <div id="libraryGrid" class="masonry"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" data-view="create" data-index="1" id="viewCreate">
+      <div class="view-scroll" data-scroll>
+        <header class="view-header" data-header>
+          <div class="header-inner">
+            <h1 class="large-title">Create</h1>
+            <div class="header-actions"></div>
+          </div>
+        </header>
+        <div class="wizard-shell" id="wizardShell"></div>
+      </div>
+    </section>
+
+    <section class="view player-view" data-view="player" data-index="2" id="viewPlayer">
+      <div class="player-stage" id="playerStage"></div>
+      <div class="player-hud">
+        <div class="hud-top">
+          <div class="hud-back-pill">
+            <button id="playerBackBtn" aria-label="Back to library">
+              <svg class="icon" viewBox="0 0 24 24" stroke="white"><path d="M15 5l-7 7 7 7"></path></svg>
+            </button>
+            <span class="hud-title" id="playerTitle">Demo Scene</span>
+          </div>
+          <div class="hud-chips">
+            <span class="hud-chip" id="splatCountChip" title="Splats rendered">
+              <svg class="icon" viewBox="0 0 24 24" stroke="white"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"></path><path d="M4 7.5L12 12l8-4.5M12 12v9"></path></svg>
+              <span>0</span>
+            </span>
+            <span class="hud-chip" id="fpsChip" title="Frames per second">
+              <svg class="icon" viewBox="0 0 24 24" stroke="white"><path d="M4 15a8 8 0 1116 0"></path><path d="M12 15l4-5"></path></svg>
+              <span>0 fps</span>
+            </span>
+            <span class="hud-chip quality-toggle" id="qualityToggle" role="group" aria-label="Render quality">
+              <button data-quality="0.75" aria-label="Performance quality">.75x</button>
+              <button data-quality="1" aria-label="Full quality">1x</button>
+            </span>
+            <span class="rec-pill" id="recPill"><span class="rec-blink"></span><span id="recElapsed">0:00</span></span>
+          </div>
+        </div>
+
+        <div class="hud-hint" id="playerHint">
+          <div class="hint-card">
+            <h4>Fly through your scene</h4>
+            <div class="hint-row"><svg class="icon" viewBox="0 0 24 24"><path d="M9 12V6a1.5 1.5 0 013 0v5M12 11V5a1.5 1.5 0 013 0v6M15 12V7a1.5 1.5 0 013 0v7c0 3.3-2.7 6-6 6h-1a5 5 0 01-4-2l-2.4-3.3a1.4 1.4 0 012-2L8 14"></path></svg><span>Drag to orbit</span></div>
+            <div class="hint-row"><svg class="icon" viewBox="0 0 24 24"><rect x="8" y="3" width="8" height="13" rx="4"></rect><path d="M12 6v3"></path></svg><span>Scroll to zoom</span></div>
+            <div class="hint-row"><span class="hint-key">K</span><span>Add a keyframe</span></div>
+            <button class="btn btn-primary btn-sm" id="hintDismissBtn" style="margin-top:8px;width:100%">Got it</button>
+          </div>
+        </div>
+
+        <div class="hud-bottom">
+          <div class="dock-card">
+            <div class="dock-row">
+              <div class="segmented mode-seg" id="modeSeg" style="--seg-index:0">
+                <div class="segmented-thumb"></div>
+                <button data-value="orbit" class="is-active">Orbit</button>
+                <button data-value="fly">Fly</button>
+              </div>
+              <div class="dock-controls">
+                <button class="dock-btn" id="playPauseBtn" aria-label="Play path preview">
+                  <svg class="icon filled" viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z"></path></svg>
+                </button>
+                <button class="dock-btn" id="loopBtn" aria-label="Toggle loop" aria-pressed="true">
+                  <svg class="icon" viewBox="0 0 24 24" stroke="white"><path d="M17 2l4 4-4 4"></path><path d="M3 11V9a4 4 0 014-4h14"></path><path d="M7 22l-4-4 4-4"></path><path d="M21 13v2a4 4 0 01-4 4H3"></path></svg>
+                </button>
+                <button class="dock-btn" id="recordBtn" aria-label="Record flythrough">
+                  <svg class="icon filled" viewBox="0 0 24 24" stroke="none"><circle cx="12" cy="12" r="7"></circle></svg>
+                </button>
+                <button class="dock-btn" id="screenshotBtn" aria-label="Save screenshot">
+                  <svg class="icon" viewBox="0 0 24 24" stroke="white"><path d="M4 8.5A1.5 1.5 0 015.5 7h2l1-1.5h7L16.5 7h2A1.5 1.5 0 0120 8.5v9A1.5 1.5 0 0118.5 19h-13A1.5 1.5 0 014 17.5z"></path><circle cx="12" cy="12.5" r="3.4"></circle></svg>
+                </button>
+              </div>
+              <div class="duration-stepper">
+                <button id="durationMinus" aria-label="Decrease duration">
+                  <svg class="icon" viewBox="0 0 24 24" stroke="white" style="width:14px;height:14px"><path d="M5 12h14"></path></svg>
+                </button>
+                <span id="durationValue">12s</span>
+                <button id="durationPlus" aria-label="Increase duration">
+                  <svg class="icon" viewBox="0 0 24 24" stroke="white" style="width:14px;height:14px"><path d="M12 5v14M5 12h14"></path></svg>
+                </button>
+              </div>
+            </div>
+            <div class="fly-speed-row" id="flySpeedRow">
+              <label for="flySpeedSlider">Fly speed</label>
+              <input type="range" id="flySpeedSlider" min="1" max="10" step="1" value="3">
+            </div>
+            <div class="keyframe-strip" id="keyframeStrip"></div>
+            <div class="kf-empty-hint" id="keyframeEmptyHint">Add a keyframe to start building a flythrough path</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" data-view="guide" data-index="3" id="viewGuide">
+      <div class="view-scroll" data-scroll>
+        <header class="view-header" data-header>
+          <div class="header-inner">
+            <h1 class="large-title">Guide</h1>
+            <div class="header-actions"></div>
+          </div>
+        </header>
+        <div class="view-body" id="guideBody"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <nav class="tab-bar" id="tabBar">
+    <button class="tab-item is-active" data-tab="library" aria-label="Library">
+      <svg class="icon" viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1.6"></rect><rect x="13" y="4" width="7" height="7" rx="1.6"></rect><rect x="4" y="13" width="7" height="7" rx="1.6"></rect><rect x="13" y="13" width="7" height="7" rx="1.6"></rect></svg>
+      <span>Library</span>
+    </button>
+    <button class="tab-item" data-tab="create" aria-label="Create" id="createTabBtn">
+      <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v8M8 12h8"></path></svg>
+      <span>Create</span>
+    </button>
+    <button class="tab-item" data-tab="player" aria-label="Player">
+      <svg class="icon" viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="9" ry="4.2" transform="rotate(-18 12 12)"></ellipse><circle cx="12" cy="12" r="2.1" fill="currentColor" stroke="none"></circle></svg>
+      <span>Player</span>
+    </button>
+    <button class="tab-item" data-tab="guide" aria-label="Guide">
+      <svg class="icon" viewBox="0 0 24 24"><path d="M4 5.5C4 4.7 4.7 4 5.5 4H12v16H5.5C4.7 20 4 19.3 4 18.5z"></path><path d="M20 5.5c0-.8-.7-1.5-1.5-1.5H12v16h6.5c.8 0 1.5-.7 1.5-1.5z"></path></svg>
+      <span>Guide</span>
+    </button>
+    <div class="tab-divider"></div>
+    <button class="tab-gear" id="settingsBtn" aria-label="Settings">
+      <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.1"></circle><path d="M12 3v2.6M12 18.4V21M21 12h-2.6M5.6 12H3M18.4 5.6l-1.9 1.9M7.5 16.5l-1.9 1.9M18.4 18.4l-1.9-1.9M7.5 7.5L5.6 5.6"></path></svg>
+    </button>
+  </nav>
+
+  <div class="sheet-scrim" id="sheetScrim"></div>
+
+  <div class="sheet" id="settingsSheet" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+    <div class="sheet-grabber"></div>
+    <div class="sheet-head">
+      <h2 id="settingsTitle">Settings</h2>
+      <button class="icon-button" id="settingsCloseBtn" aria-label="Close settings">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"></path></svg>
+      </button>
+    </div>
+    <div class="sheet-body" id="settingsBody"></div>
+  </div>
+
+  <div class="sheet" id="confirmSheet" role="alertdialog" aria-modal="true" aria-labelledby="confirmTitle">
+    <div class="sheet-grabber"></div>
+    <div class="sheet-head">
+      <h2 id="confirmTitle">Are you sure</h2>
+    </div>
+    <div class="confirm-body" id="confirmBody"><p></p></div>
+    <div class="confirm-actions">
+      <button class="btn btn-secondary btn-block" id="confirmCancelBtn">Cancel</button>
+      <button class="btn btn-danger btn-block" id="confirmOkBtn">Confirm</button>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<input type="file" id="mediaFileInput" accept="video/mp4,video/*,image/jpeg,image/jpg" hidden>
+<input type="file" id="resultFileInput" accept=".ply,.splat,.spz" hidden>
+<input type="file" id="viewerFileInput" accept=".ply,.splat,.spz" hidden>
+
+<script type="module">
+let THREE = null;
+let OrbitControlsClass = null;
+let SparkRendererClass = null;
+let SplatMeshClass = null;
+let SplatFileTypeEnum = null;
+
+const THEME_STORAGE_KEY = "orbit-studio-theme";
+const LAST_PROJECT_STORAGE_KEY = "orbit-studio-last-project";
+const HEALTH_TIMEOUT_MS = 1200;
+const DEMO_ARTIFACT_URL = "./demo/demo.splat";
+const NOTEBOOK_URL = "./notebooks/OrbitStudio_Colab.ipynb";
+const DEMO_KEYFRAMES = [
+  { pos: [3.4, 1.4, 3.1], target: [0, 0.6, 0] },
+  { pos: [-2.6, 1.9, -3.2], target: [0, 0.4, 0] }
+];
+
+const ICONS = {
+  close: '<path d="M6 6l12 12M18 6L6 18"></path>',
+  play: '<path d="M8 5.5v13l11-6.5z"></path>',
+  pause: '<rect x="7" y="5" width="4" height="14" rx="1.2"></rect><rect x="13" y="5" width="4" height="14" rx="1.2"></rect>',
+  trash: '<path d="M5 7h14M9 7V5.5A1.5 1.5 0 0110.5 4h3A1.5 1.5 0 0115 5.5V7m-8 0v11.5A1.5 1.5 0 008.5 20h7a1.5 1.5 0 001.5-1.5V7"></path><path d="M10 11v6M14 11v6"></path>',
+  download: '<path d="M12 4v11m0 0l-4-4m4 4l4-4M5 19h14"></path>',
+  open: '<path d="M9 6l6 6-6 6"></path>',
+  bundle: '<path d="M21 8l-9-5-9 5 9 5 9-5z"></path><path d="M3 8v8l9 5 9-5V8M12 13v8"></path>',
+  more: '<circle cx="5" cy="12" r="1.4" fill="currentColor" stroke="none"></circle><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"></circle><circle cx="19" cy="12" r="1.4" fill="currentColor" stroke="none"></circle>',
+  check: '<path d="M5 13l4 4L19 7"></path>',
+  chevronDown: '<path d="M6 9l6 6 6-6"></path>',
+  info: '<circle cx="12" cy="12" r="9"></circle><path d="M12 11v5M12 8h.01"></path>',
+  cloud: '<path d="M7 18a4.5 4.5 0 01-.4-8.98A5.5 5.5 0 0117 8.06 4 4 0 0117.5 18z"></path>',
+  cloudArrowUp: '<path d="M7 18a4.5 4.5 0 01-.4-8.98A5.5 5.5 0 0117 8.06 4 4 0 0117.5 18H7z"></path><path d="M12 20v-7m-3 3l3-3 3 3"></path>',
+  sun: '<circle cx="12" cy="12" r="4.4"></circle><path d="M12 2.5v2.4M12 19.1v2.4M21.5 12h-2.4M4.9 12H2.5M18.7 5.3l-1.7 1.7M7 17l-1.7 1.7M18.7 18.7L17 17M7 7L5.3 5.3"></path>',
+  moon: '<path d="M20 14.6A8.6 8.6 0 1110.4 4a6.9 6.9 0 009.6 10.6z"></path>',
+  auto: '<circle cx="12" cy="12" r="9"></circle><path d="M12 3a9 9 0 000 18z" fill="currentColor" stroke="none"></path>',
+  film: '<rect x="3.5" y="5" width="17" height="14" rx="2"></rect><path d="M8 5v14M16 5v14M3.5 9.5h4M3.5 14.5h4M16.5 9.5h4M16.5 14.5h4"></path>',
+  camera: '<path d="M4 8.5A1.5 1.5 0 015.5 7h2l1-1.5h7L16.5 7h2A1.5 1.5 0 0120 8.5v9A1.5 1.5 0 0118.5 19h-13A1.5 1.5 0 014 17.5z"></path><circle cx="12" cy="12.5" r="3.4"></circle>',
+  flag: '<path d="M6 4v16M6 5h10l-2.5 3L16 11H6"></path>',
+  cube: '<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"></path><path d="M4 7.5L12 12l8-4.5M12 12v9"></path>',
+  gauge: '<path d="M4 15a8 8 0 1116 0"></path><path d="M12 15l4-5"></path>',
+  refresh: '<path d="M20 12a8 8 0 10-2.6 5.9"></path><path d="M20 8v5h-5"></path>',
+  cpu: '<rect x="6" y="6" width="12" height="12" rx="2"></rect><path d="M9 3v3M15 3v3M9 18v3M15 18v3M3 9h3M3 15h3M18 9h3M18 15h3"></path>',
+  disk: '<circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="2.6"></circle><path d="M12 3v4M12 17v4"></path>',
+  pulse: '<path d="M3 12h4l2-7 4 14 2-7h6"></path>',
+  externalLink: '<path d="M14 5h5v5M19 5l-9 9M7 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-1"></path>',
+  warningTriangle: '<path d="M12 4L3 20h18z"></path><path d="M12 10v4M12 17h.01"></path>',
+  book: '<path d="M4 5.5C4 4.7 4.7 4 5.5 4H12v16H5.5C4.7 20 4 19.3 4 18.5z"></path><path d="M20 5.5c0-.8-.7-1.5-1.5-1.5H12v16h6.5c.8 0 1.5-.7 1.5-1.5z"></path>',
+  emptyLibrary: '<path d="M20 60h60"></path><rect x="28" y="30" width="24" height="30" rx="3"></rect><rect x="56" y="20" width="24" height="40" rx="3"></rect><circle cx="40" cy="42" r="3" fill="currentColor" stroke="none"></circle><circle cx="68" cy="32" r="3" fill="currentColor" stroke="none"></circle>',
+  emptyKeyframes: '<path d="M20 50c14-22 46-22 60 0" stroke-dasharray="4 6"></path><circle cx="20" cy="50" r="4" fill="currentColor" stroke="none"></circle><circle cx="80" cy="50" r="4" fill="currentColor" stroke="none"></circle><path d="M46 40l6 6-6 6"></path>'
+};
+
+function svg(name, extraAttrs) {
+  const attrs = extraAttrs || "";
+  return '<svg class="icon" viewBox="0 0 24 24" ' + attrs + '>' + (ICONS[name] || "") + '</svg>';
+}
+
+const state = {
+  mode: "checking",
+  currentTab: "library",
+  theme: "light",
+  isDark: false,
+  projects: [],
+  projectsLoaded: false,
+  doctor: null,
+  eventSource: null,
+  pollTimer: null,
+  create: {
+    projectId: null,
+    step: 1,
+    name: "",
+    mediaFile: null,
+    mediaMeta: null,
+    targetFrames: 300,
+    cropsPerFrame: 14,
+    size: 1280,
+    running: false,
+    activeStage: null,
+    pipelineKind: null,
+    consoleOpen: false,
+    hasBundle: false,
+    resultReceived: false
+  }
+};
+
+const playerState = {
+  projectId: null,
+  projectName: "",
+  isDemo: false,
+  mode: "orbit",
+  quality: 1,
+  keyframes: [],
+  selectedIndex: -1,
+  duration: 12,
+  loop: true,
+  isPlaying: false,
+  isRecording: false,
+  pendingPosterCapture: false,
+  flySpeed: 3,
+  hintDismissed: false,
+  userInteracted: false,
+  keyframeSaveTimer: null,
+  draggingChipIndex: -1
+};
+
+const runtime = {
+  renderer: null,
+  scene: null,
+  camera: null,
+  controls: null,
+  splatMesh: null,
+  clock: null,
+  fpsSamples: [],
+  resizeObserver: null,
+  keysDown: new Set(),
+  flyDragging: false,
+  flyLastX: 0,
+  flyLastY: 0,
+  pathData: null,
+  previewStartMs: 0,
+  recordFrameTimer: null,
+  dragIndex: -1,
+  streamListeners: new Set()
+};
+
+function byId(id) {
+  return document.getElementById(id);
+}
+
+function qs(selector, root) {
+  return (root || document).querySelector(selector);
+}
+
+function qsa(selector, root) {
+  return Array.from((root || document).querySelectorAll(selector));
+}
+
+function debounce(fn, wait) {
+  let timer = null;
+  return function debounced(...args) {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn.apply(null, args), wait);
+  };
+}
+
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max);
+}
+
+function easeOutCubic(t) {
+  return 1 - Math.pow(1 - t, 3);
+}
+
+function formatRelativeTime(iso) {
+  if (!iso) return "";
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return "";
+  const diffSeconds = Math.max(0, Math.round((Date.now() - then) / 1000));
+  if (diffSeconds < 45) return "Just now";
+  const minutes = Math.round(diffSeconds / 60);
+  if (minutes < 60) return minutes + "m ago";
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return hours + "h ago";
+  const days = Math.round(hours / 24);
+  if (days < 7) return days + "d ago";
+  return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+function formatBytes(bytes) {
+  if (!bytes && bytes !== 0) return "";
+  const units = ["B", "KB", "MB", "GB"];
+  let value = bytes;
+  let unitIndex = 0;
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex++;
+  }
+  return (unitIndex === 0 ? value : value.toFixed(1)) + " " + units[unitIndex];
+}
+
+function formatDuration(seconds) {
+  if (!seconds && seconds !== 0) return "";
+  const m = Math.floor(seconds / 60);
+  const s = Math.round(seconds % 60);
+  return m + ":" + String(s).padStart(2, "0");
+}
+
+function formatCount(n) {
+  return (n || 0).toLocaleString();
+}
+
+function dateStamp() {
+  const d = new Date();
+  return d.getFullYear() + String(d.getMonth() + 1).padStart(2, "0") + String(d.getDate()).padStart(2, "0");
+}
+
+function hashString(str) {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = (hash << 5) - hash + str.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+}
+
+function gradientForId(id) {
+  const hash = hashString(id || "orbit");
+  const hueA = hash % 360;
+  const hueB = (hueA + 55 + (hash % 40)) % 360;
+  return "linear-gradient(150deg, hsl(" + hueA + ",70%,58%), hsl(" + hueB + ",78%,52%))";
+}
+
+function aspectForId(id) {
+  const ratios = [1, 1.25, 0.82, 1.45, 0.95, 1.15, 1.05];
+  return ratios[hashString(id) % ratios.length];
+}
+
+function slugify(name) {
+  return (name || "scene").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "scene";
+}
+
+async function fetchJSON(url, options, timeoutMs) {
+  const controller = new AbortController();
+  const timer = timeoutMs ? setTimeout(() => controller.abort(), timeoutMs) : null;
+  try {
+    const opts = Object.assign({}, options, { signal: controller.signal });
+    if (opts.body && typeof opts.body === "object" && !(opts.body instanceof FormData)) {
+      opts.headers = Object.assign({ "Content-Type": "application/json" }, opts.headers || {});
+      opts.body = JSON.stringify(opts.body);
+    }
+    const response = await fetch(url, opts);
+    const text = await response.text();
+    let data = null;
+    if (text) {
+      try { data = JSON.parse(text); } catch (parseError) { data = null; }
+    }
+    if (!response.ok) {
+      const error = new Error((data && data.error) || ("Request failed: " + response.status));
+      error.status = response.status;
+      error.data = data;
+      throw error;
+    }
+    return data;
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+async function fetchForm(url, file, fieldName) {
+  const form = new FormData();
+  form.append(fieldName || "file", file);
+  const response = await fetch(url, { method: "POST", body: form });
+  const text = await response.text();
+  let data = null;
+  if (text) {
+    try { data = JSON.parse(text); } catch (parseError) { data = null; }
+  }
+  if (!response.ok) {
+    const error = new Error((data && data.error) || ("Upload failed: " + response.status));
+    error.status = response.status;
+    error.data = data;
+    throw error;
+  }
+  return data;
+}
+
+const api = {
+  health: () => fetchJSON("/api/health", {}, HEALTH_TIMEOUT_MS),
+  doctor: () => fetchJSON("/api/doctor"),
+  listProjects: () => fetchJSON("/api/projects"),
+  createProject: (name) => fetchJSON("/api/projects", { method: "POST", body: { name } }),
+  deleteProject: (id) => fetchJSON("/api/projects/" + id, { method: "DELETE" }),
+  uploadMedia: (id, file, force) => fetchForm("/api/projects/" + id + "/media" + (force ? "?force=1" : ""), file, "file"),
+  run: (id, stage, settings) => fetchJSON("/api/projects/" + id + "/run", { method: "POST", body: { stage, settings } }),
+  cancel: (id) => fetchJSON("/api/projects/" + id + "/cancel", { method: "POST" }),
+  bundleUrl: (id) => "/api/projects/" + id + "/bundle.zip",
+  postResult: (id, file) => fetchForm("/api/projects/" + id + "/result", file, "file"),
+  artifactUrl: (id, ext) => "/api/projects/" + id + "/artifact." + ext,
+  postPoster: (id, dataUrl) => fetchJSON("/api/projects/" + id + "/poster", { method: "POST", body: { dataUrl } }),
+  posterUrl: (id) => "/api/projects/" + id + "/poster.jpg",
+  getKeyframes: (id) => fetchJSON("/api/projects/" + id + "/keyframes"),
+  postKeyframes: (id, keyframes) => fetchJSON("/api/projects/" + id + "/keyframes", { method: "POST", body: { keyframes } }),
+  getCrops: (id) => fetchJSON("/api/projects/" + id + "/crops")
+};
+
+function toast(message, variant, duration) {
+  const stack = byId("toastStack");
+  const el = document.createElement("div");
+  el.className = "toast" + (variant ? " toast-" + variant : "");
+  el.setAttribute("role", "status");
+  const dot = document.createElement("span");
+  dot.className = "toast-dot";
+  const text = document.createElement("span");
+  text.className = "toast-text";
+  text.textContent = message;
+  el.appendChild(dot);
+  el.appendChild(text);
+  stack.appendChild(el);
+  requestAnimationFrame(() => el.classList.add("is-visible"));
+  let removed = false;
+  const remove = () => {
+    if (removed) return;
+    removed = true;
+    el.classList.remove("is-visible");
+    setTimeout(() => el.remove(), 420);
+  };
+  const timer = setTimeout(remove, duration || 3400);
+  el.addEventListener("click", () => { clearTimeout(timer); remove(); });
+}
+
+function onStreamEvent(handler) {
+  runtime.streamListeners.add(handler);
+  return () => runtime.streamListeners.delete(handler);
+}
+
+function emitStreamEvent(data) {
+  runtime.streamListeners.forEach((handler) => handler(data));
+}
+
+function waitForStageSettled(projectId, stage) {
+  return new Promise((resolve) => {
+    const off = onStreamEvent((data) => {
+      if (data.id === projectId && data.stage === stage && (data.state === "done" || data.state === "error")) {
+        off();
+        resolve(data);
+      }
+    });
+  });
+}
+
+function connectEvents() {
+  if (state.mode !== "studio") return;
+  try {
+    const source = new EventSource("/api/events");
+    source.onmessage = (evt) => {
+      let data = null;
+      try { data = JSON.parse(evt.data); } catch (parseError) { return; }
+      if (!data) return;
+      emitStreamEvent(data);
+      applyStreamEventToProjects(data);
+    };
+    source.onerror = () => {};
+    state.eventSource = source;
+  } catch (connectError) {}
+}
+
+function applyStreamEventToProjects(data) {
+  const project = state.projects.find((p) => p.id === data.id);
+  if (project) {
+    project.stage = data.stage;
+    project.pct = data.pct;
+    if (data.state === "running") project.status = "processing";
+    renderLibraryCard(project);
+  }
+  if (state.create.projectId === data.id && state.create.consoleOpen) {
+    appendConsoleLine(data);
+  }
+  if ((data.state === "done" || data.state === "error") && (project || state.create.projectId === data.id)) {
+    refreshProjects();
+  }
+}
+
+function setButtonDisabled(button, reason) {
+  if (reason) {
+    button.disabled = true;
+    button.title = reason;
+    button.setAttribute("aria-disabled", "true");
+  } else {
+    button.disabled = false;
+    button.removeAttribute("title");
+    button.removeAttribute("aria-disabled");
+  }
+}
+
+function applyTheme(pref) {
+  state.theme = pref;
+  const systemDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  state.isDark = pref === "dark" || (pref === "auto" && systemDark);
+  document.documentElement.classList.toggle("dark", state.isDark);
+  localStorage.setItem(THEME_STORAGE_KEY, pref);
+  const seg = byId("themeSeg");
+  if (seg) setSegmentedValue(seg, pref);
+}
+
+function initTheme() {
+  const stored = localStorage.getItem(THEME_STORAGE_KEY);
+  applyTheme(stored === "light" || stored === "dark" || stored === "auto" ? stored : "light");
+  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
+    if (state.theme === "auto") applyTheme("auto");
+  });
+}
+
+function rememberLastProject(id) {
+  localStorage.setItem(LAST_PROJECT_STORAGE_KEY, id);
+}
+
+function getLastProject() {
+  return localStorage.getItem(LAST_PROJECT_STORAGE_KEY);
+}
+
+function setSegmentedValue(container, value) {
+  const buttons = qsa("button", container);
+  const index = buttons.findIndex((b) => b.dataset.value === String(value));
+  container.style.setProperty("--seg-count", buttons.length);
+  container.style.setProperty("--seg-index", Math.max(0, index));
+  buttons.forEach((b) => b.classList.toggle("is-active", b.dataset.value === String(value)));
+}
+
+function initSegmented(container, onChange) {
+  const buttons = qsa("button", container);
+  container.style.setProperty("--seg-count", buttons.length);
+  buttons.forEach((button) => {
+    button.addEventListener("click", () => {
+      setSegmentedValue(container, button.dataset.value);
+      onChange(button.dataset.value);
+    });
+  });
+}
+
+let lastFocusedBeforeSheet = null;
+
+function openSheet(sheetEl) {
+  lastFocusedBeforeSheet = document.activeElement;
+  byId("sheetScrim").classList.add("is-visible");
+  sheetEl.classList.add("is-visible");
+  sheetEl.querySelector(".sheet-grabber").nextElementSibling.focus?.();
+  document.addEventListener("keydown", onSheetKeydown);
+}
+
+function closeSheet(sheetEl) {
+  sheetEl.classList.remove("is-visible");
+  const anyOpen = qsa(".sheet.is-visible").length > 0;
+  if (!anyOpen) byId("sheetScrim").classList.remove("is-visible");
+  document.removeEventListener("keydown", onSheetKeydown);
+  if (lastFocusedBeforeSheet && lastFocusedBeforeSheet.focus) lastFocusedBeforeSheet.focus();
+}
+
+function onSheetKeydown(evt) {
+  if (evt.key === "Escape") {
+    qsa(".sheet.is-visible").forEach((sheetEl) => closeSheet(sheetEl));
+  }
+}
+
+byId("sheetScrim").addEventListener("click", () => {
+  qsa(".sheet.is-visible").forEach((sheetEl) => closeSheet(sheetEl));
+});
+
+function openConfirmSheet(options) {
+  byId("confirmTitle").textContent = options.title;
+  byId("confirmBody").querySelector("p").textContent = options.message;
+  const okBtn = byId("confirmOkBtn");
+  okBtn.textContent = options.confirmLabel || "Delete";
+  const clone = okBtn.cloneNode(true);
+  okBtn.parentNode.replaceChild(clone, okBtn);
+  clone.addEventListener("click", () => {
+    closeSheet(byId("confirmSheet"));
+    options.onConfirm();
+  });
+  openSheet(byId("confirmSheet"));
+}
+
+byId("confirmCancelBtn").addEventListener("click", () => closeSheet(byId("confirmSheet")));
+byId("settingsCloseBtn").addEventListener("click", () => closeSheet(byId("settingsSheet")));
+
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
+
+async function downloadUrl(url, filename) {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error("Not available yet");
+  const blob = await response.blob();
+  downloadBlob(blob, filename);
+}
+
+const tabOrder = ["library", "create", "player", "guide"];
+
+function switchTab(tabName, options) {
+  const opts = options || {};
+  if (tabName === "create" && state.mode !== "studio") return;
+  const previousTab = state.currentTab;
+  if (previousTab === tabName && !opts.force) return;
+  const previousIndex = tabOrder.indexOf(previousTab);
+  const nextIndex = tabOrder.indexOf(tabName);
+  qsa(".view").forEach((viewEl) => {
+    viewEl.classList.remove("is-active", "is-leaving-back", "is-leaving-forward");
+  });
+  const outgoing = qs('.view[data-view="' + previousTab + '"]');
+  const incoming = qs('.view[data-view="' + tabName + '"]');
+  if (outgoing) outgoing.classList.add(nextIndex < previousIndex ? "is-leaving-forward" : "is-leaving-back");
+  if (incoming) incoming.classList.add("is-active");
+  qsa(".tab-item").forEach((item) => item.classList.toggle("is-active", item.dataset.tab === tabName));
+  state.currentTab = tabName;
+  if (previousTab === "player" && tabName !== "player") onLeavePlayer();
+  if (tabName === "player" && previousTab !== "player") onEnterPlayer(opts.projectId);
+  if (tabName === "library" && !opts.skipRefresh) refreshProjects();
+}
+
+qsa(".tab-item[data-tab]").forEach((item) => {
+  item.addEventListener("click", () => switchTab(item.dataset.tab));
+});
+
+function initHeaderCollapse() {
+  qsa("[data-scroll]").forEach((scrollEl) => {
+    const header = scrollEl.querySelector("[data-header]");
+    if (!header) return;
+    scrollEl.addEventListener("scroll", () => {
+      header.classList.toggle("is-collapsed", scrollEl.scrollTop > 24);
+    }, { passive: true });
+  });
+}
+
+function renderViewerHero() {
+  const host = byId("viewerHero");
+  if (state.mode === "studio") {
+    host.innerHTML = "";
+    return;
+  }
+  host.innerHTML =
+    '<div class="hero-drop glass-card" id="heroDrop" tabindex="0" role="button" aria-label="Drop a splat file to preview">' +
+      svg("cloudArrowUp") +
+      "<h2>Drop in a scene</h2>" +
+      "<p>Drag a .splat, .spz, or .ply file anywhere in this window to fly through it right now. No processing needed.</p>" +
+      '<button class="btn btn-primary" id="heroBrowseBtn">Choose a file</button>' +
+    "</div>";
+  const heroDrop = byId("heroDrop");
+  const browseBtn = byId("heroBrowseBtn");
+  browseBtn.addEventListener("click", () => byId("viewerFileInput").click());
+  heroDrop.addEventListener("click", (evt) => {
+    if (evt.target === browseBtn) return;
+    byId("viewerFileInput").click();
+  });
+  wireDropzone(heroDrop, (file) => openDroppedSplat(file));
+}
+
+function wireDropzone(el, onFile) {
+  ["dragenter", "dragover"].forEach((evtName) => {
+    el.addEventListener(evtName, (evt) => {
+      evt.preventDefault();
+      el.classList.add("is-dragover");
+    });
+  });
+  ["dragleave", "drop"].forEach((evtName) => {
+    el.addEventListener(evtName, (evt) => {
+      evt.preventDefault();
+      if (evtName === "dragleave" && el.contains(evt.relatedTarget)) return;
+      el.classList.remove("is-dragover");
+    });
+  });
+  el.addEventListener("drop", (evt) => {
+    const file = evt.dataTransfer.files && evt.dataTransfer.files[0];
+    if (file) onFile(file);
+  });
+}
+
+byId("viewerFileInput").addEventListener("change", (evt) => {
+  const file = evt.target.files[0];
+  if (file) openDroppedSplat(file);
+  evt.target.value = "";
+});
+
+document.addEventListener("dragover", (evt) => {
+  if (state.mode !== "studio" && state.currentTab === "library") evt.preventDefault();
+});
+document.addEventListener("drop", (evt) => {
+  if (state.mode === "studio" || state.currentTab !== "library") return;
+  if (evt.target.closest("#heroDrop")) return;
+  evt.preventDefault();
+  const file = evt.dataTransfer.files && evt.dataTransfer.files[0];
+  if (file) openDroppedSplat(file);
+});
+
+function fileTypeForExtension(ext) {
+  if (!SplatFileTypeEnum || !ext) return null;
+  const map = {
+    ply: SplatFileTypeEnum.PLY,
+    spz: SplatFileTypeEnum.SPZ,
+    splat: SplatFileTypeEnum.SPLAT,
+    ksplat: SplatFileTypeEnum.KSPLAT
+  };
+  return map[ext.toLowerCase()] || null;
+}
+
+function extensionFileType(filename) {
+  return fileTypeForExtension(filename.split(".").pop() || "");
+}
+
+function artifactExtension(artifact) {
+  if (!artifact) return null;
+  const dotIndex = artifact.lastIndexOf(".");
+  return dotIndex >= 0 ? artifact.slice(dotIndex + 1) : artifact;
+}
+
+function openDroppedSplat(file) {
+  const ext = (file.name.split(".").pop() || "").toLowerCase();
+  if (!["ply", "splat", "spz", "ksplat"].includes(ext)) {
+    toast("That file type is not a splat scene Orbit Studio recognizes", "warning");
+    return;
+  }
+  const objectUrl = URL.createObjectURL(file);
+  playerState.projectId = null;
+  playerState.projectName = file.name.replace(/\.[^.]+$/, "");
+  playerState.isDemo = false;
+  switchTab("player", { force: true });
+  loadSplatIntoScene(objectUrl, { fileType: extensionFileType(file.name), applyPipelineOrientation: false, isBlob: true });
+  playerState.keyframes = [];
+  renderKeyframeStrip();
+}
+
+function renderLibrary() {
+  renderViewerHero();
+  const grid = byId("libraryGrid");
+  if (!state.projectsLoaded && state.mode === "studio") {
+    grid.innerHTML = demoCardMarkup() + skeletonCardsMarkup(5);
+    wireDemoCard();
+    return;
+  }
+  const cards = [demoCardMarkup()].concat(state.projects.map(projectCardMarkup));
+  grid.innerHTML = cards.join("");
+  wireDemoCard();
+  state.projects.forEach((project) => wireProjectCard(project));
+}
+
+function skeletonCardsMarkup(count) {
+  let html = "";
+  for (let i = 0; i < count; i++) {
+    const ratio = aspectForId("skeleton-" + i);
+    html += '<div class="project-card"><div class="skeleton" style="aspect-ratio:' + (1 / ratio).toFixed(2) + '"></div><div class="card-body"><div class="skeleton" style="height:14px;width:70%;margin-bottom:8px"></div><div class="skeleton" style="height:12px;width:40%"></div></div></div>';
+  }
+  return html;
+}
+
+function demoCardMarkup() {
+  return (
+    '<div class="project-card" id="demoCard" tabindex="0" role="button" aria-label="Open demo scene">' +
+      '<div class="card-poster is-demo" style="aspect-ratio:1.1/1">' +
+        '<div class="card-monogram">' + svg("cube", 'style="width:56px;height:56px;color:rgba(255,255,255,.75)"') + "</div>" +
+      "</div>" +
+      '<div class="card-body">' +
+        '<h3 class="card-title">Demo Scene</h3>' +
+        '<div class="card-meta"><span class="card-time">Always ready</span><span class="status-chip status-ready"><span class="dot"></span>Ready</span></div>' +
+        '<div class="card-actions"><button class="btn btn-secondary card-open">Open<span>' + svg("open") + "</span></button></div>" +
+      "</div>" +
+    "</div>"
+  );
+}
+
+function wireDemoCard() {
+  const card = byId("demoCard");
+  if (!card) return;
+  card.addEventListener("click", openDemoScene);
+  card.addEventListener("keydown", (evt) => { if (evt.key === "Enter") openDemoScene(); });
+}
+
+function openDemoScene() {
+  playerState.projectId = "demo";
+  playerState.projectName = "Demo Scene";
+  playerState.isDemo = true;
+  rememberLastProject("demo");
+  switchTab("player", { force: true });
+}
+
+function statusChipMarkup(project) {
+  if (project.status === "ready") return '<span class="status-chip status-ready"><span class="dot"></span>Ready</span>';
+  if (project.status === "error") return '<span class="status-chip status-error"><span class="dot"></span>Error</span>';
+  if (project.status === "processing") return '<span class="status-chip status-processing"><span class="dot"></span>' + Math.round(project.pct || 0) + "%</span>";
+  return '<span class="status-chip status-new"><span class="dot"></span>New</span>';
+}
+
+function projectCardMarkup(project) {
+  const ratio = aspectForId(project.id);
+  const monogram = (project.name || "?").trim().charAt(0).toUpperCase();
+  const posterStyle = 'aspect-ratio:' + (1 / ratio).toFixed(2);
+  return (
+    '<div class="project-card" data-project-id="' + project.id + '">' +
+      '<div class="card-poster" style="' + posterStyle + ";background:" + gradientForId(project.id) + '">' +
+        '<img src="' + api.posterUrl(project.id) + '" alt="" loading="lazy" onerror="this.style.display=\'none\'">' +
+        '<div class="card-monogram">' + monogram + "</div>" +
+      "</div>" +
+      '<div class="card-body">' +
+        '<h3 class="card-title">' + escapeHtml(project.name || "Untitled scene") + "</h3>" +
+        '<div class="card-meta"><span class="card-time">' + formatRelativeTime(project.created) + "</span>" + statusChipMarkup(project) + "</div>" +
+        '<div class="card-actions">' +
+          '<button class="btn btn-secondary card-open" data-action="open">' + primaryActionLabel(project) + "<span>" + svg("open") + "</span></button>" +
+          '<button class="card-menu-btn" data-action="menu" aria-label="More actions">' + svg("more") + "</button>" +
+        "</div>" +
+        '<div class="card-menu" data-menu></div>' +
+      "</div>" +
+    "</div>"
+  );
+}
+
+function primaryActionLabel(project) {
+  if (project.status === "ready") return "Open";
+  if (project.status === "error") return "Retry";
+  if (project.status === "processing") return "View progress";
+  return "Resume";
+}
+
+function escapeHtml(str) {
+  const div = document.createElement("div");
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+function renderLibraryCard(project) {
+  const card = qs('.project-card[data-project-id="' + project.id + '"]');
+  if (!card) return;
+  const temp = document.createElement("div");
+  temp.innerHTML = projectCardMarkup(project);
+  card.replaceWith(temp.firstElementChild);
+  wireProjectCard(project);
+}
+
+function wireProjectCard(project) {
+  const card = qs('.project-card[data-project-id="' + project.id + '"]');
+  if (!card) return;
+  const openBtn = card.querySelector('[data-action="open"]');
+  openBtn.addEventListener("click", () => openProjectFromCard(project));
+  const menuBtn = card.querySelector('[data-action="menu"]');
+  const menuHost = card.querySelector("[data-menu]");
+  menuBtn.addEventListener("click", (evt) => {
+    evt.stopPropagation();
+    toggleCardMenu(project, menuBtn, menuHost);
+  });
+}
+
+let openCardMenuEl = null;
+
+function toggleCardMenu(project, anchorBtn, menuHost) {
+  if (openCardMenuEl) {
+    openCardMenuEl.remove();
+    const wasSame = openCardMenuEl.dataset.projectId === project.id;
+    openCardMenuEl = null;
+    if (wasSame) return;
+  }
+  const items = [];
+  if (project.status === "ready" || project.status === "error" || project.status === "processing") {
+    items.push({ label: "Download bundle", icon: "bundle", action: () => handleBundleDownload(project) });
+  }
+  items.push({ label: "Delete", icon: "trash", danger: true, action: () => handleDeleteProject(project) });
+  const menu = document.createElement("div");
+  menu.className = "card-menu";
+  menu.dataset.projectId = project.id;
+  menu.innerHTML = items.map((item, i) =>
+    '<button data-i="' + i + '"' + (item.danger ? ' class="danger"' : "") + ">" + svg(item.icon) + "<span>" + item.label + "</span></button>"
+  ).join("");
+  document.body.appendChild(menu);
+  const rect = anchorBtn.getBoundingClientRect();
+  menu.style.position = "fixed";
+  menu.style.top = (rect.bottom + 6) + "px";
+  menu.style.left = Math.min(rect.right - 176, window.innerWidth - 190) + "px";
+  requestAnimationFrame(() => menu.classList.add("is-open"));
+  items.forEach((item, i) => {
+    menu.querySelector('[data-i="' + i + '"]').addEventListener("click", (evt) => {
+      evt.stopPropagation();
+      closeCardMenu();
+      item.action();
+    });
+  });
+  openCardMenuEl = menu;
+  setTimeout(() => document.addEventListener("click", closeCardMenuOnce), 0);
+}
+
+function closeCardMenuOnce() {
+  closeCardMenu();
+  document.removeEventListener("click", closeCardMenuOnce);
+}
+
+function closeCardMenu() {
+  if (openCardMenuEl) {
+    openCardMenuEl.remove();
+    openCardMenuEl = null;
+  }
+}
+
+async function handleBundleDownload(project) {
+  try {
+    await downloadUrl(api.bundleUrl(project.id), "orbit_" + slugify(project.name) + "_bundle.zip");
+    toast("Bundle downloaded", "success");
+  } catch (downloadError) {
+    toast("No bundle available yet", "warning");
+  }
+}
+
+function handleDeleteProject(project) {
+  openConfirmSheet({
+    title: "Delete " + (project.name || "this scene") + "?",
+    message: "This removes the project and everything processed for it. This cannot be undone.",
+    confirmLabel: "Delete scene",
+    onConfirm: async () => {
+      try {
+        await api.deleteProject(project.id);
+        state.projects = state.projects.filter((p) => p.id !== project.id);
+        renderLibrary();
+        toast("Scene deleted", "success");
+      } catch (deleteError) {
+        toast("Could not delete that scene", "danger");
+      }
+    }
+  });
+}
+
+function openProjectFromCard(project) {
+  if (project.status === "ready") {
+    playerState.projectId = project.id;
+    playerState.projectName = project.name;
+    playerState.isDemo = false;
+    rememberLastProject(project.id);
+    switchTab("player", { force: true });
+    return;
+  }
+  enterCreateFlowForProject(project);
+}
+
+async function refreshProjects() {
+  if (state.mode !== "studio") return;
+  try {
+    const data = await api.listProjects();
+    state.projects = data.projects || [];
+    state.projectsLoaded = true;
+    if (state.currentTab === "library") renderLibrary();
+  } catch (refreshError) {}
+}
+
+function startProjectPolling() {
+  if (state.pollTimer) return;
+  refreshProjects();
+  state.pollTimer = setInterval(() => {
+    if (!document.hidden) refreshProjects();
+  }, 5000);
+}
+
+byId("libraryRefreshBtn").addEventListener("click", () => refreshProjects());
+
+function wizardSteps() {
+  return [
+    { n: 1, label: "Name and footage" },
+    { n: 2, label: "Frames" },
+    { n: 3, label: "Views" },
+    { n: 4, label: "Process" }
+  ];
+}
+
+function renderCreate() {
+  const host = byId("wizardShell");
+  if (state.mode !== "studio") {
+    host.innerHTML = '<div class="empty-state">' + svg("emptyLibrary", 'viewBox="0 0 100 80" style="width:96px;height:96px"') + "<p>Create needs the local Orbit Studio server. Connect it to build new scenes from your footage.</p></div>";
+    return;
+  }
+  const steps = wizardSteps();
+  const c = state.create;
+  const capsule = steps.map((s) =>
+    '<div class="step' + (s.n < c.step ? " is-filled" : s.n === c.step ? " is-current" : "") + '"></div>'
+  ).join("");
+  host.innerHTML = '<div class="progress-capsule">' + capsule + "</div>" + '<div id="wizardStepBody"></div>';
+  renderWizardStep();
+}
+
+function renderWizardStep() {
+  const body = byId("wizardStepBody");
+  const c = state.create;
+  if (c.step === 1) body.innerHTML = wizardStep1Markup();
+  else if (c.step === 2) body.innerHTML = wizardStep2Markup();
+  else if (c.step === 3) body.innerHTML = wizardStep3Markup();
+  else body.innerHTML = wizardStep4Markup();
+  wireWizardStep();
+}
+
+function wizardStep1Markup() {
+  const c = state.create;
+  return (
+    '<div class="wizard-step-label">Step 1 of 4</div>' +
+    '<h2 class="wizard-title">Name your scene</h2>' +
+    '<p class="wizard-subtitle">Export a 360 equirectangular file from the Insta360 app or free Insta360 Studio first. Need the exact steps? <a href="#" data-goto-guide>See the Guide</a>.</p>' +
+    '<label class="field-label" for="projectNameInput">Scene name</label>' +
+    '<input type="text" class="text-input" id="projectNameInput" placeholder="Backyard walkthrough" value="' + escapeHtml(c.name) + '" maxlength="60">' +
+    '<div class="dropzone" id="mediaDropzone" tabindex="0" role="button" aria-label="Choose equirectangular footage">' +
+      svg("film") +
+      "<p><strong>Drop your equirectangular file</strong> or click to browse<br>MP4 video or JPG panorama, 2:1 aspect</p>" +
+    "</div>" +
+    '<div id="mediaSummaryHost"></div>' +
+    wizardNavMarkup(false)
+  );
+}
+
+function wizardStep2Markup() {
+  const c = state.create;
+  const hint = c.targetFrames < 220 ? "Faster processing, lighter detail" : c.targetFrames < 420 ? "A solid balance of speed and detail" : "Best detail, longest processing time";
+  return (
+    '<div class="wizard-step-label">Step 2 of 4</div>' +
+    '<h2 class="wizard-title">How many frames</h2>' +
+    '<p class="wizard-subtitle">More frames capture finer detail but take longer to process into a scene.</p>' +
+    '<div class="slider-row">' +
+      '<label class="field-label">Target frames <span class="slider-value" id="framesValue">' + c.targetFrames + "</span></label>" +
+      '<input type="range" id="framesSlider" min="100" max="600" step="10" value="' + c.targetFrames + '">' +
+      '<div class="slider-hint" id="framesHint">' + hint + "</div>" +
+    "</div>" +
+    wizardNavMarkup(true)
+  );
+}
+
+function wizardStep3Markup() {
+  const c = state.create;
+  const dots = [8, 14, 18].includes(c.cropsPerFrame) ? c.cropsPerFrame : 14;
+  let diagram = "";
+  for (let i = 0; i < 18; i++) diagram += '<span class="' + (i < dots ? "lit" : "") + '"></span>';
+  return (
+    '<div class="wizard-step-label">Step 3 of 4</div>' +
+    '<h2 class="wizard-title">Views per frame</h2>' +
+    '<p class="wizard-subtitle">Orbit Studio reframes each 360 frame into ordinary camera views for training.</p>' +
+    '<label class="field-label">Crops per frame</label>' +
+    '<div class="segmented" id="cropsSeg" style="--seg-index:1">' +
+      '<div class="segmented-thumb"></div>' +
+      '<button data-value="8">8</button><button data-value="14" class="is-active">14</button><button data-value="18">18</button>' +
+    "</div>" +
+    '<div class="crop-diagram" id="cropDiagram">' + diagram + "</div>" +
+    '<label class="field-label">Crop size</label>' +
+    '<div class="segmented" id="sizeSeg" style="--seg-index:1">' +
+      '<div class="segmented-thumb"></div>' +
+      '<button data-value="1024">1024px</button><button data-value="1280" class="is-active">1280px</button>' +
+    "</div>" +
+    wizardNavMarkup(true)
+  );
+}
+
+function wizardStep4Markup() {
+  const c = state.create;
+  let html = '<div class="wizard-step-label">Step 4 of 4</div><h2 class="wizard-title">Process your scene</h2><p class="wizard-subtitle">Pick how Orbit Studio should turn your frames into a splat scene.</p>';
+  html +=
+    '<div class="option-card recommended">' +
+      '<span class="option-badge">Recommended, free</span>' +
+      '<div class="option-icon">' + svg("cloud", 'stroke="white"') + "</div>" +
+      "<h3>Cloud GPU</h3>" +
+      "<p>Runs frame extraction, view reframing, and bundling here, then trains your splat on a free Google Colab GPU.</p>" +
+      '<button class="btn btn-primary btn-block" id="startCloudBtn">Start cloud processing</button>' +
+    "</div>" +
+    '<div class="option-card experimental">' +
+      '<span class="option-badge">Experimental</span>' +
+      '<div class="option-icon">' + svg("cpu", 'stroke="white"') + "</div>" +
+      "<h3>Local overnight</h3>" +
+      "<p>Trains entirely on this machine using Brush. Slower on integrated graphics, but nothing leaves your computer.</p>" +
+      '<button class="btn btn-secondary btn-block" id="startLocalBtn">Start local training</button>' +
+    "</div>" +
+    '<div id="pipelineConsoleHost"></div>' +
+    '<div id="pipelineSuccessHost"></div>' +
+    wizardNavMarkup(true, true);
+  return html;
+}
+
+function wizardNavMarkup(showBack, hideNext) {
+  return (
+    '<div class="wizard-nav">' +
+      (showBack ? '<button class="btn btn-secondary" id="wizardBackBtn">Back</button>' : '<span></span>') +
+      (hideNext ? "" : '<button class="btn btn-primary" id="wizardNextBtn">Continue</button>') +
+    "</div>"
+  );
+}
+
+function wireWizardStep() {
+  const c = state.create;
+  const backBtn = byId("wizardBackBtn");
+  if (backBtn) backBtn.addEventListener("click", () => { c.step -= 1; renderCreate(); });
+  const goGuide = qs("[data-goto-guide]");
+  if (goGuide) goGuide.addEventListener("click", (evt) => { evt.preventDefault(); switchTab("guide"); });
+
+  if (c.step === 1) wireWizardStep1();
+  if (c.step === 2) wireWizardStep2();
+  if (c.step === 3) wireWizardStep3();
+  if (c.step === 4) wireWizardStep4();
+}
+
+function wireWizardStep1() {
+  const c = state.create;
+  const nameInput = byId("projectNameInput");
+  nameInput.addEventListener("input", () => { c.name = nameInput.value; refreshStep1NextState(); });
+  const dropzone = byId("mediaDropzone");
+  dropzone.addEventListener("click", () => byId("mediaFileInput").click());
+  dropzone.addEventListener("keydown", (evt) => { if (evt.key === "Enter") byId("mediaFileInput").click(); });
+  wireDropzone(dropzone, handleMediaFileChosen);
+  renderMediaSummary();
+  refreshStep1NextState();
+  const nextBtn = byId("wizardNextBtn");
+  nextBtn.addEventListener("click", handleStep1Continue);
+}
+
+byId("mediaFileInput").addEventListener("change", (evt) => {
+  const file = evt.target.files[0];
+  if (file) handleMediaFileChosen(file);
+  evt.target.value = "";
+});
+
+function handleMediaFileChosen(file) {
+  const isVideo = file.type.startsWith("video/") || /\.(mp4|mov)$/i.test(file.name);
+  const isImage = file.type.startsWith("image/") || /\.(jpg|jpeg)$/i.test(file.name);
+  if (!isVideo && !isImage) {
+    toast("Choose an MP4 video or a JPG panorama", "warning");
+    return;
+  }
+  const objectUrl = URL.createObjectURL(file);
+  const meta = { file, name: file.name, size: file.size, type: isVideo ? "video" : "image", width: 0, height: 0, duration: 0 };
+  if (isVideo) {
+    const videoEl = document.createElement("video");
+    videoEl.preload = "metadata";
+    videoEl.onloadedmetadata = () => {
+      meta.width = videoEl.videoWidth;
+      meta.height = videoEl.videoHeight;
+      meta.duration = videoEl.duration;
+      URL.revokeObjectURL(objectUrl);
+      finishMediaSelection(meta);
+    };
+    videoEl.src = objectUrl;
+  } else {
+    const imgEl = new Image();
+    imgEl.onload = () => {
+      meta.width = imgEl.naturalWidth;
+      meta.height = imgEl.naturalHeight;
+      URL.revokeObjectURL(objectUrl);
+      finishMediaSelection(meta);
+    };
+    imgEl.src = objectUrl;
+  }
+}
+
+function finishMediaSelection(meta) {
+  state.create.mediaFile = meta.file;
+  state.create.mediaMeta = meta;
+  if (!state.create.name) {
+    state.create.name = meta.name.replace(/\.[^.]+$/, "");
+    const nameInput = byId("projectNameInput");
+    if (nameInput) nameInput.value = state.create.name;
+  }
+  renderMediaSummary();
+  refreshStep1NextState();
+}
+
+function renderMediaSummary() {
+  const host = byId("mediaSummaryHost");
+  if (!host) return;
+  const meta = state.create.mediaMeta;
+  if (!meta) {
+    host.innerHTML = "";
+    return;
+  }
+  const ratio = meta.width && meta.height ? meta.width / meta.height : 0;
+  const isGoodRatio = Math.abs(ratio - 2) < 0.08;
+  const badges = [];
+  if (meta.width && meta.height) badges.push('<span class="mini-badge ' + (isGoodRatio ? "good" : "warn") + '">' + meta.width + "x" + meta.height + (isGoodRatio ? " 2:1 ok" : " check aspect") + "</span>");
+  if (meta.duration) badges.push('<span class="mini-badge">' + formatDuration(meta.duration) + "</span>");
+  badges.push('<span class="mini-badge">' + formatBytes(meta.size) + "</span>");
+  host.innerHTML =
+    '<div class="media-summary">' +
+      '<div class="media-summary-icon">' + svg(meta.type === "video" ? "film" : "camera") + "</div>" +
+      '<div class="media-summary-info">' +
+        '<div class="media-summary-name">' + escapeHtml(meta.name) + "</div>" +
+        '<div class="media-summary-badges">' + badges.join("") + "</div>" +
+      "</div>" +
+    "</div>";
+}
+
+function refreshStep1NextState() {
+  const nextBtn = byId("wizardNextBtn");
+  if (!nextBtn) return;
+  const c = state.create;
+  if (!c.name.trim()) setButtonDisabled(nextBtn, "Give this scene a name first");
+  else if (!c.mediaFile) setButtonDisabled(nextBtn, "Add your equirectangular footage to continue");
+  else setButtonDisabled(nextBtn, null);
+}
+
+async function handleStep1Continue() {
+  const nextBtn = byId("wizardNextBtn");
+  const c = state.create;
+  nextBtn.disabled = true;
+  nextBtn.innerHTML = '<span class="spinner"></span>';
+  try {
+    if (!c.projectId) {
+      const created = await api.createProject(c.name.trim());
+      c.projectId = created.id;
+    }
+    await uploadCurrentMedia(false);
+    c.step = 2;
+    renderCreate();
+  } catch (uploadError) {
+    if (uploadError.data && uploadError.data.error === "not_equirectangular") {
+      offerForceImport();
+    } else {
+      toast("Could not upload that footage. Try again.", "danger");
+      renderWizardStep();
+    }
+  }
+}
+
+async function uploadCurrentMedia(force) {
+  await api.uploadMedia(state.create.projectId, state.create.mediaFile, force);
+}
+
+function offerForceImport() {
+  const host = byId("mediaSummaryHost");
+  const warn = document.createElement("div");
+  warn.className = "media-summary";
+  warn.style.borderLeft = "3px solid var(--warning)";
+  warn.innerHTML =
+    '<div class="media-summary-icon" style="background:var(--warning-soft);color:var(--warning)">' + svg("warningTriangle") + "</div>" +
+    '<div class="media-summary-info"><div class="media-summary-name">This does not look equirectangular</div>' +
+    '<div class="slider-hint">Orbit Studio expects a 2:1 360 frame. You can continue anyway if you are sure.</div></div>';
+  host.appendChild(warn);
+  const forceBtn = document.createElement("button");
+  forceBtn.className = "btn btn-secondary btn-block";
+  forceBtn.style.marginTop = "12px";
+  forceBtn.textContent = "Continue anyway";
+  forceBtn.addEventListener("click", async () => {
+    try {
+      await uploadCurrentMedia(true);
+      state.create.step = 2;
+      renderCreate();
+    } catch (forceError) {
+      toast("That footage could not be imported", "danger");
+    }
+  });
+  host.appendChild(forceBtn);
+  refreshStep1NextState();
+  byId("wizardNextBtn").disabled = false;
+  byId("wizardNextBtn").textContent = "Continue";
+}
+
+function wireWizardStep2() {
+  const c = state.create;
+  const slider = byId("framesSlider");
+  const valueEl = byId("framesValue");
+  const hintEl = byId("framesHint");
+  slider.addEventListener("input", () => {
+    c.targetFrames = Number(slider.value);
+    valueEl.textContent = c.targetFrames;
+    hintEl.textContent = c.targetFrames < 220 ? "Faster processing, lighter detail" : c.targetFrames < 420 ? "A solid balance of speed and detail" : "Best detail, longest processing time";
+  });
+  byId("wizardNextBtn").addEventListener("click", () => { c.step = 3; renderCreate(); });
+}
+
+function wireWizardStep3() {
+  const c = state.create;
+  const cropsSeg = byId("cropsSeg");
+  initSegmented(cropsSeg, (value) => {
+    c.cropsPerFrame = Number(value);
+    const dotsLit = Number(value);
+    qsa("#cropDiagram span").forEach((dot, i) => dot.classList.toggle("lit", i < dotsLit));
+  });
+  setSegmentedValue(cropsSeg, c.cropsPerFrame);
+  const sizeSeg = byId("sizeSeg");
+  initSegmented(sizeSeg, (value) => { c.size = Number(value); });
+  setSegmentedValue(sizeSeg, c.size);
+  byId("wizardNextBtn").addEventListener("click", () => { c.step = 4; renderCreate(); });
+}
+
+function wireWizardStep4() {
+  const c = state.create;
+  const startCloudBtn = byId("startCloudBtn");
+  const startLocalBtn = byId("startLocalBtn");
+  const doctor = state.doctor;
+  const brushOk = doctor && doctor.brush && doctor.brush.ok;
+  if (!brushOk) setButtonDisabled(startLocalBtn, "Requires Brush installed locally. Check Settings, Doctor.");
+  if (c.running) {
+    setButtonDisabled(startCloudBtn, "A stage is already running for this scene");
+    setButtonDisabled(startLocalBtn, "A stage is already running for this scene");
+  }
+  startCloudBtn.addEventListener("click", () => runPipeline("cloud"));
+  startLocalBtn.addEventListener("click", () => runPipeline("local"));
+  if (c.consoleOpen) renderPipelineConsole();
+  if (c.resultReceived) renderPipelineSuccess();
+}
+
+function appendConsoleLine(data) {
+  const log = byId("consoleLog");
+  if (!log) return;
+  const line = document.createElement("div");
+  const cls = data.state === "error" ? "line-error" : data.state === "done" ? "line-done" : "";
+  line.className = cls;
+  line.textContent = "[" + data.stage + "] " + (data.line || data.state);
+  log.appendChild(line);
+  log.scrollTop = log.scrollHeight;
+  const pctEl = byId("consolePct");
+  const fillEl = byId("consoleFill");
+  const stageEl = byId("consoleStageLabel");
+  if (typeof data.pct === "number") {
+    pctEl.textContent = Math.round(data.pct) + "%";
+    fillEl.style.width = clamp(data.pct, 0, 100) + "%";
+  }
+  stageEl.textContent = data.stage;
+}
+
+function renderPipelineConsole() {
+  const host = byId("pipelineConsoleHost");
+  if (!host) return;
+  host.innerHTML =
+    '<div class="console-card">' +
+      '<div class="console-head"><span class="console-stage-label" id="consoleStageLabel">starting</span><button class="btn btn-ghost btn-sm" id="cancelRunBtn">Cancel</button></div>' +
+      '<div class="progress-track"><div class="progress-fill" id="consoleFill"></div></div>' +
+      '<div class="console-foot"><span class="console-pct" id="consolePct">0%</span></div>' +
+      '<div class="console-log" id="consoleLog"></div>' +
+      '<div id="cropsPreviewHost"></div>' +
+    "</div>";
+  byId("cancelRunBtn").addEventListener("click", handleCancelRun);
+}
+
+async function handleCancelRun() {
+  const c = state.create;
+  try {
+    await api.cancel(c.projectId);
+    toast("Processing cancelled", "warning");
+  } catch (cancelError) {
+    toast("Could not cancel right now", "danger");
+  } finally {
+    c.running = false;
+    c.consoleOpen = false;
+    renderWizardStep();
+  }
+}
+
+async function runPipeline(kind) {
+  const c = state.create;
+  if (c.running) return;
+  c.running = true;
+  c.pipelineKind = kind;
+  c.consoleOpen = true;
+  renderWizardStep();
+  const settings = { target_frames: c.targetFrames, crops_per_frame: c.cropsPerFrame, size: c.size };
+  const stages = kind === "cloud" ? ["frames", "reframe", "bundle"] : ["frames", "reframe", "local_train"];
+  let failed = false;
+  for (const stage of stages) {
+    try {
+      await api.run(c.projectId, stage, settings);
+    } catch (runError) {
+      const isBusy = runError.status === 409;
+      toast(isBusy ? "Another scene is already processing. Wait for it to finish first." : "Could not start " + stage, "danger");
+      failed = true;
+      break;
+    }
+    const result = await waitForStageSettled(c.projectId, stage);
+    if (stage === "reframe" && result.state === "done") loadCropsPreview();
+    if (result.state === "error") {
+      toast("Processing stopped during " + stage, "danger");
+      failed = true;
+      break;
+    }
+  }
+  c.running = false;
+  c.consoleOpen = false;
+  if (!failed) {
+    if (kind === "cloud") {
+      c.hasBundle = true;
+      try {
+        await downloadUrl(api.bundleUrl(c.projectId), "orbit_" + slugify(c.name) + "_bundle.zip");
+      } catch (bundleError) {}
+      c.resultReceived = false;
+      renderWizardStep();
+      renderPipelineSuccess();
+    } else {
+      toast("Local training complete", "success");
+      c.resultReceived = true;
+      finishToPlayerWithPoster();
+    }
+  } else {
+    renderWizardStep();
+  }
+  refreshProjects();
+}
+
+async function loadCropsPreview() {
+  try {
+    const data = await api.getCrops(state.create.projectId);
+    const host = byId("cropsPreviewHost");
+    if (!host || !data.images || !data.images.length) return;
+    host.innerHTML = '<div class="slider-hint" style="margin-top:12px">Sample views</div><div class="crops-strip">' + data.images.slice(0, 12).map((src) => '<img src="' + src + '" loading="lazy" alt="">').join("") + "</div>";
+  } catch (cropsError) {}
+}
+
+function renderPipelineSuccess() {
+  const host = byId("pipelineSuccessHost");
+  if (!host) return;
+  host.innerHTML =
+    '<div class="solid-card success-card">' +
+      '<div class="success-icon">' + svg("check") + "</div>" +
+      "<h3>Bundle ready</h3>" +
+      "<p>Your bundle downloaded automatically. Take it to the free Colab GPU to train your splat scene.</p>" +
+      '<a class="btn btn-primary btn-block" href="' + NOTEBOOK_URL + '" id="openNotebookBtn" target="_blank" rel="noopener">Open notebook</a>' +
+      '<div class="colab-steps">' +
+        '<div class="colab-step"><span class="colab-step-num">1</span><p>Open the notebook and upload orbit_' + slugify(state.create.name) + "_bundle.zip when prompted.</p></div>" +
+        '<div class="colab-step"><span class="colab-step-num">2</span><p>Run all cells. The free GPU trains your splat scene in the background.</p></div>' +
+        '<div class="colab-step"><span class="colab-step-num">3</span><p>Download the result file and bring it back here to import.</p></div>' +
+      "</div>" +
+      '<div class="dropzone" id="importResultZone" tabindex="0" role="button" aria-label="Import trained result">' +
+        svg("cloudArrowUp") +
+        "<p><strong>Drop your result</strong> or click to browse<br>.ply, .splat, or .spz</p>" +
+      "</div>" +
+    "</div>";
+  const zone = byId("importResultZone");
+  zone.addEventListener("click", () => byId("resultFileInput").click());
+  wireDropzone(zone, handleResultFileChosen);
+}
+
+byId("resultFileInput").addEventListener("change", (evt) => {
+  const file = evt.target.files[0];
+  if (file) handleResultFileChosen(file);
+  evt.target.value = "";
+});
+
+async function handleResultFileChosen(file) {
+  const ext = (file.name.split(".").pop() || "").toLowerCase();
+  if (!["ply", "splat", "spz"].includes(ext)) {
+    toast("Import a .ply, .splat, or .spz file", "warning");
+    return;
+  }
+  try {
+    await api.postResult(state.create.projectId, file);
+    toast("Result imported", "success");
+    state.create.resultReceived = true;
+    finishToPlayerWithPoster();
+    refreshProjects();
+  } catch (importError) {
+    toast("Could not import that result", "danger");
+  }
+}
+
+function finishToPlayerWithPoster() {
+  const c = state.create;
+  playerState.projectId = c.projectId;
+  playerState.projectName = c.name;
+  playerState.isDemo = false;
+  playerState.pendingPosterCapture = true;
+  rememberLastProject(c.projectId);
+  switchTab("player", { force: true });
+}
+
+function resetCreateFlow() {
+  state.create = {
+    projectId: null,
+    step: 1,
+    name: "",
+    mediaFile: null,
+    mediaMeta: null,
+    targetFrames: 300,
+    cropsPerFrame: 14,
+    size: 1280,
+    running: false,
+    activeStage: null,
+    pipelineKind: null,
+    consoleOpen: false,
+    hasBundle: false,
+    resultReceived: false
+  };
+}
+
+function enterCreateFlowForProject(project) {
+  resetCreateFlow();
+  const c = state.create;
+  c.projectId = project.id;
+  c.name = project.name || "";
+  if (project.settings) {
+    c.targetFrames = project.settings.target_frames || c.targetFrames;
+    c.cropsPerFrame = project.settings.crops_per_frame || c.cropsPerFrame;
+    c.size = project.settings.size || c.size;
+  }
+  if (!project.media) c.step = 1;
+  else if (project.status === "error") c.step = 4;
+  else if (project.status === "processing") c.step = 4;
+  else c.step = 2;
+  switchTab("create");
+  renderCreate();
+}
+
+byId("createTabBtn").addEventListener("click", () => {
+  if (state.currentTab !== "create") resetCreateFlow();
+});
+
+function guideMarkup() {
+  const checklist = [
+    "Walk slow and steady",
+    "Loop your path and close the loop",
+    "Keep the lens seam away from your subject",
+    "Extend the selfie stick fully overhead",
+    "Lock exposure before you start recording",
+    "Standard color, low sharpness, AdaptiveTone off",
+    "Clean both lenses before every shoot",
+    "Stay about one meter from surfaces",
+    "Capture key areas at two different heights",
+    "Keep each clip between one and three minutes"
+  ];
+  const faqs = [
+    { q: "Why cloud processing?", a: "Your Intel graphics renders splats beautifully, but training one needs an NVIDIA GPU. Colab hands you one for free, right in your browser." },
+    { q: "Is my footage private?", a: "Processing runs inside your own Colab session under your own Google account. Orbit Studio never sees or stores your footage." },
+    { q: "What formats are supported?", a: ".splat works today. .spz is fully supported. .ply is accepted too, so almost anything a trainer produces will load." }
+  ];
+  return (
+    '<div class="guide-grid two-col">' +
+      '<div class="glass-card guide-card">' +
+        "<h3>" + svg("check") + "Capture technique</h3>" +
+        '<ul class="checklist">' + checklist.map((item) => "<li>" + svg("check") + "<span>" + item + "</span></li>").join("") + "</ul>" +
+      "</div>" +
+      '<div class="glass-card guide-card">' +
+        "<h3>" + svg("film") + "Export steps</h3>" +
+        '<div class="export-block"><h4>Insta360 app</h4><p>Select your clip, tap Export, then choose 360 equirectangular MP4 at maximum resolution.</p></div>' +
+        '<div class="export-block"><h4>Insta360 Studio, desktop, free</h4><p>Import the .insv file, enable stitching optimization, then export H.264 or H.265 at maximum resolution and maximum bitrate.</p></div>' +
+      "</div>" +
+      '<div class="glass-card guide-card">' +
+        "<h3>" + svg("cloud") + "Cloud processing</h3>" +
+        "<p style=\"font-size:14px;color:var(--text-secondary);line-height:1.55\">Bundle your frames here, open the free Colab notebook for GPU training, download the finished scene, then import it back into Orbit Studio.</p>" +
+      "</div>" +
+      '<div class="glass-card guide-card">' +
+        "<h3>" + svg("info") + "Frequently asked</h3>" +
+        '<div id="faqHost">' + faqs.map((item, i) =>
+          '<div class="faq-item" data-faq="' + i + '">' +
+            '<button class="faq-question">' + item.q + svg("chevronDown") + "</button>" +
+            '<div class="faq-answer"><p>' + item.a + "</p></div>" +
+          "</div>"
+        ).join("") + "</div>" +
+      "</div>" +
+    "</div>"
+  );
+}
+
+function renderGuide() {
+  byId("guideBody").innerHTML = guideMarkup();
+  qsa(".faq-item").forEach((item) => {
+    const question = item.querySelector(".faq-question");
+    const answer = item.querySelector(".faq-answer");
+    question.addEventListener("click", () => {
+      const isOpen = item.classList.contains("is-open");
+      qsa(".faq-item").forEach((other) => {
+        other.classList.remove("is-open");
+        other.querySelector(".faq-answer").style.maxHeight = "";
+      });
+      if (!isOpen) {
+        item.classList.add("is-open");
+        answer.style.maxHeight = answer.scrollHeight + "px";
+      }
+    });
+  });
+}
+
+function doctorDotClass(ok) {
+  if (ok === true) return "ok";
+  if (ok === false) return "bad";
+  return "warn";
+}
+
+function settingsMarkup() {
+  let html = "";
+  if (state.mode === "studio" && state.doctor) {
+    const d = state.doctor;
+    html +=
+      '<div class="settings-section"><div class="settings-section-title">System check</div><div class="solid-card" style="padding:4px 16px">' +
+        doctorRow("Python", d.python && d.python.ok, d.python && d.python.version) +
+        doctorRow("ffmpeg", d.ffmpeg && d.ffmpeg.ok, d.ffmpeg && d.ffmpeg.version) +
+        doctorRow("Brush", d.brush && d.brush.ok, d.brush && d.brush.ok ? "Installed" : "Not found") +
+        doctorRow("GPU", true, (d.gpu && d.gpu.name) || "Unknown") +
+        doctorRow("Disk free", d.disk_free_gb > 5 ? true : d.disk_free_gb > 1 ? null : false, (d.disk_free_gb != null ? d.disk_free_gb.toFixed(1) : "?") + " GB") +
+      "</div>" +
+      '<button class="btn btn-secondary btn-block" id="doctorRefreshBtn" style="margin-top:12px">' + svg("refresh") + "<span>Refresh check</span></button></div>";
+  } else if (state.mode !== "studio") {
+    html +=
+      '<div class="settings-section"><div class="settings-section-title">System check</div><div class="solid-card" style="padding:16px;display:flex;gap:12px;align-items:center">' +
+      '<div style="color:var(--warning)">' + svg("warningTriangle") + "</div>" +
+      '<p style="font-size:13.5px;color:var(--text-secondary);margin:0">Connect the local Orbit Studio server to see system status and unlock processing.</p></div></div>';
+  }
+  html +=
+    '<div class="settings-section"><div class="settings-section-title">Appearance</div>' +
+    '<div class="segmented theme-seg" id="themeSeg" style="--seg-index:0">' +
+      '<div class="segmented-thumb"></div>' +
+      '<button data-value="light">Light</button><button data-value="auto">Auto</button><button data-value="dark">Dark</button>' +
+    "</div></div>";
+  html +=
+    '<div class="settings-section about-block"><div class="settings-section-title">About</div>' +
+    "<p><strong>Orbit Studio 1.0</strong><br>Made for the Insta360 X4 Air workflow, from equirectangular footage to a flyable 3D scene.</p>" +
+    '<div class="credit-pills"><span>Spark</span><span>three.js</span><span>COLMAP</span><span>gsplat</span><span>Brush</span><span>ffmpeg</span></div></div>';
+  return html;
+}
+
+function doctorRow(label, ok, value) {
+  return (
+    '<div class="doctor-row"><span class="doctor-dot ' + doctorDotClass(ok) + '"></span>' +
+    '<span class="doctor-label">' + label + "</span>" +
+    '<span class="doctor-value">' + (value || "") + "</span></div>"
+  );
+}
+
+function renderSettingsSheet() {
+  byId("settingsBody").innerHTML = settingsMarkup();
+  const themeSeg = byId("themeSeg");
+  initSegmented(themeSeg, (value) => applyTheme(value));
+  setSegmentedValue(themeSeg, state.theme);
+  const refreshBtn = byId("doctorRefreshBtn");
+  if (refreshBtn) refreshBtn.addEventListener("click", async () => {
+    refreshBtn.querySelector("span").textContent = "Checking";
+    try {
+      state.doctor = await api.doctor();
+    } catch (doctorError) {}
+    renderSettingsSheet();
+  });
+}
+
+byId("settingsBtn").addEventListener("click", () => {
+  renderSettingsSheet();
+  openSheet(byId("settingsSheet"));
+});
+
+function loadSplatIntoScene(url, options) {
+  if (!SplatMeshClass || !runtime.renderer) {
+    toast("The 3D renderer did not finish loading. Reload the page and try again.", "danger");
+    return;
+  }
+  const opts = options || {};
+  const stage = byId("splatCountChip").querySelector("span");
+  if (runtime.splatMesh) {
+    runtime.scene.remove(runtime.splatMesh);
+    runtime.splatMesh.dispose();
+    runtime.splatMesh = null;
+  }
+  const constructorOptions = { url };
+  if (opts.fileType) constructorOptions.fileType = opts.fileType;
+  constructorOptions.onLoad = (mesh) => {
+    fitCameraToSplat(mesh);
+    stage.textContent = formatCount(mesh.numSplats);
+    if (playerState.pendingPosterCapture) {
+      requestAnimationFrame(() => requestAnimationFrame(capturePosterFrame));
+    }
+  };
+  const mesh = new SplatMeshClass(constructorOptions);
+  if (opts.applyPipelineOrientation) mesh.quaternion.set(1, 0, 0, 0);
+  mesh.initialized.catch(() => {
+    toast("Could not load that scene. Try a different file.", "danger");
+  });
+  runtime.scene.add(mesh);
+  runtime.splatMesh = mesh;
+}
+
+function fitCameraToSplat(mesh) {
+  try {
+    const box = mesh.getBoundingBox(true);
+    const center = new THREE.Vector3();
+    box.getCenter(center);
+    const size = new THREE.Vector3();
+    box.getSize(size);
+    const radius = Math.max(size.length() * 0.5, 1);
+    if (!playerState.keyframes.length) {
+      runtime.camera.position.set(center.x + radius * 1.1, center.y + radius * 0.6, center.z + radius * 1.1);
+      if (runtime.controls) {
+        runtime.controls.target.copy(center);
+        runtime.controls.update();
+      }
+    }
+  } catch (fitError) {}
+}
+
+function forwardTargetFromCamera(distance) {
+  const dir = new THREE.Vector3();
+  runtime.camera.getWorldDirection(dir);
+  return runtime.camera.position.clone().add(dir.multiplyScalar(distance || 5));
+}
+
+function markUserInteracted() {
+  if (playerState.userInteracted) return;
+  playerState.userInteracted = true;
+  if (runtime.controls) runtime.controls.autoRotate = false;
+}
+
+function initThreeScene() {
+  const canvas = document.createElement("canvas");
+  byId("playerStage").appendChild(canvas);
+  runtime.renderer = new THREE.WebGLRenderer({ canvas, antialias: false, preserveDrawingBuffer: true });
+  runtime.renderer.setClearColor(0x0b0b0e, 1);
+  runtime.scene = new THREE.Scene();
+  runtime.camera = new THREE.PerspectiveCamera(60, 1, 0.02, 2000);
+  runtime.camera.position.set(3, 1.4, 3);
+  const spark = new SparkRendererClass({ renderer: runtime.renderer });
+  runtime.scene.add(spark);
+  runtime.controls = new OrbitControlsClass(runtime.camera, canvas);
+  runtime.controls.enableDamping = true;
+  runtime.controls.dampingFactor = 0.07;
+  runtime.controls.autoRotateSpeed = 0.5;
+  runtime.clock = new THREE.Clock();
+
+  canvas.addEventListener("pointerdown", (evt) => {
+    markUserInteracted();
+    if (playerState.mode !== "fly") return;
+    runtime.flyDragging = true;
+    runtime.flyLastX = evt.clientX;
+    runtime.flyLastY = evt.clientY;
+    canvas.setPointerCapture(evt.pointerId);
+  });
+  canvas.addEventListener("pointermove", (evt) => {
+    if (playerState.mode !== "fly" || !runtime.flyDragging) return;
+    const dx = evt.clientX - runtime.flyLastX;
+    const dy = evt.clientY - runtime.flyLastY;
+    runtime.flyLastX = evt.clientX;
+    runtime.flyLastY = evt.clientY;
+    const euler = new THREE.Euler().setFromQuaternion(runtime.camera.quaternion, "YXZ");
+    euler.y -= dx * 0.0028;
+    euler.x = clamp(euler.x - dy * 0.0028, -Math.PI / 2 + 0.02, Math.PI / 2 - 0.02);
+    runtime.camera.quaternion.setFromEuler(euler);
+  });
+  canvas.addEventListener("pointerup", (evt) => { runtime.flyDragging = false; });
+  canvas.addEventListener("wheel", markUserInteracted, { passive: true });
+
+  runtime.resizeObserver = new ResizeObserver(() => resizeRendererToContainer());
+  runtime.resizeObserver.observe(byId("playerStage"));
+  resizeRendererToContainer();
+  runtime.renderer.setAnimationLoop(mainLoop);
+}
+
+function resizeRendererToContainer() {
+  const rect = byId("playerStage").getBoundingClientRect();
+  const width = Math.max(1, Math.round(rect.width));
+  const height = Math.max(1, Math.round(rect.height));
+  const pixelRatio = Math.min(window.devicePixelRatio || 1, 2) * playerState.quality;
+  runtime.renderer.setPixelRatio(pixelRatio);
+  runtime.renderer.setSize(width, height, true);
+  runtime.camera.aspect = width / height;
+  runtime.camera.updateProjectionMatrix();
+}
+
+function updateFpsMeter(delta) {
+  if (delta <= 0) return;
+  runtime.fpsSamples.push(1 / delta);
+  if (runtime.fpsSamples.length > 30) runtime.fpsSamples.shift();
+  if (runtime.fpsSamples.length % 6 === 0) {
+    const avg = runtime.fpsSamples.reduce((a, b) => a + b, 0) / runtime.fpsSamples.length;
+    byId("fpsChip").querySelector("span").textContent = Math.round(avg) + " fps";
+  }
+}
+
+function updateFlyMovement(delta) {
+  const speed = playerState.flySpeed * delta;
+  const forwardVec = new THREE.Vector3();
+  runtime.camera.getWorldDirection(forwardVec);
+  const rightVec = new THREE.Vector3().crossVectors(forwardVec, runtime.camera.up).normalize();
+  const move = new THREE.Vector3();
+  if (runtime.keysDown.has("KeyW")) move.add(forwardVec);
+  if (runtime.keysDown.has("KeyS")) move.sub(forwardVec);
+  if (runtime.keysDown.has("KeyD")) move.add(rightVec);
+  if (runtime.keysDown.has("KeyA")) move.sub(rightVec);
+  if (runtime.keysDown.has("KeyE")) move.y += 1;
+  if (runtime.keysDown.has("KeyQ")) move.y -= 1;
+  if (move.lengthSq() > 0) {
+    move.normalize().multiplyScalar(speed);
+    runtime.camera.position.add(move);
+  }
+}
+
+function buildPathData() {
+  const keyframes = playerState.keyframes;
+  if (keyframes.length < 2) {
+    runtime.pathData = null;
+    return;
+  }
+  const positions = keyframes.map((k) => new THREE.Vector3(k.pos[0], k.pos[1], k.pos[2]));
+  const quaternions = keyframes.map((k) => {
+    const eye = new THREE.Vector3(k.pos[0], k.pos[1], k.pos[2]);
+    const target = new THREE.Vector3(k.target[0], k.target[1], k.target[2]);
+    const matrix = new THREE.Matrix4().lookAt(eye, target, new THREE.Vector3(0, 1, 0));
+    return new THREE.Quaternion().setFromRotationMatrix(matrix);
+  });
+  const positionCurve = new THREE.CatmullRomCurve3(positions, playerState.loop, "centripetal", 0.5);
+  runtime.pathData = { positionCurve, quaternions, segments: playerState.loop ? keyframes.length : keyframes.length - 1 };
+}
+
+function sampleCameraPath(t) {
+  const pathData = runtime.pathData;
+  const clampedT = clamp(t, 0, 1);
+  const position = pathData.positionCurve.getPointAt(clampedT);
+  const scaled = clampedT * pathData.segments;
+  let segmentIndex = Math.floor(scaled);
+  if (segmentIndex >= pathData.segments) segmentIndex = pathData.segments - 1;
+  const localT = scaled - segmentIndex;
+  const qa = pathData.quaternions[segmentIndex % pathData.quaternions.length];
+  const qb = pathData.quaternions[(segmentIndex + 1) % pathData.quaternions.length];
+  const orientation = qa.clone().slerp(qb, localT);
+  return { position, orientation };
+}
+
+function applyPathSample(t) {
+  const sample = sampleCameraPath(t);
+  runtime.camera.position.copy(sample.position);
+  runtime.camera.quaternion.copy(sample.orientation);
+}
+
+function mainLoop() {
+  const delta = runtime.clock.getDelta();
+  updateFpsMeter(delta);
+  if (playerState.isPlaying && runtime.pathData) {
+    const elapsed = (performance.now() - runtime.previewStartMs) / 1000;
+    let t = playerState.duration > 0 ? elapsed / playerState.duration : 1;
+    if (t >= 1) {
+      if (playerState.loop) {
+        runtime.previewStartMs = performance.now();
+        t = 0;
+      } else {
+        applyPathSample(1);
+        stopPreview();
+        runtime.renderer.render(runtime.scene, runtime.camera);
+        return;
+      }
+    }
+    applyPathSample(t);
+  } else if (playerState.mode === "fly") {
+    updateFlyMovement(delta);
+  } else if (runtime.controls) {
+    runtime.controls.update();
+  }
+  runtime.renderer.render(runtime.scene, runtime.camera);
+}
+
+function startPreview() {
+  if (!runtime.pathData) {
+    toast("Add at least two keyframes to preview a path", "warning");
+    return;
+  }
+  playerState.isPlaying = true;
+  runtime.previewStartMs = performance.now();
+  if (runtime.controls) runtime.controls.enabled = false;
+  setPlayPauseIcon(true);
+}
+
+function stopPreview() {
+  playerState.isPlaying = false;
+  setPlayPauseIcon(false);
+  if (playerState.mode === "orbit" && runtime.controls) {
+    runtime.controls.enabled = true;
+    runtime.controls.target.copy(forwardTargetFromCamera(5));
+  }
+}
+
+function setPlayPauseIcon(isPlaying) {
+  byId("playPauseBtn").innerHTML = isPlaying ? svg("pause", 'stroke="none"').replace('class="icon"', 'class="icon filled"') : svg("play", 'stroke="none"').replace('class="icon"', 'class="icon filled"');
+}
+
+function togglePreview() {
+  if (playerState.isPlaying) stopPreview();
+  else startPreview();
+}
+
+function pickSupportedMime() {
+  const candidates = ["video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"];
+  for (const candidate of candidates) {
+    if (window.MediaRecorder && MediaRecorder.isTypeSupported(candidate)) return candidate;
+  }
+  return "";
+}
+
+function startRecording() {
+  if (playerState.keyframes.length < 2) {
+    toast("Add at least two keyframes to record a flythrough", "warning");
+    return;
+  }
+  if (playerState.isRecording) return;
+  buildPathData();
+  const canvas = qs("#playerStage canvas");
+  const stream = canvas.captureStream(0);
+  const track = stream.getVideoTracks()[0];
+  const mimeType = pickSupportedMime();
+  let recorder;
+  try {
+    recorder = new MediaRecorder(stream, mimeType ? { mimeType, videoBitsPerSecond: 8000000 } : { videoBitsPerSecond: 8000000 });
+  } catch (recorderError) {
+    toast("This browser cannot record video", "danger");
+    return;
+  }
+  const chunks = [];
+  recorder.ondataavailable = (evt) => { if (evt.data && evt.data.size) chunks.push(evt.data); };
+  recorder.onstop = () => {
+    const blob = new Blob(chunks, { type: (mimeType || "video/webm").split(";")[0] });
+    downloadBlob(blob, "orbit_" + slugify(playerState.projectName) + "_" + dateStamp() + ".webm");
+    toast("Flythrough saved", "success");
+    playerState.pendingPosterCapture = true;
+    requestAnimationFrame(() => requestAnimationFrame(capturePosterFrame));
+  };
+  playerState.isRecording = true;
+  byId("recPill").classList.add("is-active");
+  byId("recordBtn").classList.add("record-on");
+  if (runtime.controls) runtime.controls.enabled = false;
+  runtime.renderer.setAnimationLoop(null);
+  recorder.start();
+  const totalFrames = Math.max(2, Math.round(playerState.duration * 30));
+  let frameIndex = 0;
+  const recordStep = () => {
+    if (!playerState.isRecording) return;
+    const t = totalFrames <= 1 ? 0 : frameIndex / (totalFrames - 1);
+    applyPathSample(t);
+    runtime.renderer.render(runtime.scene, runtime.camera);
+    track.requestFrame();
+    frameIndex += 1;
+    byId("recElapsed").textContent = formatDuration(frameIndex / 30);
+    if (frameIndex < totalFrames) {
+      requestAnimationFrame(recordStep);
+    } else {
+      finishRecording(recorder);
+    }
+  };
+  requestAnimationFrame(recordStep);
+}
+
+function finishRecording(recorder) {
+  playerState.isRecording = false;
+  byId("recPill").classList.remove("is-active");
+  byId("recordBtn").classList.remove("record-on");
+  recorder.stop();
+  runtime.renderer.setAnimationLoop(mainLoop);
+  if (playerState.mode === "orbit" && runtime.controls) runtime.controls.enabled = true;
+}
+
+function toggleRecording() {
+  if (playerState.isRecording) return;
+  startRecording();
+}
+
+function takeScreenshot() {
+  const canvas = qs("#playerStage canvas");
+  runtime.renderer.render(runtime.scene, runtime.camera);
+  canvas.toBlob((blob) => {
+    if (!blob) return;
+    downloadBlob(blob, "orbit_" + slugify(playerState.projectName) + "_" + dateStamp() + ".png");
+    toast("Screenshot saved", "success");
+  }, "image/png");
+}
+
+function capturePosterFrame() {
+  if (!playerState.pendingPosterCapture) return;
+  playerState.pendingPosterCapture = false;
+  if (playerState.isDemo || !playerState.projectId) return;
+  const canvas = qs("#playerStage canvas");
+  try {
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.8);
+    api.postPoster(playerState.projectId, dataUrl).then(() => {
+      toast("Poster saved", "success");
+      refreshProjects();
+    }).catch(() => {});
+  } catch (posterError) {}
+}
+
+function renderKeyframeStrip() {
+  const strip = byId("keyframeStrip");
+  const emptyHint = byId("keyframeEmptyHint");
+  strip.innerHTML = playerState.keyframes.map((kf, i) =>
+    '<div class="kf-chip' + (playerState.selectedIndex === i ? " is-selected" : "") + '" draggable="true" data-index="' + i + '">' +
+      "<span>" + (i + 1) + "</span>" +
+      '<button class="kf-chip-remove" data-remove="' + i + '" aria-label="Remove keyframe ' + (i + 1) + '">' + svg("close") + "</button>" +
+    "</div>"
+  ).join("") + '<button class="kf-add-chip" id="kfAddBtn" aria-label="Add keyframe">' + svg("flag", 'stroke="white"') + "</button>";
+  emptyHint.style.display = playerState.keyframes.length ? "none" : "block";
+  wireKeyframeStrip();
+  byId("recordBtn").disabled = playerState.keyframes.length < 2;
+  byId("playPauseBtn").disabled = playerState.keyframes.length < 2;
+  if (playerState.keyframes.length < 2) {
+    byId("recordBtn").title = "Add at least two keyframes to record";
+    byId("playPauseBtn").title = "Add at least two keyframes to preview";
+  } else {
+    byId("recordBtn").removeAttribute("title");
+    byId("playPauseBtn").removeAttribute("title");
+  }
+  buildPathData();
+}
+
+function wireKeyframeStrip() {
+  byId("kfAddBtn").addEventListener("click", addKeyframeFromCamera);
+  qsa(".kf-chip", byId("keyframeStrip")).forEach((chip) => {
+    const index = Number(chip.dataset.index);
+    chip.addEventListener("click", (evt) => {
+      if (evt.target.closest("[data-remove]")) return;
+      flyToKeyframe(index);
+    });
+    chip.addEventListener("dragstart", (evt) => {
+      runtime.dragIndex = index;
+      chip.classList.add("is-dragging");
+      evt.dataTransfer.effectAllowed = "move";
+    });
+    chip.addEventListener("dragend", () => chip.classList.remove("is-dragging"));
+    chip.addEventListener("dragover", (evt) => evt.preventDefault());
+    chip.addEventListener("drop", (evt) => {
+      evt.preventDefault();
+      reorderKeyframes(runtime.dragIndex, index);
+    });
+    chip.querySelector("[data-remove]").addEventListener("click", (evt) => {
+      evt.stopPropagation();
+      removeKeyframe(index);
+    });
+    let pressTimer = null;
+    chip.addEventListener("pointerdown", () => {
+      pressTimer = setTimeout(() => removeKeyframe(index), 700);
+    });
+    ["pointerup", "pointerleave"].forEach((evtName) => chip.addEventListener(evtName, () => clearTimeout(pressTimer)));
+  });
+}
+
+function addKeyframeFromCamera() {
+  const pos = runtime.camera.position;
+  const target = playerState.mode === "orbit" && runtime.controls ? runtime.controls.target : forwardTargetFromCamera(5);
+  playerState.keyframes.push({ pos: [pos.x, pos.y, pos.z], target: [target.x, target.y, target.z] });
+  playerState.selectedIndex = playerState.keyframes.length - 1;
+  renderKeyframeStrip();
+  scheduleKeyframeSave();
+  toast("Keyframe added", "success", 1800);
+}
+
+function removeKeyframe(index) {
+  playerState.keyframes.splice(index, 1);
+  playerState.selectedIndex = -1;
+  renderKeyframeStrip();
+  scheduleKeyframeSave();
+}
+
+function reorderKeyframes(fromIndex, toIndex) {
+  if (fromIndex === toIndex || fromIndex == null || toIndex == null) return;
+  const items = playerState.keyframes;
+  const [moved] = items.splice(fromIndex, 1);
+  items.splice(toIndex, 0, moved);
+  renderKeyframeStrip();
+  scheduleKeyframeSave();
+}
+
+function flyToKeyframe(index) {
+  const keyframe = playerState.keyframes[index];
+  if (!keyframe) return;
+  playerState.selectedIndex = index;
+  renderKeyframeStrip();
+  if (playerState.mode === "orbit" && runtime.controls) runtime.controls.enabled = false;
+  const startPos = runtime.camera.position.clone();
+  const startQuat = runtime.camera.quaternion.clone();
+  const endPos = new THREE.Vector3(keyframe.pos[0], keyframe.pos[1], keyframe.pos[2]);
+  const endTarget = new THREE.Vector3(keyframe.target[0], keyframe.target[1], keyframe.target[2]);
+  const endMatrix = new THREE.Matrix4().lookAt(endPos, endTarget, new THREE.Vector3(0, 1, 0));
+  const endQuat = new THREE.Quaternion().setFromRotationMatrix(endMatrix);
+  const startTime = performance.now();
+  const flyDuration = 800;
+  function step(now) {
+    const t = clamp((now - startTime) / flyDuration, 0, 1);
+    const eased = easeOutCubic(t);
+    runtime.camera.position.lerpVectors(startPos, endPos, eased);
+    const q = startQuat.clone().slerp(endQuat, eased);
+    runtime.camera.quaternion.copy(q);
+    if (t < 1) {
+      requestAnimationFrame(step);
+    } else if (playerState.mode === "orbit" && runtime.controls) {
+      runtime.controls.enabled = true;
+      runtime.controls.target.copy(endTarget);
+    }
+  }
+  requestAnimationFrame(step);
+}
+
+const scheduleKeyframeSave = debounce(() => {
+  if (playerState.isDemo || !playerState.projectId) return;
+  api.postKeyframes(playerState.projectId, playerState.keyframes).catch(() => {});
+}, 600);
+
+function setFlyModeUI(isFly) {
+  byId("flySpeedRow").classList.toggle("is-visible", isFly);
+  if (runtime.controls) runtime.controls.enabled = !isFly && !playerState.isPlaying;
+}
+
+function initPlayerControls() {
+  const modeSeg = byId("modeSeg");
+  initSegmented(modeSeg, (value) => {
+    playerState.mode = value;
+    setFlyModeUI(value === "fly");
+  });
+
+  byId("qualityToggle").addEventListener("click", (evt) => {
+    const btn = evt.target.closest("button");
+    if (!btn) return;
+    playerState.quality = Number(btn.dataset.quality);
+    qsa("#qualityToggle button").forEach((b) => b.classList.toggle("is-active", b === btn));
+    resizeRendererToContainer();
+  });
+
+  byId("playPauseBtn").addEventListener("click", togglePreview);
+  byId("loopBtn").addEventListener("click", () => {
+    playerState.loop = !playerState.loop;
+    byId("loopBtn").setAttribute("aria-pressed", String(playerState.loop));
+    byId("loopBtn").style.opacity = playerState.loop ? "1" : ".5";
+    buildPathData();
+  });
+  byId("recordBtn").addEventListener("click", toggleRecording);
+  byId("screenshotBtn").addEventListener("click", takeScreenshot);
+
+  byId("durationMinus").addEventListener("click", () => setDuration(playerState.duration - 1));
+  byId("durationPlus").addEventListener("click", () => setDuration(playerState.duration + 1));
+  byId("flySpeedSlider").addEventListener("input", (evt) => { playerState.flySpeed = Number(evt.target.value); });
+
+  byId("playerBackBtn").addEventListener("click", () => switchTab("library"));
+  byId("hintDismissBtn").addEventListener("click", dismissPlayerHint);
+
+  window.addEventListener("keydown", (evt) => {
+    if (state.currentTab !== "player") return;
+    const tag = (evt.target.tagName || "").toLowerCase();
+    if (tag === "input" || tag === "textarea") return;
+    if (evt.code === "KeyW" || evt.code === "KeyA" || evt.code === "KeyS" || evt.code === "KeyD" || evt.code === "KeyQ" || evt.code === "KeyE") {
+      runtime.keysDown.add(evt.code);
+    }
+    if (evt.key === "k" || evt.key === "K") addKeyframeFromCamera();
+    if (evt.code === "Space") { evt.preventDefault(); togglePreview(); }
+    if (evt.key === "r" || evt.key === "R") toggleRecording();
+    if (evt.key === "f" || evt.key === "F") {
+      const nextMode = playerState.mode === "orbit" ? "fly" : "orbit";
+      setSegmentedValue(byId("modeSeg"), nextMode);
+      playerState.mode = nextMode;
+      setFlyModeUI(nextMode === "fly");
+    }
+  });
+  window.addEventListener("keyup", (evt) => runtime.keysDown.delete(evt.code));
+}
+
+function setDuration(value) {
+  playerState.duration = clamp(value, 5, 60);
+  byId("durationValue").textContent = playerState.duration + "s";
+}
+
+function dismissPlayerHint() {
+  playerState.hintDismissed = true;
+  byId("playerHint").classList.remove("is-visible");
+}
+
+async function onEnterPlayer(explicitProjectId) {
+  if (!runtime.renderer) initPlayerControls();
+  if (!runtime.renderer && THREE) initThreeScene();
+  else if (runtime.renderer) runtime.renderer.setAnimationLoop(mainLoop);
+  resizeRendererToContainer();
+
+  let targetId = explicitProjectId || playerState.projectId;
+  if (!targetId) {
+    const last = getLastProject();
+    targetId = last || "demo";
+  }
+
+  if (targetId === "demo") {
+    playerState.projectId = "demo";
+    playerState.projectName = "Demo Scene";
+    playerState.isDemo = true;
+  } else {
+    playerState.projectId = targetId;
+    playerState.isDemo = false;
+    const project = state.projects.find((p) => p.id === targetId);
+    if (project) playerState.projectName = project.name;
+  }
+
+  byId("playerTitle").textContent = playerState.projectName || "Scene";
+  setDuration(playerState.duration);
+  qsa("#qualityToggle button").forEach((b) => b.classList.toggle("is-active", Number(b.dataset.quality) === playerState.quality));
+  setSegmentedValue(byId("modeSeg"), "orbit");
+  playerState.mode = "orbit";
+  setFlyModeUI(false);
+  playerState.userInteracted = false;
+  playerState.selectedIndex = -1;
+
+  if (playerState.isDemo) {
+    loadSplatIntoScene(DEMO_ARTIFACT_URL, { applyPipelineOrientation: false, fileType: SplatFileTypeEnum ? SplatFileTypeEnum.SPLAT : null });
+    playerState.keyframes = DEMO_KEYFRAMES.map((kf) => ({ pos: kf.pos.slice(), target: kf.target.slice() }));
+    if (runtime.controls) runtime.controls.autoRotate = true;
+    renderKeyframeStrip();
+  } else {
+    const project = state.projects.find((p) => p.id === targetId);
+    if (project && project.artifact) {
+      const ext = artifactExtension(project.artifact);
+      loadSplatIntoScene(api.artifactUrl(targetId, ext), { applyPipelineOrientation: true, fileType: fileTypeForExtension(ext) });
+    }
+    if (runtime.controls) runtime.controls.autoRotate = false;
+    playerState.keyframes = [];
+    renderKeyframeStrip();
+    if (state.mode === "studio") {
+      try {
+        const data = await api.getKeyframes(targetId);
+        playerState.keyframes = (data.keyframes || []).map((kf) => ({ pos: kf.pos.slice(), target: kf.target.slice() }));
+        renderKeyframeStrip();
+      } catch (keyframesError) {}
+    }
+  }
+
+  if (!playerState.hintDismissed) {
+    byId("playerHint").classList.add("is-visible");
+  }
+}
+
+function onLeavePlayer() {
+  if (runtime.renderer) runtime.renderer.setAnimationLoop(null);
+  if (playerState.isPlaying) stopPreview();
+  runtime.keysDown.clear();
+}
+
+function initTabBarForMode() {
+  byId("createTabBtn").hidden = state.mode !== "studio";
+}
+
+async function loadThreeAndSpark() {
+  const [threeModule, orbitModule, sparkModule] = await Promise.all([
+    import("three"),
+    import("three/addons/controls/OrbitControls.js"),
+    import("@sparkjsdev/spark")
+  ]);
+  THREE = threeModule;
+  OrbitControlsClass = orbitModule.OrbitControls;
+  SparkRendererClass = sparkModule.SparkRenderer;
+  SplatMeshClass = sparkModule.SplatMesh;
+  SplatFileTypeEnum = sparkModule.SplatFileType;
+}
+
+async function checkHealth() {
+  try {
+    await api.health();
+    return true;
+  } catch (healthError) {
+    return false;
+  }
+}
+
+async function bootstrap() {
+  if (location.protocol === "file:") {
+    byId("fileGate").classList.add("is-visible");
+    return;
+  }
+
+  initTheme();
+  initHeaderCollapse();
+
+  try {
+    await loadThreeAndSpark();
+  } catch (loadError) {
+    toast("Could not load the 3D renderer. Check your connection and reload.", "danger", 6000);
+  }
+
+  const healthy = await checkHealth();
+  state.mode = healthy ? "studio" : "viewer";
+  initTabBarForMode();
+
+  if (state.mode === "studio") {
+    try {
+      state.doctor = await api.doctor();
+    } catch (doctorError) {}
+    connectEvents();
+    startProjectPolling();
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) refreshProjects();
+    });
+  } else {
+    state.projectsLoaded = true;
+  }
+
+  renderLibrary();
+  renderCreate();
+  renderGuide();
+
+  byId("appShell").classList.add("is-active");
+  byId("appRoot").classList.add("is-ready");
+}
+
+bootstrap();
+</script>
+</body>
+</html>

@@ -1,0 +1,374 @@
+{
+  "shelf": 1,
+  "sources": [
+    {
+      "title": "COLMAP 3.6 Documentation — Frequently Asked Questions",
+      "url": "https://colmap.github.io/faq.html",
+      "date": "",
+      "key_claims": [
+        "SIFT (COLMAP's default feature type) performs well with moderate-to-high view overlap and sufficient scene texture; ALIKED is recommended instead for scenes with limited view overlap.",
+        "Geo-registration/alignment estimation in COLMAP requires at least 3 images per registered object/point as a hard minimum.",
+        "For weakly-textured surfaces in dense reconstruction, COLMAP recommends increasing input resolution via --PatchMatchStereo.max_image_size and expanding the patch window via --PatchMatchStereo.window_radius.",
+        "SIFT matching GPU memory need is approximately 4*num_matches^2 + 4*num_matches*256 bytes; at --FeatureMatching.max_num_matches 10000 this is roughly 400MB, so reducing max_num_matches is the fix for GPU memory errors.",
+        "The FULL_OPENCV camera model has 12 parameters and requires a large number of observations to converge reliably; principal point refinement is ill-posed without full scene coverage.",
+        "Increasing --StereoFusion.min_num_pixels above the default reduces noise/outliers in dense point clouds.",
+        "COLMAP's FAQ does not offer explicit guidance for reflective or transparent surfaces — this is a documented gap in the official docs themselves."
+      ],
+      "quotes": [
+        "Make sure that each object is seen in at least 3 images"
+      ],
+      "code_refs": ["https://colmap.github.io/faq.html"]
+    },
+    {
+      "title": "COLMAP 3.6 Documentation — Tutorial",
+      "url": "https://colmap.github.io/tutorial.html",
+      "date": "",
+      "key_claims": [
+        "COLMAP's own capture guidance: capture images with high visual overlap, ensure every object/surface is seen in at least 3 images (more is better), avoid completely texture-less surfaces like blank white walls, capture under similar illumination avoiding high dynamic range scenes, and shoot from genuinely different viewpoints rather than rotating in place from one spot.",
+        "Sequential matching mode is intended for video-like ordered captures where consecutive frames overlap; it includes loop detection matching every N-th image against its most visually similar images via a vocabulary tree.",
+        "Exhaustive matching gives the best reconstruction results but is only practical up to a few hundred images; vocabulary-tree-based matching is used instead for thousands of images because it is dramatically faster.",
+        "The COLMAP pipeline has two broad phases: sparse reconstruction (feature detection, matching, incremental SfM) and dense reconstruction (depth map computation, fusion, optional Poisson or Delaunay meshing).",
+        "Excess images beyond what's needed can slow processing without improving reconstruction quality — more overlap has diminishing/negative returns past a point."
+      ],
+      "quotes": [
+        "Capture images with high visual overlap",
+        "Do not take images from the same location"
+      ],
+      "code_refs": ["https://colmap.github.io/tutorial.html"]
+    },
+    {
+      "title": "COLMAP GitHub repository (colmap/colmap)",
+      "url": "https://github.com/colmap/colmap",
+      "date": "",
+      "key_claims": [
+        "COLMAP is described by its own maintainers as a general-purpose Structure-from-Motion (SfM) and Multi-View Stereo (MVS) pipeline with both graphical and command-line interfaces, supporting both ordered and unordered image collections.",
+        "COLMAP depends on ceres-solver, poselib, sift-gpu, and vlfeat as third-party libraries, and ships Python bindings (pycolmap) for programmatic pipeline access.",
+        "COLMAP provides an 'automatic reconstruction' mode intended to build a model with minimal user interaction, and runs on Windows, Linux/Unix/BSD, Docker, and Conda.",
+        "COLMAP is BSD-licensed and under active maintenance."
+      ],
+      "quotes": [],
+      "code_refs": ["https://github.com/colmap/colmap"]
+    },
+    {
+      "title": "COLMAP sequential matcher overlap parameter and vocabulary-tree loop detection (docs/PR/mailing-list)",
+      "url": "https://deepwiki.com/colmap/colmap/7.1-feature-matching-strategies",
+      "date": "",
+      "key_claims": [
+        "COLMAP's sequential matcher `overlap` parameter defaults to 10 consecutive images; image_i is matched against images in [i-overlap, i+overlap], with an optional `quadratic_overlap` mode that spaces matches exponentially (2^i) instead of linearly.",
+        "Loop detection within sequential matching triggers whenever (i mod loop_detection_period) == 0, retrieving the loop_detection_num_images most visually similar images from a pre-trained vocabulary tree for matching/verification.",
+        "The vocabulary tree required for loop detection must be downloaded separately (from the COLMAP project's own hosted file), it is not bundled.",
+        "A COLMAP GitHub PR (#2701) fixed the sequential matcher overlap parameter to be inclusive, indicating this exact boundary behavior is an active, documented implementation detail rather than folklore."
+      ],
+      "quotes": [],
+      "code_refs": ["https://github.com/colmap/colmap/pull/2701", "https://demuc.de/colmap/"]
+    },
+    {
+      "title": "Android Developers — CaptureRequest reference (CONTROL_AE_LOCK / CONTROL_AWB_LOCK)",
+      "url": "https://developer.android.com/reference/android/hardware/camera2/CaptureRequest",
+      "date": "",
+      "key_claims": [
+        "CONTROL_AE_LOCK determines whether auto-exposure is currently locked to its latest calculated values; because the camera device pipelines in-flight requests, the settings that end up locked don't necessarily match the settings in the most recent CaptureResult received, since further captures/AE updates can occur before that result is delivered.",
+        "CONTROL_AWB_LOCK works analogously for auto-white-balance: when ON, the AWB algorithm is locked to its latest parameters and will not change color balance until unlocked.",
+        "Auto-white-balance and auto-focus behavior when AE is OFF is device-dependent; Android's own guidance is to either set AWB/AF to OFF or lock them explicitly before turning AE off, specifically to get consistent behavior across different devices.",
+        "CONTROL_AE_EXPOSURE_COMPENSATION allows fine EV adjustment on top of the AE algorithm's own metering, typically within a device-reported range around -3 to +3 EV steps queried from camera characteristics."
+      ],
+      "quotes": [
+        "will not change color balance settings until"
+      ],
+      "code_refs": ["https://developer.android.com/reference/android/hardware/camera2/CaptureRequest"]
+    },
+    {
+      "title": "Microsoft Learn / Android javadoc mirror — CaptureRequest.ControlAeLock",
+      "url": "https://learn.microsoft.com/en-us/dotnet/api/android.hardware.camera2.capturerequest.controlaelock?view=net-android-35.0",
+      "date": "2025-04-23",
+      "key_claims": [
+        "Confirms the canonical Android javadoc text for CONTROL_AE_LOCK: 'Whether auto-exposure (AE) is currently locked to its latest calculated values.' This mirror is licensed CC-BY 2.5 from the Android Open Source Project and cross-links to ControlAeExposureCompensation, ControlAeMode, and ControlAePrecaptureTrigger, indicating exposure compensation is treated as a distinct, separately-configured control from the lock itself."
+      ],
+      "quotes": [
+        "Whether auto-exposure (AE) is currently locked"
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "Microsoft Learn / Android javadoc mirror — CaptureRequest.ControlAwbLock",
+      "url": "https://learn.microsoft.com/en-us/dotnet/api/android.hardware.camera2.capturerequest.controlawblock?view=net-android-35.0",
+      "date": "2025-04-23",
+      "key_claims": [
+        "Confirms canonical javadoc text for CONTROL_AWB_LOCK: 'Whether auto-white balance (AWB) is currently locked to its latest calculated values.' Cross-referenced with ControlAwbMode, implying the lock freezes whatever value AWB last computed rather than pinning to any deliberately chosen white-balance target."
+      ],
+      "quotes": [
+        "Whether auto-white balance (AWB) is currently locked"
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "Android Developers — CameraX Configuration Options",
+      "url": "https://developer.android.com/media/camera/camerax/configuration",
+      "date": "",
+      "key_claims": [
+        "CameraX exposes exposure compensation via Camera.CameraControl.setExposureCompensationIndex(); actual EV = exposureCompensationIndex * exposureCompensationStep, with positive values brightening and negative dimming, and supported range/support queried from CameraInfo.exposureState.",
+        "CameraX metering regions are set via CameraControl.startFocusAndMetering(FocusMeteringAction) built from MeteringPoint objects (from a MeteringPointFactory); CameraX converts these to Camera2 MeteringRectangles and sets CONTROL_AF_REGIONS / CONTROL_AE_REGIONS / CONTROL_AWB_REGIONS under the hood.",
+        "CameraX metering-region support is best-effort: if a device supports fewer regions than requested, only the maximum number the device supports are used, in the order points were added.",
+        "CameraX explicitly documents itself as prioritizing compatibility and ease-of-use over granular low-level access; for custom capture templates or advanced sensor control, Camera2 remains the lower-level alternative that CameraX itself is built on top of."
+      ],
+      "quotes": [],
+      "code_refs": ["https://developer.android.com/media/camera/camerax/configuration"]
+    },
+    {
+      "title": "Android Developers — CameraMetadata / CONTROL_AWB_MODE preset values",
+      "url": "https://developer.android.com/reference/android/hardware/camera2/CameraMetadata",
+      "date": "",
+      "key_claims": [
+        "CONTROL_AWB_MODE is limited to a fixed preset list (INCANDESCENT, FLUORESCENT, WARM_FLUORESCENT, DAYLIGHT, CLOUDY_DAYLIGHT, TWILIGHT, SHADE) rather than an arbitrary numeric Kelvin value — Camera2 has no direct 'set white balance to N kelvin' control.",
+        "CONTROL_AWB_MODE_INCANDESCENT approximates CIE standard illuminant A; CONTROL_AWB_MODE_FLUORESCENT approximates CIE standard illuminant F2 — each preset targets a specific reference illuminant rather than a tunable color temperature.",
+        "This means a true 'fixed-Kelvin' white balance strategy on Android is necessarily an approximation via the nearest preset mode, distinct from AWB lock (which freezes whatever value the auto-algorithm last converged on, which may not correspond to any named preset)."
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "Pix4D — Best practices for image acquisition and photogrammetry",
+      "url": "https://support.pix4d.com/hc/best-practices-for-image-acquisition-and-photogrammetry",
+      "date": "",
+      "key_claims": [
+        "General-case overlap recommendation: at least 75% frontal overlap and at least 60% side overlap.",
+        "Scenario-based overlap increases above baseline: forests/dense vegetation need at least 85% frontal and side overlap; agricultural fields need at least 80%; snow/sand need at least 85% frontal and 70% side; city/urban reconstruction needs 85% frontal and at least 70% side; corridor mapping needs at least 85% frontal and 60% side; large vertical objects need 90% overlap between images at the same height and 60% between images at different heights.",
+        "Interior reconstruction specifically is called out as needing high overlap around 90%, with terrestrial (ground-based) imagery strongly recommended over other capture methods for interiors.",
+        "Ground control point markers should be sized 5-10x the ground sample distance (GSD); for a 2cm GSD that's a 10-20cm target.",
+        "Typical achievable accuracy is 1-2x GSD horizontally and 2-3x GSD vertically.",
+        "Soft, consistent lighting is recommended; direct sunlight is called out by name as producing harsh shadows and overexposure, and maintaining consistent camera settings throughout a capture session is an explicit recommendation."
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "Geodetic Systems — Basics of Photogrammetry (standoff distance / working distance guidance)",
+      "url": "https://www.geodetic.com/basics-of-photogrammetry/",
+      "date": "",
+      "key_claims": [
+        "For objects up to about 3 meters in height, roughly 3-5 meters of clear working space around the object is recommended for a standard capture loop, with a distinct close-range pass at roughly 50cm standoff for detail.",
+        "A three-tier capture pattern is described for a single subject: a far-range loop around 3m out, a mid-range loop around 1.5m, and a close-range pass around 50cm — i.e., standoff distance is treated as a deliberate, varied parameter across a shoot rather than one fixed number.",
+        "Industrial photogrammetry systems (V-STARS cameras cited as an example) are specified to hold acceptable focus only within a bounded working-distance range, roughly 1.0m (40 inches) out to 60m (200 feet) — underscoring that standoff distance is bounded on both the near and far side by the optics, not just by parallax/coverage concerns.",
+        "Holding a stable, consistent standoff distance while walking a path is called out as necessary (alongside stable heading) to maintain the 50-80% frame-to-frame overlap that reconstruction depends on — standoff consistency and overlap consistency are treated as the same underlying discipline, not two separate skills."
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "CIPA 3x3 Rules — photogrammetric documentation of architectural heritage (via ResearchGate summary / secondary literature)",
+      "url": "https://www.researchgate.net/publication/284326169_3-Rules_for_simple_photogrammetric_documentation_of_architecture",
+      "date": "",
+      "key_claims": [
+        "The CIPA (International Committee for Documentation of Cultural Heritage) 3x3 Rules organize architectural photogrammetric capture guidance into three groups: geometrical rules (reference control network + photographic coverage), camera rules (calibration, lens selection), and procedural rules (camera positioning, image metadata).",
+        "CIPA's overlap requirement: at least 60% overlap is required between two spatially successive photographs; for convergent (angled, not just lateral) image pairs, at least one-third overlap is required.",
+        "Secondary literature notes the original 3x3 Rules are considered dated relative to modern laser scanning and UAV photogrammetry, and CIPA has issued updated guidance to reflect current technology — a caution against treating the original 1990s-era numbers as gospel for a modern indoor phone-capture workflow."
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "Federal Agencies Digital Guidelines Initiative (FADGI) — Technical Guidelines for Digitizing Cultural Heritage Materials, 3rd Edition",
+      "url": "https://www.digitizationguidelines.gov/guidelines/FADGI%20Technical%20Guidelines%20for%20Digitizing%20Cultural%20Heritage%20Materials_3rd%20Edition_05092023.pdf",
+      "date": "2023-05-09",
+      "key_claims": [
+        "FADGI-conforming digitization processes are expected to meet ISO 19264, the standard defining imaging-system quality analysis methods for reflective originals — a formal, citable quality-analysis standard rather than an informal best-practice list.",
+        "The 3rd edition (2022-2023) explicitly updates earlier FADGI guidance to reflect newer imaging science and cultural-heritage imaging practice, indicating this is a living, versioned standard."
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "Kerbl, Kopanas, Leimkühler, Drettakis — 3D Gaussian Splatting for Real-Time Radiance Field Rendering (arXiv 2308.04079 / ACM TOG 2023)",
+      "url": "https://arxiv.org/abs/2308.04079",
+      "date": "2023-07",
+      "key_claims": [
+        "The method's input is the sparse point cloud produced during camera calibration by a standard structure-from-motion pipeline (i.e., COLMAP-style sparse reconstruction) — 3DGS does not train from raw uncalibrated photos, it depends on SfM camera poses and points as initialization.",
+        "3D Gaussian Splatting achieves real-time rendering (>=30 fps) at 1080p resolution on complete, unbounded real-world scenes, which the authors present as not previously achieved by comparable radiance-field methods at that quality.",
+        "The method has three core components: (1) representing the scene as 3D Gaussians that preserve properties of continuous volumetric radiance fields while avoiding computation in empty space, (2) interleaved optimization and density control of the 3D Gaussians including optimizing anisotropic covariance, and (3) a fast, visibility-aware, tile-based rasterizer supporting anisotropic splatting that accelerates both training and real-time rendering.",
+        "Published as ACM Transactions on Graphics vol. 42, no. 4, July 2023."
+      ],
+      "quotes": [
+        "real-time (>= 30 fps) novel-view synthesis"
+      ],
+      "code_refs": ["https://arxiv.org/abs/2308.04079", "https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/"]
+    },
+    {
+      "title": "graphdeco-inria/gaussian-splatting — official reference implementation (GitHub)",
+      "url": "https://github.com/graphdeco-inria/gaussian-splatting",
+      "date": "",
+      "key_claims": [
+        "The reference implementation expects input in a COLMAP-style directory layout: images/ containing the source photos, and sparse/0/ containing cameras.bin, images.bin, and points3D.bin from COLMAP's sparse reconstruction.",
+        "Supported COLMAP camera models are restricted to SIMPLE_PINHOLE or PINHOLE; a bundled convert.py script runs COLMAP itself to go from raw images to the required undistorted images + SfM data.",
+        "Training (the optimizer) requires a CUDA-capable GPU of Compute Capability 7.0+, with roughly 24GB VRAM needed for 'reference quality' results (lower-VRAM runs are possible by reducing densification aggressiveness).",
+        "Default training runs for 30,000 iterations via `python train.py -s <path to COLMAP dataset>`, with learning rates for position/rotation/scaling/opacity and densification thresholds as key tunable parameters.",
+        "Recent versions of the repo added a 'sparse Adam' optimization path claiming up to 2.7x training speedup and default speedups of 1.6x, plus depth regularization, exposure compensation, and anti-aliasing options.",
+        "Real-time viewers need an OpenGL 4.5-capable GPU (4GB VRAM recommended) or a CUDA GPU 7.0+ for the CUDA-based real-time viewer."
+      ],
+      "quotes": [],
+      "code_refs": ["https://github.com/graphdeco-inria/gaussian-splatting", "https://github.com/graphdeco-inria/gaussian-splatting/blob/main/convert.py"]
+    },
+    {
+      "title": "PyImageSearch — Blur detection with OpenCV (variance of Laplacian)",
+      "url": "https://pyimagesearch.com/2015/09/07/blur-detection-with-opencv/",
+      "date": "2015-09-07",
+      "key_claims": [
+        "The core blur-detection method is a single line: cv2.Laplacian(image, cv2.CV_64F).var() on a grayscale image — convolve with the Laplacian kernel, then take the variance of the response.",
+        "Sharp images produce high variance (abundant edges/rapid intensity changes); blurry images produce low variance (few distinct edges).",
+        "The worked example uses a threshold of 100.0 to call an image 'blurry' below that score; in their test set blurry images scored 64-83 and sharp images scored 200-1000+, but the author explicitly warns this threshold is subjective to image content and must be tuned per dataset rather than treated as universal.",
+        "CV_64F (64-bit float) is used rather than 8-bit output because Laplacian derivatives can be negative, and 8-bit unsigned output would clip/truncate meaningful values."
+      ],
+      "quotes": [
+        "quite subjective to the contents of the image(s)"
+      ],
+      "code_refs": ["https://pyimagesearch.com/2015/09/07/blur-detection-with-opencv/"]
+    },
+    {
+      "title": "18% gray card exposure metering technique (scantips.com / digital-photography-school.com)",
+      "url": "https://www.scantips.com/lights/graycard.html",
+      "date": "",
+      "key_claims": [
+        "Camera light meters (TTL metering, aperture-priority, shutter-priority modes) are all calibrated around the assumption that the scene averages to 18% gray reflectance — this is the mid-point on a logarithmic brightness scale, not a linear 50% gray.",
+        "Metering directly off a mid-tone gray card (filling the frame with it, typically in spot-metering mode) gives a scene-independent exposure baseline, avoiding the classic failure mode where a meter under-exposes a bright/white-dominated scene (e.g., snow) or over-exposes a dark-dominated one.",
+        "Ansel Adams formalized 18% gray as Zone V (the middle zone) of his 11-zone Zone System in his 1948 book 'The Negative,' which is the historical origin of the gray-card metering convention still used today."
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "Histogram reading: highlight clipping and banding in digital exposure (Cambridge in Colour / Digital Photography School / Exposing to the Right)",
+      "url": "https://www.cambridgeincolour.com/tutorials/digital-exposure-techniques.htm",
+      "date": "",
+      "key_claims": [
+        "Highlight clipping is overexposure severe enough that highlight detail is lost entirely (pushed to pure white) and generally cannot be recovered in post; it shows as data pinned against the right edge of the histogram.",
+        "Banding/posterization appears as visible stepped lines in what should be smooth gradients (skies, shadow falloff) and is a symptom of insufficient tonal data in a region — over- or under-exposing a smooth gradient area increases the risk of visible banding.",
+        "The 'expose to the right' strategy pushes the histogram as far right as possible without clipping highlights, on the logic that digital sensors capture more tonal data in brighter stops, at the cost of needing to visually confirm no clipping occurred."
+      ],
+      "quotes": [
+        "washed out"
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "White balance: Kelvin presets vs. Auto White Balance for consistency across a capture set (Fstoppers / multiple photography references)",
+      "url": "https://fstoppers.com/post-production/learn-shoot-proper-white-balance-using-kelvin-temps-3328",
+      "date": "",
+      "key_claims": [
+        "Auto white balance is adequate for a single scene under stable daylight but is documented to visibly drift frame-to-frame under mixed or colored indoor lighting, since it re-estimates a scene's color temperature independently on every shot.",
+        "A fixed Kelvin (or fixed preset) setting is specifically recommended when a technique depends on color consistency across many frames — panoramas, focus stacks, or blended-exposure sequences are the named examples — because AWB can shift slightly between otherwise-identical frames and create mismatches that must be corrected in post.",
+        "Typical indoor tungsten lighting sits around 3000K; because the human visual system automatically compensates for this orange cast but a sensor records it faithfully, indoor scenes need a deliberate white-balance decision rather than relying on perception.",
+        "For genuinely mixed lighting (e.g., daylight window + tungsten lamp in the same room), the recommended practice is to set white balance for the dominant/key light and accept a single global color temperature compromise for the rest, rather than trying to correct multiple light sources with one in-camera setting."
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "SfM feature matching failure on texture-poor and repetitive surfaces (npj Heritage Science mural-digitization study; texture-less object matching study)",
+      "url": "https://www.nature.com/articles/s40494-026-02385-y",
+      "date": "",
+      "key_claims": [
+        "Hand-crafted keypoint detectors like SIFT are documented to seriously degrade on weak-texture, repetitive-pattern, or low-light surfaces, because it becomes hard to detect repeatable keypoints across multiple viewpoints, which becomes the bottleneck for the entire SfM pipeline.",
+        "On low-texture regions, SIFT correspondences documented to contain a large proportion of outlier matches or simply too few matches, which can propagate into unstable camera pose estimates or outright reconstruction/registration failure for the affected region.",
+        "Newer detector-free, dense matching approaches (multi-view attention-based) are proposed specifically as a fix for texture-poor scenes like mural surfaces, implying that at the level of standard SIFT-based COLMAP pipelines, texture-poor walls are a known, unsolved weak point rather than an edge case."
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "Loop closure detection in visual SLAM — drift correction (survey + PLOS ONE indoor high-similarity-scene study)",
+      "url": "https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0312358",
+      "date": "",
+      "key_claims": [
+        "Loop closure detection's core function in visual SLAM is comparing current visual data against historical map data to recognize a revisited location, which is then used to correct accumulated (drift) error in the trajectory/map estimate.",
+        "Indoor environments with high scene similarity (e.g., repeated room layouts, identical office/hotel-room interiors) are explicitly documented as a harder case for loop closure, because visual similarity between genuinely different locations increases the risk of the algorithm matching the wrong instance.",
+        "Loop closure detection methods are broadly categorized as vision-based, LiDAR-based, and deep-learning-based, with CNN-based approaches reported as more robust to this kind of visual aliasing than traditional (hand-crafted feature) methods."
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "Cross-polarization for reducing specular reflections in photogrammetric capture (NASA technical report; Blackfire Films archaeology guide)",
+      "url": "https://ntrs.nasa.gov/api/citations/20050245184/downloads/20050245184.pdf",
+      "date": "",
+      "key_claims": [
+        "Cross-polarization — a polarizing filter on the light source oriented at 90 degrees relative to a polarizing filter on the camera lens — is a documented technique for suppressing specular reflections/glare from reflective surfaces during photogrammetric capture.",
+        "An alternative documented technique uses a single lens-mounted polarizer and positions the camera near Brewster's angle relative to the reflecting surface, which minimizes reflected glare without needing a polarized light source.",
+        "Cross-polarized photography is described as an established technique within the cultural-heritage/archaeological 3D capture community specifically for removing specular highlights that would otherwise fake or destroy features on reflective object surfaces."
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "The reciprocal rule and camera shake vs. motion blur (Photography Life / SLR Lounge)",
+      "url": "https://photographylife.com/what-is-reciprocal-rule-in-photography",
+      "date": "",
+      "key_claims": [
+        "The reciprocal rule for handheld shooting: minimum shutter speed (as a fraction) should be at least 1/focal-length — e.g. 1/50s minimum at 50mm, 1/200s minimum at 200mm — to avoid camera-shake blur.",
+        "Camera shake (blur from the camera moving during exposure) is explicitly distinguished from subject motion blur (blur from the subject moving); the reciprocal rule addresses only the former.",
+        "On a crop-sensor body, the rule must be applied to the full-frame-equivalent focal length (multiply by the crop factor, e.g. 1.5x for APS-C), not the lens's nominal focal length.",
+        "Modern in-body or lens image stabilization is documented to provide roughly 4-7 stops of compensation, meaningfully relaxing the reciprocal-rule minimum shutter speed for stabilized systems."
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "Insta360 official product specifications (X3 / Pro 2 / X5)",
+      "url": "https://www.insta360.com/product/insta360-pro2",
+      "date": "",
+      "key_claims": [
+        "Insta360 X3 (consumer action camera): 360 mode captures up to 5.7K (5760x2880) at 30/25/24fps, with 4K and 3K/100fps options also available.",
+        "Insta360 Pro2 (professional VR camera): real-time stitching outputs at 7680x7680 (3D) or 7680x3840 (2D); post-processing stitching can reach the same resolutions plus a 12000x12000 12K super-resolution mode built from multi-photo composites.",
+        "Insta360 Pro (earlier professional 8K camera): maximum post-processing stitched output of 7680x3840 at 30fps.",
+        "Insta360 X5 (current flagship): native 8K30fps capture."
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "Mantis-Sub — Photogrammetry: creating a 3D model from 360 video (Insta360 Pro/RS workflow guide)",
+      "url": "https://www.mantis-sub.com/academy/photogrammetry-3d-model-from-360-video",
+      "date": "",
+      "key_claims": [
+        "Recommended workflow extracts still frames from 360 video at a chosen frame-step (e.g. a step of 30 at 30fps yields one extracted photo per second of footage) rather than shooting discrete stills.",
+        "Recommended capture settings for photogrammetry from an Insta360 Pro2/One RS: highest available resolution and quality, manual (not automatic) white balance, ISO 200-400 on smaller sensors (up to 1600 on 1-inch sensor models).",
+        "Notably, in-camera stabilization should be left ON for 360 photogrammetry capture (opposite of typical flat-lens photogrammetry advice to disable stabilization), because the stabilization keeps 'up' consistent across frames, which the stitching algorithm depends on.",
+        "This workflow relies on continuous walking/driving/swimming motion through a scene for coverage rather than a discrete shot-by-shot overlap target, since near-continuous 30fps video capture inherently produces very high frame-to-frame overlap."
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "Structure-from-motion degeneracy under pure rotation and insufficient baseline (multiple arXiv surveys: MP-SfM; A Taxonomy of SfM Methods)",
+      "url": "https://arxiv.org/pdf/2505.15814",
+      "date": "",
+      "key_claims": [
+        "Pure camera rotation (no translation) is a well-known critical/degenerate configuration for two-view geometry: the fundamental matrix is not uniquely determined by point correspondences when the two views differ only by rotation, or when all 3D points plus both camera centers lie on a ruled quadric surface.",
+        "Reliable triangulation of 3D points fundamentally requires sufficient translational baseline between views; without adequate parallax, depth cannot be reliably resolved even with abundant, well-matched features.",
+        "Some modern wide-baseline SfM pipelines deliberately delay full initialization until sufficient parallax has accumulated between frames, precisely because attempting triangulation too early (low baseline) yields unreliable depth estimates."
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "Python official docs — zipfile module (ZIP_STORED vs ZIP_DEFLATED)",
+      "url": "https://docs.python.org/3/library/zipfile.html",
+      "date": "",
+      "key_claims": [
+        "ZIP_STORED is the numeric constant for an uncompressed archive member and is the module's default compression method; it requires no additional codec module.",
+        "ZIP_DEFLATED is the standard ZIP compression method and requires the zlib module to be available; if zlib (or bz2/lzma/zstandard for the other methods) is missing, Python raises RuntimeError when that method is requested.",
+        "The compresslevel parameter has no effect when using ZIP_STORED (or ZIP_LZMA); it only takes effect (integers 0 through 9) under ZIP_DEFLATED.",
+        "Practical implication for a bundle of already-compressed JPEG crops: using ZIP_DEFLATED on JPEG data wastes CPU time for negligible size reduction since JPEG is already entropy-coded, which is the standard justification for choosing ZIP_STORED for photo bundles."
+      ],
+      "quotes": [],
+      "code_refs": ["https://docs.python.org/3/library/zipfile.html"]
+    }
+  ],
+  "gaps": [
+    "Could not directly fetch the official Android developer.android.com CaptureRequest/CameraMetadata pages (they returned only navigation shells via WebFetch); relied on the Microsoft Learn CC-BY mirror of the same javadoc plus search-engine synthesis for exact field semantics. The claims are consistent across both but a writer citing exact wording should treat the Microsoft Learn mirror as the primary quote source.",
+    "Historic England's 'Photogrammetric Applications for Cultural Heritage' PDF (heag066) returned HTTP 403 on fetch; substituted CIPA 3x3 Rules (via secondary ResearchGate summary) and FADGI/ISO 19264 for the cultural-heritage-standards seed. A writer wanting Historic England's specific numbers should try downloading the PDF directly rather than via WebFetch.",
+    "No official OpenCV (opencv.org) documentation page for the Laplacian operator/blur-variance technique was directly fetched — the canonical source used (PyImageSearch) is a well-regarded but third-party tutorial, not the OpenCV project's own docs. The formula (cv2.Laplacian + .var()) and CV_64F rationale are standard enough to be low-risk, but exact OpenCV API doc wording is a gap.",
+    "Found no single authoritative source specifically covering 'adaptive overlap tighter than 70-80% for texture-poor/repeating-geometry rooms' as its own named guideline. Evidence is inferential: Pix4D and CIPA both document scenario-specific overlap increases (forests, snow, vegetation, agricultural fields all get boosted past the ~70-80% baseline), which supports the general pattern but not an indoor-specific number. Book 48 will need to reason from this analogy rather than quote a direct figure.",
+    "No official Insta360 documentation (as opposed to third-party workflow guides) specifically addresses photogrammetry/COLMAP compatibility, loop closure, or false-loop-closure risk in repeating-geometry buildings. The Insta360-specific claims in these notes come from Insta360's own product spec pages (resolution/fps only) plus one third-party (Mantis-Sub) workflow guide, not an Insta360 photogrammetry whitepaper — none was found to exist publicly.",
+    "No dedicated source was found tying loop-closure drift correction explicitly to a solo-operator phone-capture workflow (as opposed to robotics/SLAM research context) — the loop-closure sources are all robotics/SLAM literature, which the shelf's book 43 and 46 will need to adapt to the photogrammetry-capture framing rather than quote directly.",
+    "Camera2 CONTROL_AE_REGIONS / CONTROL_AWB_REGIONS exact behavior (region weighting, max region count reporting) was only confirmed indirectly via the CameraX docs' description of how CameraX converts to these Camera2 fields, not from the Camera2 reference page directly — a writer implementing book 31 in raw Camera2 (not CameraX) should verify CaptureRequest#CONTROL_AE_REGIONS wording directly against the SDK reference or source, not just these notes."
+  ]
+}

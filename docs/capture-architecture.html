@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Orbit Studio Capture Architecture</title>
+<style>
+:root{
+  --bg:#000;--panel:#141416;--panel2:#1C1C1E;--line:rgba(84,84,88,.42);
+  --text:#F2F2F7;--dim:rgba(235,235,245,.62);--faint:rgba(235,235,245,.35);
+  --blue:#0A84FF;--cyan:#64D2FF;--green:#30D158;--amber:#FF9F0A;--red:#FF453A;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,"SF Pro Display","Segoe UI Variable Display","Segoe UI",Roboto,sans-serif;line-height:1.5;padding:48px 24px 80px}
+.wrap{max-width:1080px;margin:0 auto}
+header{margin-bottom:36px}
+.brand{display:flex;align-items:center;gap:10px;color:var(--dim);font-size:13px;letter-spacing:.14em;text-transform:uppercase;font-weight:600}
+.brand svg{width:18px;height:18px}
+h1{font-size:38px;font-weight:700;letter-spacing:-.02em;margin:10px 0 6px}
+.sub{color:var(--dim);font-size:16px;max-width:640px}
+section{margin-top:44px}
+h2{font-size:22px;font-weight:700;letter-spacing:-.01em;margin-bottom:6px}
+.lede{color:var(--dim);font-size:14px;margin-bottom:18px;max-width:720px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:22px;overflow:hidden}
+.arch{display:flex;align-items:stretch;gap:0;flex-wrap:wrap}
+.arch-col{flex:1;min-width:220px;padding:18px}
+.arch-col h3{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);margin-bottom:12px}
+.arch-node{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:10px 14px;font-size:13.5px;margin-bottom:8px;display:flex;align-items:center;gap:9px}
+.arch-node b{font-weight:600}
+.dot{width:8px;height:8px;border-radius:50%;flex:none}
+.arch-flow{display:flex;flex-direction:column;justify-content:center;align-items:center;color:var(--faint);font-size:12px;gap:4px;padding:0 4px}
+.arch-flow .arrow{font-size:20px;color:var(--blue)}
+svg{display:block;width:100%;height:auto}
+.legend{display:flex;flex-wrap:wrap;gap:16px;margin-top:14px;font-size:12.5px;color:var(--dim)}
+.legend span{display:inline-flex;align-items:center;gap:7px}
+.sw{width:14px;height:14px;border-radius:4px;flex:none}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px}
+.card .big{font-size:26px;font-weight:700;letter-spacing:-.02em}
+.card .unit{font-size:13px;color:var(--blue);font-weight:600}
+.card p{font-size:12.5px;color:var(--dim);margin-top:6px}
+ol.protocol{counter-reset:step;list-style:none;display:grid;gap:10px}
+ol.protocol li{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px 14px 54px;position:relative;font-size:14px;color:var(--text)}
+ol.protocol li::before{counter-increment:step;content:counter(step);position:absolute;left:16px;top:50%;transform:translateY(-50%);width:26px;height:26px;border-radius:50%;background:rgba(10,132,255,.16);color:var(--blue);font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center}
+ol.protocol li span{color:var(--dim)}
+.why{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+.why .card h3{font-size:15px;margin-bottom:4px}
+.why .card p{font-size:13px}
+footer{margin-top:56px;color:var(--faint);font-size:12.5px;border-top:1px solid var(--line);padding-top:18px}
+footer a{color:var(--dim)}
+@media print{body{background:#fff;color:#111}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="brand">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#0A84FF" stroke-width="1.8"><circle cx="12" cy="12" r="9"></circle><ellipse cx="12" cy="12" rx="9" ry="3.6"></ellipse></svg>
+    Orbit Studio
+  </div>
+  <h1>Capture Architecture</h1>
+  <p class="sub">How to place the camera through a multi-room space so pose recovery locks in and the trained splat holds together. One continuous take, even spacing, closed loops.</p>
+</header>
+
+<section>
+  <h2>Solution at a glance</h2>
+  <p class="lede">The system splits by hardware strength. Everything spatial you do in the field feeds the left column.</p>
+  <div class="panel arch">
+    <div class="arch-col">
+      <h3>Field, X4 Air on a stick</h3>
+      <div class="arch-node"><span class="dot" style="background:var(--green)"></span><b>8K30 equirect video</b>&nbsp;one continuous take</div>
+      <div class="arch-node"><span class="dot" style="background:var(--green)"></span>Exposure locked, seam managed</div>
+    </div>
+    <div class="arch-flow"><span class="arrow">&#8594;</span><span>export MP4</span></div>
+    <div class="arch-col">
+      <h3>Laptop, Orbit Studio</h3>
+      <div class="arch-node"><span class="dot" style="background:var(--blue)"></span><b>Sharp frame selection</b>&nbsp;about 300</div>
+      <div class="arch-node"><span class="dot" style="background:var(--blue)"></span>18 pinhole views per frame</div>
+      <div class="arch-node"><span class="dot" style="background:var(--blue)"></span>bundle.zip</div>
+    </div>
+    <div class="arch-flow"><span class="arrow">&#8594;</span><span>upload</span></div>
+    <div class="arch-col">
+      <h3>Colab, free GPU</h3>
+      <div class="arch-node"><span class="dot" style="background:var(--amber)"></span><b>COLMAP poses</b>&nbsp;needs overlap</div>
+      <div class="arch-node"><span class="dot" style="background:var(--amber)"></span>gsplat training</div>
+      <div class="arch-node"><span class="dot" style="background:var(--amber)"></span>artifact.splat</div>
+    </div>
+    <div class="arch-flow"><span class="arrow">&#8594;</span><span>drop back in</span></div>
+    <div class="arch-col">
+      <h3>Laptop, Player</h3>
+      <div class="arch-node"><span class="dot" style="background:var(--cyan)"></span><b>Fly-through</b>&nbsp;keyframes</div>
+      <div class="arch-node"><span class="dot" style="background:var(--cyan)"></span>WebM export</div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>The walking plan, four rooms in one take</h2>
+  <p class="lede">Every cyan dot is one extracted frame at slow walking pace. The path never crosses an unscanned room, every room gets a perimeter loop plus an interior sweep, and the take ends where it began.</p>
+  <div class="panel">
+    <svg viewBox="0 0 1000 640" xmlns="http://www.w3.org/2000/svg" aria-label="Multi-room capture path diagram">
+      <rect x="0" y="0" width="1000" height="640" fill="#0B0B0F" rx="12"></rect>
+
+      <rect x="70" y="70" width="380" height="300" fill="#101016" stroke="#3A3A40" stroke-width="6"></rect>
+      <rect x="470" y="70" width="250" height="300" fill="#101016" stroke="#3A3A40" stroke-width="6"></rect>
+      <rect x="740" y="70" width="200" height="300" fill="#101016" stroke="#3A3A40" stroke-width="6"></rect>
+      <rect x="70" y="390" width="870" height="110" fill="#101016" stroke="#3A3A40" stroke-width="6"></rect>
+
+      <rect x="212" y="384" width="56" height="12" fill="#0B0B0F"></rect>
+      <rect x="567" y="384" width="56" height="12" fill="#0B0B0F"></rect>
+      <rect x="812" y="384" width="56" height="12" fill="#0B0B0F"></rect>
+
+      <rect x="100" y="240" width="120" height="46" rx="8" fill="#1C1C24"></rect>
+      <rect x="560" y="180" width="70" height="90" rx="8" fill="#1C1C24"></rect>
+      <rect x="760" y="140" width="90" height="130" rx="8" fill="#1C1C24"></rect>
+
+      <text x="90" y="100" fill="rgba(235,235,245,.5)" font-size="15" font-weight="600">LIVING ROOM</text>
+      <text x="490" y="100" fill="rgba(235,235,245,.5)" font-size="15" font-weight="600">KITCHEN</text>
+      <text x="760" y="100" fill="rgba(235,235,245,.5)" font-size="15" font-weight="600">BEDROOM</text>
+      <text x="90" y="480" fill="rgba(235,235,245,.5)" font-size="15" font-weight="600">HALLWAY</text>
+
+      <rect x="139" y="139" width="242" height="162" fill="none" stroke="#30D158" stroke-width="1.6" stroke-dasharray="7 7" opacity=".55"></rect>
+      <text x="150" y="158" fill="#30D158" font-size="12.5">walk about 1 m off the walls</text>
+
+      <rect x="76" y="76" width="18" height="288" fill="rgba(255,69,58,.16)"></rect>
+      <line x1="94" y1="76" x2="94" y2="364" stroke="#FF453A" stroke-width="1.4" stroke-dasharray="4 5"></line>
+      <text x="104" y="356" fill="#FF453A" font-size="12">never inside 0.3 m</text>
+
+      <path id="walkPath" fill="none" stroke="rgba(10,132,255,.85)" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"
+        d="M 240 330 L 150 316 L 136 136 L 384 136 L 384 304 L 330 240 L 196 196 L 244 322 L 240 445
+           L 595 445 L 595 336 L 528 312 L 528 136 L 662 136 L 662 306 L 598 330 L 595 445
+           L 840 445 L 840 336 L 798 310 L 798 136 L 882 136 L 882 306 L 843 330 L 840 445
+           L 240 445 L 246 362"></path>
+      <g id="frameDots"></g>
+
+      <circle cx="240" cy="330" r="9" fill="#30D158"></circle>
+      <text x="256" y="326" fill="#30D158" font-size="12.5" font-weight="600">START</text>
+      <circle cx="246" cy="362" r="8" fill="#FF9F0A"></circle>
+      <path d="M 252 356 Q 268 344 252 336" fill="none" stroke="#FF9F0A" stroke-width="2" marker-end="url(#arrowAmber)"></path>
+      <text x="272" y="352" fill="#FF9F0A" font-size="12.5" font-weight="600">END, loop closed</text>
+
+      <circle cx="240" cy="390" r="17" fill="none" stroke="#FF9F0A" stroke-width="1.6" stroke-dasharray="4 4"></circle>
+      <circle cx="595" cy="390" r="17" fill="none" stroke="#FF9F0A" stroke-width="1.6" stroke-dasharray="4 4"></circle>
+      <circle cx="840" cy="390" r="17" fill="none" stroke="#FF9F0A" stroke-width="1.6" stroke-dasharray="4 4"></circle>
+      <text x="330" y="418" fill="#FF9F0A" font-size="12.5">doorways: straight and slow, no turning in the threshold</text>
+
+      <g transform="translate(392,220)">
+        <circle cx="0" cy="0" r="10" fill="none" stroke="#64D2FF" stroke-width="2"></circle>
+        <path d="M -10 0 A 10 10 0 0 1 10 0" fill="none" stroke="#0A84FF" stroke-width="3"></path>
+        <line x1="-16" y1="0" x2="16" y2="0" stroke="#FF453A" stroke-width="1.4" stroke-dasharray="3 3"></line>
+        <text x="20" y="-6" fill="rgba(235,235,245,.6)" font-size="12">lens seam sideways,</text>
+        <text x="20" y="10" fill="rgba(235,235,245,.6)" font-size="12">subjects on front or back lens</text>
+      </g>
+
+      <g transform="translate(90,580)">
+        <line x1="0" y1="0" x2="69" y2="0" stroke="#F2F2F7" stroke-width="2"></line>
+        <line x1="0" y1="-5" x2="0" y2="5" stroke="#F2F2F7" stroke-width="2"></line>
+        <line x1="69" y1="-5" x2="69" y2="5" stroke="#F2F2F7" stroke-width="2"></line>
+        <text x="80" y="4" fill="rgba(235,235,245,.6)" font-size="13">1 m</text>
+      </g>
+      <text x="240" y="584" fill="rgba(235,235,245,.45)" font-size="12.5" id="dotStats"></text>
+
+      <defs>
+        <marker id="arrowAmber" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#FF9F0A"></path></marker>
+      </defs>
+    </svg>
+    <div class="legend">
+      <span><span class="sw" style="background:#0A84FF"></span>walking path, one continuous take</span>
+      <span><span class="sw" style="background:#64D2FF;border-radius:50%"></span>extracted frame positions</span>
+      <span><span class="sw" style="border:1.6px dashed #30D158;background:none"></span>1 m comfort band</span>
+      <span><span class="sw" style="background:rgba(255,69,58,.3)"></span>0.3 m exclusion zone</span>
+      <span><span class="sw" style="border:1.6px dashed #FF9F0A;background:none;border-radius:50%"></span>doorway slow zone</span>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Heights, the vertical plan</h2>
+  <p class="lede">The stick above your head keeps you out of most of the frame and sees over furniture. Hero rooms earn a second pass at chest height so low surfaces get real parallax.</p>
+  <div class="panel">
+    <svg viewBox="0 0 1000 270" xmlns="http://www.w3.org/2000/svg" aria-label="Capture height diagram">
+      <rect x="0" y="0" width="1000" height="270" fill="#0B0B0F" rx="12"></rect>
+      <line x1="40" y1="225" x2="960" y2="225" stroke="#3A3A40" stroke-width="4"></line>
+      <line x1="40" y1="45" x2="960" y2="45" stroke="#3A3A40" stroke-width="2" stroke-dasharray="8 8"></line>
+      <text x="46" y="36" fill="rgba(235,235,245,.45)" font-size="12.5">ceiling</text>
+      <rect x="700" y="45" width="8" height="180" fill="#3A3A40"></rect>
+
+      <circle cx="300" cy="128" r="10" fill="none" stroke="#F2F2F7" stroke-width="2.4"></circle>
+      <line x1="300" y1="138" x2="300" y2="192" stroke="#F2F2F7" stroke-width="2.4"></line>
+      <line x1="300" y1="192" x2="288" y2="225" stroke="#F2F2F7" stroke-width="2.4"></line>
+      <line x1="300" y1="192" x2="312" y2="225" stroke="#F2F2F7" stroke-width="2.4"></line>
+      <line x1="300" y1="150" x2="322" y2="120" stroke="#F2F2F7" stroke-width="2.4"></line>
+      <line x1="322" y1="120" x2="330" y2="70" stroke="#8E8E93" stroke-width="3"></line>
+      <circle cx="330" cy="62" r="9" fill="#0A84FF"></circle>
+      <circle cx="330" cy="62" r="14" fill="none" stroke="#64D2FF" stroke-width="1.6" opacity=".7"></circle>
+
+      <line x1="60" y1="62" x2="940" y2="62" stroke="#0A84FF" stroke-width="1.6" stroke-dasharray="6 6"></line>
+      <text x="356" y="56" fill="#64D2FF" font-size="13" font-weight="600">pass A, stick fully up, about 2.6 m</text>
+      <line x1="60" y1="130" x2="940" y2="130" stroke="#30D158" stroke-width="1.6" stroke-dasharray="6 6"></line>
+      <text x="356" y="124" fill="#30D158" font-size="13" font-weight="600">pass B, chest height, hero rooms only</text>
+
+      <line x1="640" y1="225" x2="700" y2="225" stroke="#FF9F0A" stroke-width="3"></line>
+      <line x1="640" y1="218" x2="640" y2="232" stroke="#FF9F0A" stroke-width="2"></line>
+      <text x="560" y="248" fill="#FF9F0A" font-size="12.5">hold about 1 m off every surface</text>
+      <rect x="681" y="45" width="19" height="180" fill="rgba(255,69,58,.14)"></rect>
+    </svg>
+  </div>
+</section>
+
+<section>
+  <h2>Spacing math</h2>
+  <p class="lede">These numbers assume the default Orbit Studio settings: about 300 extracted frames and 18 views per frame.</p>
+  <div class="cards">
+    <div class="card"><div class="big">1.0 <span class="unit">m</span></div><p>Ideal standoff from walls and key objects. Texture needs room to be seen.</p></div>
+    <div class="card"><div class="big">0.3 <span class="unit">m</span></div><p>Absolute minimum distance. Closer than this and the stitch and the solve both degrade.</p></div>
+    <div class="card"><div class="big">0.5 <span class="unit">m/s</span></div><p>Walking pace ceiling. Slower than feels natural, smooth heel-to-toe steps.</p></div>
+    <div class="card"><div class="big">0.25 <span class="unit">m</span></div><p>Effective distance between extracted frames at that pace. Even spacing beats bursts.</p></div>
+    <div class="card"><div class="big">60-80 <span class="unit">%</span></div><p>View overlap between neighboring frames that COLMAP wants for confident matching.</p></div>
+    <div class="card"><div class="big">1-3 <span class="unit">min</span></div><p>Per room. Longer takes add blur risk and upload weight, not quality.</p></div>
+  </div>
+</section>
+
+<section>
+  <h2>Multi-room protocol</h2>
+  <ol class="protocol">
+    <li><b>One continuous take for the whole floor.</b> <span>Splitting rooms into separate clips breaks the pose graph between them.</span></li>
+    <li><b>Lock exposure and clean both lenses before you start.</b> <span>Standard color, sharpness low, AdaptiveTone off, around 1/500 shutter indoors.</span></li>
+    <li><b>Order rooms so the hallway is your spine.</b> <span>Enter each room from the hall, finish it fully, return to the hall. Never shortcut through an unscanned space.</span></li>
+    <li><b>Perimeter loop first, then an interior sweep.</b> <span>The loop anchors the room, the sweep fills the middle with parallax.</span></li>
+    <li><b>Cross every doorway straight and slow.</b> <span>Doorways are where reconstructions tear. Hold the camera steady, no turning inside the threshold.</span></li>
+    <li><b>Close every loop.</b> <span>Re-see the start of each room before leaving, and end the take where it began. Loop closure is what kills drift.</span></li>
+    <li><b>Two heights in hero rooms.</b> <span>Repeat the loop at chest height where detail matters most.</span></li>
+    <li><b>Keep the scene frozen.</b> <span>Lights on, blinds set, pets and people out, doors either fully open or fully closed for the whole take.</span></li>
+  </ol>
+</section>
+
+<section>
+  <h2>Why this works</h2>
+  <div class="why">
+    <div class="card"><h3>Overlap feeds the solver</h3><p>COLMAP registers a frame only when it shares enough visual features with its neighbors. Even spacing at 60 to 80 percent overlap keeps every frame connected to the graph.</p></div>
+    <div class="card"><h3>Standoff preserves texture</h3><p>Inside 0.3 m, walls become featureless blurs and the dual-lens stitch distorts. At about 1 m, surfaces carry the texture the matcher needs.</p></div>
+    <div class="card"><h3>Loops cancel drift</h3><p>Every step adds a little pose error. Returning to a place the solver has already seen forces the accumulated error back to near zero.</p></div>
+  </div>
+</section>
+
+<footer>
+  Sources: Niantic Scaniverse 360 camera guide, Insta360 stitching manual, and this project's docs/CAPTURE_GUIDE.md. Orbit Studio 1.0, made for the Insta360 X4 Air workflow.
+</footer>
+
+</div>
+<script>
+(function(){
+  var path = document.getElementById("walkPath");
+  var group = document.getElementById("frameDots");
+  var total = path.getTotalLength();
+  var spacing = 18;
+  var count = 0;
+  for (var d = 0; d <= total; d += spacing) {
+    var pt = path.getPointAtLength(d);
+    var c = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    c.setAttribute("cx", pt.x.toFixed(1));
+    c.setAttribute("cy", pt.y.toFixed(1));
+    c.setAttribute("r", "2.7");
+    c.setAttribute("fill", "#64D2FF");
+    c.setAttribute("opacity", "0.92");
+    group.appendChild(c);
+    count += 1;
+  }
+  var meters = (total / 69).toFixed(0);
+  var stats = document.getElementById("dotStats");
+  stats.textContent = count + " frames over about " + meters + " m of path, one every 0.25 m";
+})();
+</script>
+</body>
+</html>

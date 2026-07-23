@@ -1,0 +1,930 @@
+<title>Orbit Capture — Android preview (AR Coach)</title>
+<style>
+:root{
+  --bg:#F2F2F7; --bg-elevated:#FFFFFF;
+  --glass:rgba(255,255,255,.72); --glass-strong:rgba(255,255,255,.88); --glass-tint:rgba(255,255,255,.5);
+  --hairline:rgba(60,60,67,.12); --hairline-strong:rgba(60,60,67,.2);
+  --stage-canvas:#0b0b0e;
+  --text:#1C1C1E; --text-secondary:rgba(60,60,67,.6); --text-tertiary:rgba(60,60,67,.38);
+  --accent:#0A84FF; --accent-ink:#ffffff; --accent-soft:rgba(10,132,255,.12);
+  --success:#30D158; --success-soft:rgba(48,209,88,.14);
+  --warning:#FF9F0A; --warning-soft:rgba(255,159,10,.14);
+  --danger:#FF453A; --danger-soft:rgba(255,69,58,.14);
+  --processing-a:#5856D6; --processing-b:#64D2FF;
+  --font-sans:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI Variable Display","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --font-mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --radius-button:12px; --radius-card:20px; --radius-sheet:26px; --radius-hero:28px; --radius-pill:999px;
+  --shadow-soft:0 1px 2px rgba(30,30,40,.05),0 8px 24px rgba(30,30,40,.07);
+  --shadow-lifted:0 6px 16px rgba(30,30,40,.08),0 20px 44px rgba(30,30,40,.14);
+  --shadow-sheet:0 -8px 40px rgba(20,20,30,.22);
+  --shadow-accent-button:0 8px 20px rgba(10,132,255,.28);
+  --blur-glass:blur(24px) saturate(180%); --blur-glass-strong:blur(30px) saturate(180%);
+  --ease-spring:cubic-bezier(.32,.72,0,1); --duration:280ms; --duration-fast:160ms;
+  --space-1:4px; --space-2:8px; --space-3:12px; --space-4:16px; --space-5:20px; --space-6:24px; --space-8:32px; --space-10:40px; --space-12:48px;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#000000; --bg-elevated:#1C1C1E;
+  --glass:rgba(28,28,30,.68); --glass-strong:rgba(38,38,41,.86); --glass-tint:rgba(28,28,30,.5);
+  --hairline:rgba(255,255,255,.12); --hairline-strong:rgba(255,255,255,.18);
+  --text:#F2F2F7; --text-secondary:rgba(235,235,245,.6); --text-tertiary:rgba(235,235,245,.38);
+  --accent-soft:rgba(10,132,255,.2); --success-soft:rgba(48,209,88,.2); --warning-soft:rgba(255,159,10,.2); --danger-soft:rgba(255,69,58,.2);
+  --shadow-soft:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.32);
+  --shadow-lifted:0 6px 20px rgba(0,0,0,.34),0 24px 48px rgba(0,0,0,.4);
+  color-scheme:dark;
+}}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-sans);-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;}
+button{font-family:inherit;}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+
+.page-head{text-align:center;padding:var(--space-6) var(--space-4) var(--space-2);}
+.page-head h1{font-size:15.5px;font-weight:600;letter-spacing:-.01em;margin:0 0 var(--space-1);}
+.page-head p{margin:0;font-size:12.5px;color:var(--text-secondary);}
+
+.stage{display:flex;justify-content:center;padding:var(--space-6) var(--space-4) var(--space-10);}
+
+/* ---- phone chrome ---- */
+.device{width:436px;height:916px;border-radius:52px;background:linear-gradient(160deg,#232326,#0d0d0f);padding:12px;box-shadow:var(--shadow-lifted),0 40px 90px rgba(0,0,0,.35);}
+.screen{position:relative;width:412px;height:892px;border-radius:40px;overflow:hidden;background:var(--bg);display:flex;flex-direction:column;}
+.statusbar{position:absolute;top:0;left:0;right:0;height:38px;display:flex;align-items:center;justify-content:space-between;padding:0 22px;font-size:13px;font-weight:600;z-index:50;color:var(--text);pointer-events:none;}
+.statusbar.on-dark{color:#fff;}
+.statusbar .punch{position:absolute;left:50%;top:10px;transform:translateX(-50%);width:11px;height:11px;border-radius:50%;background:#000;box-shadow:0 0 0 2px rgba(255,255,255,.05) inset;}
+.gesture-bar{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);width:134px;height:5px;border-radius:99px;background:currentColor;opacity:.35;z-index:50;pointer-events:none;color:var(--text);}
+.gesture-bar.on-dark{color:#fff;opacity:.55;}
+.app{position:absolute;top:0;left:0;right:0;bottom:0;padding-top:38px;display:none;flex-direction:column;}
+.app.active{display:flex;}
+
+/* ---- generic screen furniture ---- */
+.topbar{display:flex;align-items:center;gap:var(--space-3);padding:var(--space-3) var(--space-5) var(--space-2);flex-shrink:0;}
+.topbar h2{font-size:20px;font-weight:700;letter-spacing:-.01em;margin:0;flex:1;}
+.iconbtn{width:34px;height:34px;border-radius:var(--radius-pill);border:1px solid var(--hairline);background:var(--glass);backdrop-filter:var(--blur-glass);display:flex;align-items:center;justify-content:center;color:var(--text);cursor:pointer;flex-shrink:0;}
+.iconbtn:hover{background:var(--glass-strong);}
+.scroll{flex:1;overflow-y:auto;padding:0 var(--space-5) var(--space-6);}
+.scroll::-webkit-scrollbar{width:0;}
+
+.btn{appearance:none;border:none;border-radius:var(--radius-button);font-size:15px;font-weight:600;padding:12px 20px;display:inline-flex;align-items:center;justify-content:center;gap:var(--space-2);cursor:pointer;transition:transform var(--duration-fast) var(--ease-spring),background var(--duration-fast);}
+.btn:active{transform:scale(.97);}
+.btn-primary{background:var(--accent);color:var(--accent-ink);box-shadow:var(--shadow-accent-button);}
+.btn-primary:hover{background:#1a8cff;}
+.btn-primary:disabled{opacity:.4;cursor:not-allowed;box-shadow:none;}
+.btn-secondary{background:var(--glass);color:var(--text);border:1px solid var(--hairline);backdrop-filter:var(--blur-glass);}
+.btn-secondary:hover{background:var(--glass-strong);}
+.btn-ghost{background:transparent;color:var(--accent);}
+.btn-ghost:hover{background:var(--accent-soft);}
+.btn-danger{background:var(--danger);color:#fff;}
+.btn-block{width:100%;}
+.btn-sm{padding:8px 14px;font-size:13px;}
+
+/* ---- HOME ---- */
+.scan-card{background:var(--bg-elevated);border-radius:var(--radius-card);box-shadow:var(--shadow-soft);overflow:hidden;margin-bottom:var(--space-4);border:1px solid var(--hairline);}
+.scan-poster{height:110px;background:linear-gradient(150deg,#6f6fe0,#58c7e8);position:relative;display:flex;align-items:center;justify-content:center;}
+.scan-poster span{font-size:30px;font-weight:700;color:rgba(255,255,255,.85);letter-spacing:-.02em;}
+.scan-body{padding:var(--space-4);}
+.scan-row{display:flex;align-items:center;justify-content:space-between;gap:var(--space-2);}
+.card-title{font-size:15.5px;font-weight:600;letter-spacing:-.01em;margin:0;}
+.chip{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:var(--radius-pill);font-size:11.5px;font-weight:600;}
+.chip-done{background:var(--success-soft);color:var(--success);}
+.chip-draft{background:var(--warning-soft);color:var(--warning);}
+.card-time{font-size:12.5px;color:var(--text-secondary);margin-top:2px;}
+.health-badge{margin-top:var(--space-3);display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;color:var(--success);background:var(--success-soft);border-radius:10px;padding:6px 10px;}
+.section-label{font-size:12.5px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.04em;margin:var(--space-2) 0 var(--space-3);}
+.home-cta{padding:var(--space-4) var(--space-5) var(--space-6);}
+
+/* ---- CAPTURE (AR Coach) ---- */
+.capture-app{padding-top:0;background:#000;}
+.viewfinder{position:absolute;inset:0;overflow:hidden;touch-action:none;}
+.vf-scene{position:absolute;inset:-6%;background:
+  radial-gradient(ellipse 60% 40% at 78% 18%, rgba(255,244,214,.18), transparent 60%),
+  linear-gradient(200deg, rgba(120,110,150,.16), transparent 45%),
+  linear-gradient(115deg,#1b1c22 0%,#101116 38%,#0a0a0d 70%,#050506 100%);
+  transition:transform 900ms var(--ease-spring);
+}
+.vf-window{position:absolute;top:12%;right:10%;width:34%;height:26%;background:linear-gradient(180deg,rgba(210,225,255,.35),rgba(150,175,220,.12));border-radius:4px;filter:blur(1px);}
+.vf-floor{position:absolute;left:0;right:0;bottom:0;height:38%;background:linear-gradient(180deg,transparent,rgba(0,0,0,.55));}
+.vf-furniture{position:absolute;left:8%;bottom:8%;width:30%;height:22%;background:rgba(0,0,0,.4);border-radius:10px 10px 4px 4px;box-shadow:0 20px 40px rgba(0,0,0,.4);}
+.vf-furniture2{position:absolute;right:14%;bottom:6%;width:16%;height:34%;background:rgba(0,0,0,.32);border-radius:6px;}
+.vf-grain{position:absolute;inset:0;background:repeating-linear-gradient(0deg,rgba(255,255,255,.015) 0 1px,transparent 1px 3px);mix-blend-mode:overlay;pointer-events:none;}
+.vf-vignette{position:absolute;inset:0;box-shadow:inset 0 0 140px rgba(0,0,0,.65);pointer-events:none;}
+.flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;}
+.flash.fire{animation:flashfire 260ms ease-out;}
+@keyframes flashfire{0%{opacity:.85;}100%{opacity:0;}}
+
+.ribbon{position:absolute;top:38px;left:0;right:0;display:flex;align-items:center;justify-content:space-between;padding:8px 14px;z-index:20;gap:8px;}
+.hud-chip{background:var(--glass);backdrop-filter:var(--blur-glass);border:1px solid rgba(255,255,255,.14);border-radius:var(--radius-pill);color:#fff;font-size:11.5px;font-weight:600;padding:6px 11px;display:flex;align-items:center;gap:5px;white-space:nowrap;}
+.ribbon .hud-chip{background:rgba(28,28,30,.55);}
+
+.level{position:absolute;left:50%;top:44%;transform:translate(-50%,-50%);width:220px;height:2px;z-index:15;pointer-events:none;}
+.level-line{position:absolute;inset:0;background:rgba(255,255,255,.4);border-radius:2px;}
+.level-bubble{position:absolute;top:-9px;width:20px;height:20px;border-radius:50%;background:rgba(255,255,255,.9);border:2px solid rgba(0,0,0,.3);left:50%;transition:left 500ms var(--ease-spring),background 200ms;}
+.level-bubble.on{background:var(--success);border-color:rgba(0,0,0,.15);}
+
+.pip{position:absolute;width:14px;height:14px;border-radius:50%;border:2px solid rgba(255,255,255,.55);transform:translate(-50%,-50%);z-index:12;transition:all var(--duration) var(--ease-spring);}
+.pip.filled{background:var(--success);border-color:var(--success);box-shadow:0 0 0 4px rgba(48,209,88,.22);}
+.pip.hero{border-color:var(--warning);background:rgba(255,159,10,.25);width:18px;height:18px;}
+.pip.hero.resolved{background:var(--warning);}
+.pip.pulse{animation:pipPulse 1.2s ease-in-out infinite;}
+@keyframes pipPulse{0%,100%{box-shadow:0 0 0 0 rgba(255,159,10,.5);}50%{box-shadow:0 0 0 10px rgba(255,159,10,0);}}
+
+.overlap-wrap{position:absolute;right:16px;top:96px;bottom:210px;width:34px;z-index:20;display:flex;flex-direction:column;align-items:center;gap:6px;}
+.overlap-track{flex:1;width:10px;border-radius:99px;background:rgba(255,255,255,.16);position:relative;overflow:hidden;}
+.overlap-fill{position:absolute;bottom:0;left:0;right:0;border-radius:99px;transition:height 150ms linear,background 200ms;}
+.overlap-pct{color:#fff;font-size:11px;font-weight:700;background:rgba(0,0,0,.4);border-radius:8px;padding:2px 6px;}
+.overlap-label{color:rgba(255,255,255,.7);font-size:9.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;writing-mode:vertical-rl;}
+
+.dist-meter{position:absolute;left:16px;bottom:190px;z-index:20;display:flex;flex-direction:column;align-items:center;gap:4px;color:#fff;}
+.dist-icon{width:38px;height:38px;border-radius:50%;background:rgba(28,28,30,.55);backdrop-filter:var(--blur-glass);border:1px solid rgba(255,255,255,.14);display:flex;align-items:center;justify-content:center;}
+.dist-icon svg{width:18px;height:18px;}
+.dist-text{font-size:10px;font-weight:600;background:rgba(0,0,0,.35);padding:2px 7px;border-radius:99px;}
+
+.toast-stack{position:absolute;top:78px;left:14px;right:14px;z-index:60;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none;}
+.toast{background:rgba(28,28,30,.82);backdrop-filter:var(--blur-glass-strong);color:#fff;font-size:13px;font-weight:600;padding:10px 16px;border-radius:14px;border:1px solid rgba(255,255,255,.12);box-shadow:var(--shadow-lifted);max-width:340px;text-align:center;opacity:0;transform:translateY(-8px);animation:toastIn 220ms var(--ease-spring) forwards, toastOut 220ms ease-in 2.4s forwards;}
+@keyframes toastIn{to{opacity:1;transform:translateY(0);}}
+@keyframes toastOut{to{opacity:0;transform:translateY(-8px);}}
+
+.capture-bottom{position:absolute;left:0;right:0;bottom:0;padding:0 20px 26px;z-index:30;display:flex;flex-direction:column;align-items:center;gap:14px;}
+.hero-hint{color:rgba(255,255,255,.55);font-size:11px;font-weight:600;text-align:center;}
+.controls-row{display:flex;align-items:center;justify-content:space-between;width:100%;}
+.ctrl-side{width:70px;display:flex;justify-content:center;}
+.fastfwd{background:rgba(28,28,30,.55);backdrop-filter:var(--blur-glass);border:1px solid rgba(255,255,255,.14);color:#fff;font-size:10.5px;font-weight:600;border-radius:12px;padding:8px 10px;text-align:center;line-height:1.25;cursor:pointer;}
+.shutter-wrap{position:relative;display:flex;flex-direction:column;align-items:center;gap:8px;}
+.focus-indicator{position:absolute;bottom:88px;background:rgba(28,28,30,.8);color:#fff;font-size:11.5px;font-weight:600;padding:6px 12px;border-radius:99px;display:flex;align-items:center;gap:6px;opacity:0;transition:opacity 160ms;white-space:nowrap;}
+.focus-indicator.show{opacity:1;}
+.spinner{width:11px;height:11px;border-radius:50%;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;animation:spin .7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.shutter{width:76px;height:76px;border-radius:50%;background:#fff;border:4px solid rgba(255,255,255,.35);cursor:pointer;position:relative;transition:transform var(--duration-fast) var(--ease-spring);}
+.shutter:active{transform:scale(.92);}
+.shutter:disabled{opacity:.5;cursor:not-allowed;}
+.shutter::after{content:'';position:absolute;inset:5px;border-radius:50%;background:#fff;}
+
+/* precapture sheet */
+.sheet-overlay{position:absolute;inset:0;background:rgba(0,0,0,.5);z-index:80;display:flex;align-items:flex-end;opacity:0;pointer-events:none;transition:opacity var(--duration) var(--ease-spring);}
+.sheet-overlay.show{opacity:1;pointer-events:auto;}
+.sheet{width:100%;background:var(--bg-elevated);border-radius:var(--radius-sheet) var(--radius-sheet) 0 0;box-shadow:var(--shadow-sheet);padding:var(--space-6) var(--space-5) var(--space-8);transform:translateY(20px);transition:transform var(--duration) var(--ease-spring);}
+.sheet-overlay.show .sheet{transform:translateY(0);}
+.sheet h3{font-size:20px;font-weight:700;letter-spacing:-.01em;margin:0 0 4px;}
+.sheet p.sub{margin:0 0 var(--space-5);color:var(--text-secondary);font-size:13px;}
+.check-row{display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid var(--hairline);}
+.check-row:last-of-type{border-bottom:none;}
+.check-row label{flex:1;font-size:13.5px;line-height:1.4;color:var(--text);}
+.check-row .sub2{color:var(--text-secondary);font-size:12px;margin-top:2px;}
+.toggle{width:46px;height:28px;border-radius:99px;background:var(--hairline-strong);position:relative;border:none;cursor:pointer;flex-shrink:0;transition:background var(--duration-fast);}
+.toggle.on{background:var(--success);}
+.toggle::after{content:'';position:absolute;top:2px;left:2px;width:24px;height:24px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:transform var(--duration-fast) var(--ease-spring);}
+.toggle.on::after{transform:translateX(18px);}
+.check{width:22px;height:22px;border-radius:6px;border:2px solid var(--hairline-strong);background:transparent;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#fff;}
+.check.on{background:var(--accent);border-color:var(--accent);}
+
+/* ---- REVIEW ---- */
+.map-card{background:var(--bg-elevated);border:1px solid var(--hairline);border-radius:var(--radius-card);padding:var(--space-4);box-shadow:var(--shadow-soft);margin-bottom:var(--space-4);}
+.map-card svg{width:100%;height:auto;display:block;}
+.stage-badges{display:flex;gap:8px;margin-top:var(--space-3);}
+.stage-badge{flex:1;text-align:center;border-radius:12px;padding:8px 4px;font-size:11px;font-weight:600;background:var(--hairline);color:var(--text-tertiary);}
+.stage-badge.lit{background:var(--success-soft);color:var(--success);}
+.gap-item{background:var(--bg-elevated);border:1px solid var(--hairline);border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+.gap-item .dot{width:8px;height:8px;border-radius:50%;background:var(--danger);flex-shrink:0;}
+.gap-item .dot.warn{background:var(--warning);}
+.gap-item p{margin:0;font-size:13px;flex:1;color:var(--text);}
+.thumb-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:var(--space-2);}
+.thumb{position:relative;aspect-ratio:1;border-radius:8px;overflow:hidden;border:1px solid var(--hairline);}
+.thumb .q{position:absolute;top:3px;right:3px;width:7px;height:7px;border-radius:50%;background:var(--success);box-shadow:0 0 0 1.5px rgba(0,0,0,.25);}
+.thumb.weak .q{background:var(--danger);}
+.thumb button{position:absolute;inset:0;width:100%;height:100%;border:none;background:transparent;cursor:pointer;}
+.thumb.weak::after{content:'';position:absolute;inset:0;background:rgba(255,69,58,.18);}
+.review-actions{display:flex;gap:10px;padding:var(--space-4) var(--space-5) var(--space-6);}
+.review-actions .btn{flex:1;}
+
+/* ---- BUNDLE ---- */
+.field-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--hairline);font-size:13px;}
+.field-row:last-child{border-bottom:none;}
+.field-row .k{color:var(--text-secondary);}
+.field-row .v{font-weight:600;font-family:var(--font-mono);font-size:12.5px;}
+pre.manifest{background:var(--stage-canvas);color:#c9e8ff;font-family:var(--font-mono);font-size:11px;line-height:1.55;padding:14px;border-radius:14px;overflow-x:auto;margin:0;}
+.progress-track{height:8px;border-radius:99px;background:var(--hairline);overflow:hidden;margin:var(--space-3) 0;}
+.progress-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--processing-a),var(--processing-b));width:0%;transition:width 1.2s var(--ease-spring);}
+.zip-caption{font-size:12px;color:var(--text-secondary);margin:0;}
+.ready-banner{display:flex;align-items:center;gap:8px;background:var(--success-soft);color:var(--success);font-weight:600;font-size:13px;border-radius:12px;padding:10px 12px;margin:var(--space-3) 0;opacity:0;transition:opacity var(--duration);}
+.ready-banner.show{opacity:1;}
+
+/* ---- DONE ---- */
+.dropzone{border:2px dashed var(--hairline-strong);border-radius:var(--radius-hero);padding:var(--space-8) var(--space-5);text-align:center;cursor:pointer;background:var(--glass-tint);transition:background var(--duration-fast),border-color var(--duration-fast);}
+.dropzone:hover{background:var(--accent-soft);border-color:var(--accent);}
+.dropzone svg{width:34px;height:34px;color:var(--text-tertiary);margin-bottom:10px;}
+.dropzone p{margin:0;font-size:13.5px;color:var(--text-secondary);}
+.reg-banner{border-radius:14px;padding:14px;display:flex;gap:10px;align-items:flex-start;margin:var(--space-4) 0;}
+.reg-banner.healthy{background:var(--success-soft);color:var(--success);}
+.reg-banner.warn{background:var(--warning-soft);color:var(--warning);}
+.reg-banner strong{display:block;font-size:13.5px;margin-bottom:2px;color:var(--text);}
+.reg-banner span{font-size:12.5px;color:var(--text-secondary);}
+.reg-pct{font-size:32px;font-weight:800;letter-spacing:-.02em;text-align:center;margin:var(--space-4) 0 0;}
+.reg-pct-label{text-align:center;font-size:12px;color:var(--text-secondary);margin:0 0 var(--space-2);}
+.sim-row{display:flex;gap:8px;margin-top:var(--space-4);}
+.sim-row .btn{flex:1;}
+
+/* toast for page (non-capture screens) */
+.page-toast-host{position:absolute;top:44px;left:14px;right:14px;z-index:90;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none;}
+.page-toast-host .toast{background:rgba(28,28,30,.88);}
+
+.hidden{display:none!important;}
+</style>
+
+<div class="page-head">
+  <h1>Orbit Capture — Android app preview</h1>
+  <p>Angle B — AR Coach · phone-photo capture lane for Orbit Studio</p>
+</div>
+
+<div class="stage">
+  <div class="device">
+    <div class="screen" id="screen">
+      <div class="statusbar" id="statusbar"><span>9:41</span><span class="punch"></span><span>●●●</span></div>
+
+      <!-- ===== HOME ===== -->
+      <section class="app active" id="app-home">
+        <div class="topbar">
+          <h2>Orbit Capture</h2>
+          <button class="iconbtn" aria-label="Settings">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 0 1-4 0v-.09a1.7 1.7 0 0 0-1-1.55 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.55-1H3a2 2 0 0 1 0-4h.09a1.7 1.7 0 0 0 1.55-1 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34H9a1.7 1.7 0 0 0 1-1.55V3a2 2 0 0 1 4 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87V9a1.7 1.7 0 0 0 1.55 1H21a2 2 0 0 1 0 4h-.09a1.7 1.7 0 0 0-1.55 1z"/></svg>
+          </button>
+        </div>
+        <div class="scroll">
+          <p class="section-label">Scans</p>
+          <div class="scan-card">
+            <div class="scan-poster"><span>LR</span></div>
+            <div class="scan-body">
+              <div class="scan-row">
+                <p class="card-title">Living room</p>
+                <span class="chip chip-done">Done</span>
+              </div>
+              <p class="card-time">62 photos · captured 2 days ago</p>
+              <div class="health-badge">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>
+                95% registered — healthy
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="home-cta">
+          <button class="btn btn-primary btn-block" id="btn-new-scan">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12h14"/></svg>
+            New scan
+          </button>
+        </div>
+      </section>
+
+      <!-- ===== CAPTURE ===== -->
+      <section class="app capture-app" id="app-capture">
+        <div class="viewfinder" id="viewfinder">
+          <div class="vf-scene" id="vf-scene">
+            <div class="vf-window"></div>
+            <div class="vf-furniture"></div>
+            <div class="vf-furniture2"></div>
+            <div class="vf-floor"></div>
+          </div>
+          <div class="vf-grain"></div>
+          <div class="vf-vignette"></div>
+          <div class="flash" id="flash"></div>
+
+          <div class="level" id="level">
+            <div class="level-line"></div>
+            <div class="level-bubble" id="level-bubble"></div>
+          </div>
+
+          <div id="pip-layer"></div>
+
+          <div class="overlap-wrap">
+            <span class="overlap-pct" id="overlap-pct">74%</span>
+            <div class="overlap-track"><div class="overlap-fill" id="overlap-fill" style="height:74%;background:var(--success);"></div></div>
+            <span class="overlap-label">OVERLAP</span>
+          </div>
+
+          <div class="dist-meter">
+            <div class="dist-icon" id="dist-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.4" fill="#fff" stroke="none"/></svg>
+            </div>
+            <span class="dist-text" id="dist-text">~1 m · good</span>
+          </div>
+
+          <div class="toast-stack" id="toast-stack"></div>
+        </div>
+
+        <div class="ribbon">
+          <span class="hud-chip" id="time-chip">0:00</span>
+          <span class="hud-chip" id="count-chip">0 photos</span>
+          <span class="hud-chip">12MP · AE locked
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg>
+          </span>
+        </div>
+
+        <div class="capture-bottom">
+          <span class="hero-hint">Long-press the scene to mark a hero area</span>
+          <div class="controls-row">
+            <div class="ctrl-side">
+              <button class="iconbtn" id="btn-capture-back" aria-label="Back to scans" style="background:rgba(28,28,30,.55);border-color:rgba(255,255,255,.14);color:#fff;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M15 18l-6-6 6-6"/></svg>
+              </button>
+            </div>
+            <div class="shutter-wrap">
+              <span class="focus-indicator" id="focus-indicator"><span class="spinner"></span>Hold still — focusing.</span>
+              <button class="shutter" id="btn-shutter" aria-label="Take photo"></button>
+            </div>
+            <div class="ctrl-side">
+              <button class="fastfwd" id="btn-simulate-room">Simulate<br>full room</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="sheet-overlay" id="precheck-overlay">
+          <div class="sheet">
+            <h3>Three things before you start.</h3>
+            <p class="sub">Quick checklist — this only shows once per scan.</p>
+            <div class="check-row">
+              <button class="toggle" id="chk-exposure" aria-pressed="false" aria-label="Exposure locked"></button>
+              <div>
+                <label for="chk-exposure">Exposure locked</label>
+                <div class="sub2">Lock exposure so lighting doesn't drift between shots.</div>
+              </div>
+            </div>
+            <div class="check-row">
+              <button class="check" id="chk-lighting" aria-pressed="false" aria-label="Lighting checked"></button>
+              <div>
+                <label for="chk-lighting">Turn on the lights, avoid shooting into windows.</label>
+              </div>
+            </div>
+            <div class="check-row">
+              <button class="check" id="chk-lens" aria-pressed="false" aria-label="Lens clean"></button>
+              <div>
+                <label for="chk-lens">Wipe the rear lens before you start.</label>
+              </div>
+            </div>
+            <div style="margin-top:var(--space-5);">
+              <button class="btn btn-primary btn-block" id="btn-precheck-continue" disabled>Continue</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== REVIEW ===== -->
+      <section class="app" id="app-review">
+        <div class="topbar">
+          <button class="iconbtn" id="btn-review-back" aria-label="Back to capture">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M15 18l-6-6 6-6"/></svg>
+          </button>
+          <h2>Review coverage</h2>
+        </div>
+        <div class="scroll">
+          <div class="map-card">
+            <svg viewBox="0 0 220 160" id="coverage-svg" aria-label="Top-down coverage map"></svg>
+            <div class="stage-badges">
+              <div class="stage-badge" id="badge-perimeter">Perimeter</div>
+              <div class="stage-badge" id="badge-interior">Interior</div>
+              <div class="stage-badge" id="badge-loop">Loop closed</div>
+            </div>
+          </div>
+          <p class="section-label" id="gaps-label">Flagged gaps</p>
+          <div id="gap-list"></div>
+          <p class="section-label">Photos (<span id="thumb-count">0</span>)</p>
+          <div class="thumb-grid" id="thumb-grid"></div>
+        </div>
+        <div class="review-actions">
+          <button class="btn btn-secondary" id="btn-retake-gaps">Retake gaps</button>
+          <button class="btn btn-primary" id="btn-to-bundle">Looks good → Bundle</button>
+        </div>
+      </section>
+
+      <!-- ===== BUNDLE ===== -->
+      <section class="app" id="app-bundle">
+        <div class="topbar">
+          <button class="iconbtn" id="btn-bundle-back" aria-label="Back to review">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M15 18l-6-6 6-6"/></svg>
+          </button>
+          <h2>Bundle &amp; handoff</h2>
+        </div>
+        <div class="scroll">
+          <p class="section-label">Manifest summary</p>
+          <div class="map-card">
+            <div class="field-row"><span class="k">Project</span><span class="v">living-room</span></div>
+            <div class="field-row"><span class="k">Photos / crops</span><span class="v" id="bundle-count">0</span></div>
+            <div class="field-row"><span class="k">Lane</span><span class="v">phone</span></div>
+            <div class="field-row"><span class="k">Device</span><span class="v">Pixel 8</span></div>
+            <div class="field-row"><span class="k">Focal (35mm eq.)</span><span class="v">26mm</span></div>
+            <div class="field-row"><span class="k">Exposure locked</span><span class="v">true</span></div>
+            <div class="field-row"><span class="k">Pattern</span><span class="v">perimeter+interior+loop</span></div>
+          </div>
+          <p class="section-label">manifest.json</p>
+          <pre class="manifest" id="manifest-pre"></pre>
+          <p class="zip-caption" style="margin-top:var(--space-3);">Photos are stored uncompressed (ZIP_STORED) inside <code>crops/</code>, matching the pipeline's bundle.py contract.</p>
+          <div class="progress-track"><div class="progress-fill" id="zip-fill"></div></div>
+          <p class="zip-caption" id="zip-status">Zipping bundle…</p>
+          <div class="ready-banner" id="bundle-ready">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" style="flex-shrink:0;"><path d="M20 6 9 17l-5-5"/></svg>
+            Bundle's ready. Open the notebook and run all cells.
+          </div>
+        </div>
+        <div class="review-actions" style="flex-direction:column;">
+          <button class="btn btn-primary btn-block" id="btn-open-notebook">Open notebook</button>
+          <button class="btn btn-ghost btn-block" id="btn-to-done">Continue to Done →</button>
+        </div>
+      </section>
+
+      <!-- ===== DONE ===== -->
+      <section class="app" id="app-done">
+        <div class="topbar">
+          <button class="iconbtn" id="btn-done-back" aria-label="Back to home">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M15 18l-6-6 6-6"/></svg>
+          </button>
+          <h2 id="done-title">Waiting on Colab</h2>
+        </div>
+        <div class="scroll">
+          <div id="done-pre">
+            <button class="dropzone btn-block" id="dropzone" style="width:100%;" aria-label="Drop artifact.splat here">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v12m0 0-4-4m4 4 4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+              <p><strong style="color:var(--text);">Drop artifact.splat here</strong><br>Waiting for the trained scene from Colab.</p>
+            </button>
+          </div>
+          <div id="done-post" class="hidden">
+            <p style="font-size:13.5px;color:var(--text-secondary);margin-top:0;">Your splat is back. Open it in the viewer.</p>
+            <p class="reg-pct-label">Registration</p>
+            <p class="reg-pct" id="reg-pct">95%</p>
+            <div class="reg-banner healthy" id="reg-banner">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" style="flex-shrink:0;margin-top:2px;"><path d="M20 6 9 17l-5-5"/></svg>
+              <div><strong id="reg-title">95% registered.</strong><span id="reg-sub">This one held together.</span></div>
+            </div>
+            <button class="btn btn-primary btn-block" id="btn-open-viewer" style="margin-top:var(--space-4);">
+              Open in Orbit Studio Viewer
+            </button>
+            <p style="font-size:11.5px;color:var(--text-tertiary);text-align:center;margin-top:8px;font-family:var(--font-mono);">localhost:7360 · via start.bat</p>
+          </div>
+          <div class="sim-row">
+            <button class="btn btn-secondary btn-sm" id="btn-sim-healthy">Simulate healthy return</button>
+            <button class="btn btn-secondary btn-sm" id="btn-sim-weak">Simulate weak return</button>
+          </div>
+        </div>
+      </section>
+
+      <div class="page-toast-host" id="page-toast-host"></div>
+      <div class="gesture-bar"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var $ = function(id){ return document.getElementById(id); };
+
+  var state = {
+    screen:'home', shots:0, target:58,
+    perimeterTarget:18, interiorTarget:42, loopTarget:48,
+    overlap:74, overlapTimer:null,
+    distance:'good',
+    focusing:false,
+    heroSpots:[],
+    elapsed:0, timerId:null, timeNudgeShown:false, loopPromptShown:false,
+    shotsData:[],
+    aimTimer:null, tiltTimer:null,
+    precheck:{exposure:false, lighting:false, lens:false}
+  };
+
+  // ---------- pip layout ----------
+  var perimeterPips = [
+    {x:10,y:20},{x:32,y:10},{x:55,y:8},{x:78,y:14},
+    {x:90,y:38},{x:82,y:62},{x:60,y:74},{x:18,y:64}
+  ];
+  var interiorPips = [
+    {x:38,y:34},{x:58,y:32},{x:44,y:48},{x:62,y:50},{x:36,y:58},{x:56,y:60}
+  ];
+
+  function buildPipLayer(){
+    var layer = $('pip-layer'); layer.innerHTML = '';
+    perimeterPips.concat(interiorPips).forEach(function(p, i){
+      var d = document.createElement('div');
+      d.className = 'pip';
+      d.style.left = p.x + '%'; d.style.top = p.y + '%';
+      d.dataset.idx = i;
+      layer.appendChild(d);
+    });
+  }
+
+  function updatePips(){
+    var layer = $('pip-layer');
+    var pipEls = layer.querySelectorAll('.pip:not(.hero)');
+    var perimFilled = Math.min(perimeterPips.length, Math.round((Math.min(state.shots, state.perimeterTarget) / state.perimeterTarget) * perimeterPips.length));
+    var interiorFilled = state.shots <= state.perimeterTarget ? 0 :
+      Math.min(interiorPips.length, Math.round(((Math.min(state.shots, state.interiorTarget) - state.perimeterTarget) / (state.interiorTarget - state.perimeterTarget)) * interiorPips.length));
+    pipEls.forEach(function(el, i){
+      if(i < perimeterPips.length){
+        el.classList.toggle('filled', i < perimFilled);
+      } else {
+        var ii = i - perimeterPips.length;
+        el.classList.toggle('filled', ii < interiorFilled);
+      }
+      el.classList.remove('pulse');
+    });
+    if(state.loopPromptShown && state.shots < state.loopTarget && pipEls[0]){
+      pipEls[0].classList.add('pulse');
+    }
+  }
+
+  function renderHeroPips(){
+    var layer = $('pip-layer');
+    layer.querySelectorAll('.pip.hero').forEach(function(el){ el.remove(); });
+    state.heroSpots.forEach(function(h){
+      var d = document.createElement('div');
+      d.className = 'pip hero' + (h.resolved ? ' resolved' : '');
+      d.style.left = h.x + '%'; d.style.top = h.y + '%';
+      layer.appendChild(d);
+    });
+  }
+
+  // ---------- toasts ----------
+  function toast(msg, hostId){
+    var host = $(hostId || 'toast-stack');
+    var t = document.createElement('div');
+    t.className = 'toast';
+    t.textContent = msg;
+    host.appendChild(t);
+    setTimeout(function(){ t.remove(); }, 2700);
+  }
+
+  // ---------- screen nav ----------
+  function showScreen(name){
+    state.screen = name;
+    document.querySelectorAll('.app').forEach(function(el){ el.classList.remove('active'); });
+    $('app-' + name).classList.add('active');
+    var statusbar = $('statusbar');
+    var isDark = name === 'capture';
+    statusbar.classList.toggle('on-dark', isDark);
+    document.querySelector('.gesture-bar').classList.toggle('on-dark', isDark);
+    if(name === 'capture'){ startCaptureLoops(); } else { stopCaptureLoops(); }
+    if(name === 'review'){ renderReview(); }
+    if(name === 'bundle'){ renderBundle(); }
+  }
+
+  // ---------- precapture checklist ----------
+  function precheckReady(){
+    return state.precheck.exposure && state.precheck.lighting && state.precheck.lens;
+  }
+  function refreshPrecheck(){
+    $('btn-precheck-continue').disabled = !precheckReady();
+  }
+  $('btn-new-scan').addEventListener('click', function(){
+    showScreen('capture');
+    resetCaptureState();
+    $('precheck-overlay').classList.add('show');
+  });
+  $('chk-exposure').addEventListener('click', function(){
+    state.precheck.exposure = !state.precheck.exposure;
+    this.classList.toggle('on', state.precheck.exposure);
+    this.setAttribute('aria-pressed', state.precheck.exposure);
+    if(!state.precheck.exposure){ toast('Your phone reports auto-exposure is still active.', null); }
+    refreshPrecheck();
+  });
+  ['chk-lighting','chk-lens'].forEach(function(id){
+    $(id).addEventListener('click', function(){
+      var on = this.classList.toggle('on');
+      this.setAttribute('aria-pressed', on);
+      if(on){ this.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg>'; }
+      else { this.innerHTML = ''; }
+      var key = id === 'chk-lighting' ? 'lighting' : 'lens';
+      state.precheck[key] = on;
+      refreshPrecheck();
+    });
+  });
+  $('btn-precheck-continue').addEventListener('click', function(){
+    if(!precheckReady()) return;
+    $('precheck-overlay').classList.remove('show');
+    toast('Lock exposure so lighting doesn’t drift between shots.');
+  });
+
+  // ---------- capture reset ----------
+  function resetCaptureState(){
+    state.shots = 0; state.heroSpots = []; state.elapsed = 0;
+    state.timeNudgeShown = false; state.loopPromptShown = false; state.shotsData = [];
+    state.overlap = 74;
+    state.precheck = {exposure:false, lighting:false, lens:false};
+    ['chk-exposure','chk-lighting','chk-lens'].forEach(function(id){
+      $(id).classList.remove('on'); $(id).setAttribute('aria-pressed','false');
+    });
+    $('chk-lighting').innerHTML = ''; $('chk-lens').innerHTML = '';
+    refreshPrecheck();
+    buildPipLayer();
+    renderHeroPips();
+    updateHUD();
+  }
+
+  function updateHUD(){
+    $('time-chip').textContent = formatTime(state.elapsed);
+    $('count-chip').textContent = state.shots + ' photo' + (state.shots === 1 ? '' : 's');
+    updatePips();
+  }
+
+  function formatTime(s){
+    var m = Math.floor(s / 60), r = s % 60;
+    return m + ':' + (r < 10 ? '0' : '') + r;
+  }
+
+  // ---------- live HUD loops ----------
+  function startCaptureLoops(){
+    stopCaptureLoops();
+    state.timerId = setInterval(function(){
+      state.elapsed++;
+      $('time-chip').textContent = formatTime(state.elapsed);
+      if(state.elapsed >= 180 && !state.timeNudgeShown){
+        state.timeNudgeShown = true;
+        toast('You’ve covered the essentials. Wrap up or keep going — your call.');
+      }
+    }, 1000);
+    state.tiltTimer = setInterval(function(){
+      var tilt = (Math.random() * 16 - 8);
+      var bubble = $('level-bubble');
+      bubble.style.left = (50 + tilt) + '%';
+      bubble.classList.toggle('on', Math.abs(tilt) < 1.6);
+      var scene = $('vf-scene');
+      scene.style.transform = 'rotate(' + (tilt * 0.15) + 'deg) scale(1.03)';
+    }, 900);
+    driftOverlap();
+  }
+  function stopCaptureLoops(){
+    clearInterval(state.timerId); state.timerId = null;
+    clearInterval(state.tiltTimer); state.tiltTimer = null;
+    clearInterval(state.overlapTimer); state.overlapTimer = null;
+  }
+
+  function overlapColor(v){
+    if(v < 60) return 'var(--danger)';
+    if(v < 70) return 'var(--warning)';
+    if(v <= 90) return 'var(--success)';
+    return 'var(--warning)';
+  }
+  function paintOverlap(){
+    $('overlap-pct').textContent = Math.round(state.overlap) + '%';
+    $('overlap-fill').style.height = state.overlap + '%';
+    $('overlap-fill').style.background = overlapColor(state.overlap);
+  }
+  function driftOverlap(){
+    clearInterval(state.overlapTimer);
+    var settlePoint = 68 + Math.random() * 24; // 68-92, "re-aiming" climbs toward this
+    state.overlapTimer = setInterval(function(){
+      var delta = settlePoint - state.overlap;
+      state.overlap += delta * 0.18 + (Math.random() * 2 - 1);
+      state.overlap = Math.max(20, Math.min(96, state.overlap));
+      paintOverlap();
+    }, 180);
+  }
+
+  var distStates = [
+    {key:'good', text:'~1 m · good'},
+    {key:'close', text:'too close'},
+    {key:'far', text:'step in'}
+  ];
+  function rollDistance(){
+    var r = Math.random();
+    var pick = r < 0.6 ? distStates[0] : (r < 0.8 ? distStates[1] : distStates[2]);
+    state.distance = pick.key;
+    $('dist-text').textContent = pick.text;
+    var icon = $('dist-icon');
+    icon.style.background = pick.key === 'good' ? 'rgba(48,209,88,.35)' : (pick.key === 'close' ? 'rgba(255,69,58,.4)' : 'rgba(255,159,10,.4)');
+    if(pick.key === 'close' && Math.random() < 0.5){ toast('Back up. You’re inside the 0.3 m minimum.'); }
+    if(pick.key === 'far' && Math.random() < 0.5){ toast('Step in closer for detail.'); }
+  }
+
+  // ---------- shutter / shot logic ----------
+  function tryShutter(){
+    if(state.focusing) return;
+    state.focusing = true;
+    var btn = $('btn-shutter'); btn.disabled = true;
+    $('focus-indicator').classList.add('show');
+    setTimeout(function(){
+      state.focusing = false;
+      $('focus-indicator').classList.remove('show');
+      btn.disabled = false;
+      var motionFail = Math.random() < 0.12;
+      if(motionFail){
+        toast('Hold still — focusing.');
+        return;
+      }
+      commitShot();
+    }, 520);
+  }
+
+  function commitShot(){
+    if(state.shots >= 999) return;
+    state.shots++;
+    var quality = state.overlap < 60 ? 'weak' : 'good';
+    state.shotsData.push({ quality: quality });
+    if(quality === 'weak'){ toast('Move a little less between shots. Aim to keep most of the last photo in view.'); }
+
+    var flash = $('flash'); flash.classList.remove('fire'); void flash.offsetWidth; flash.classList.add('fire');
+
+    // resolve most recent pending hero
+    var pending = state.heroSpots.filter(function(h){ return !h.resolved; });
+    if(pending.length){ pending[pending.length - 1].resolved = true; renderHeroPips(); }
+
+    rollDistance();
+    state.overlap = 35 + Math.random() * 20;
+    paintOverlap();
+    driftOverlap();
+
+    updateHUD();
+
+    if(state.shots >= state.interiorTarget && !state.loopPromptShown){
+      state.loopPromptShown = true;
+      toast('Almost there — walk back to your starting point to close the loop.');
+    }
+  }
+
+  $('btn-shutter').addEventListener('click', tryShutter);
+
+  $('btn-simulate-room').addEventListener('click', function(){
+    state.shots = state.target;
+    state.loopPromptShown = true;
+    state.shotsData = [];
+    for(var i = 0; i < state.target; i++){
+      state.shotsData.push({ quality: Math.random() < 0.12 ? 'weak' : 'good' });
+    }
+    state.heroSpots.forEach(function(h){ h.resolved = true; });
+    if(state.heroSpots.length === 0){
+      state.heroSpots.push({x:24,y:40,resolved:true},{x:70,y:56,resolved:true});
+    }
+    state.overlap = 82; paintOverlap();
+    renderHeroPips();
+    updateHUD();
+  });
+
+  // ---------- hero long-press ----------
+  var pressTimer = null;
+  var vf = $('viewfinder');
+  function longPressStart(e){
+    if(e.target.closest('.overlap-wrap') || e.target.closest('.dist-meter')) return;
+    var rect = vf.getBoundingClientRect();
+    var pt = e.touches ? e.touches[0] : e;
+    var x = ((pt.clientX - rect.left) / rect.width) * 100;
+    var y = ((pt.clientY - rect.top) / rect.height) * 100;
+    pressTimer = setTimeout(function(){
+      state.heroSpots.push({x:x, y:y, resolved:false});
+      renderHeroPips();
+      toast('Marked as a hero area. Shoot it once more from a different height.');
+    }, 600);
+  }
+  function longPressEnd(){ clearTimeout(pressTimer); }
+  vf.addEventListener('mousedown', longPressStart);
+  vf.addEventListener('mouseup', longPressEnd);
+  vf.addEventListener('mouseleave', longPressEnd);
+  vf.addEventListener('touchstart', longPressStart, {passive:true});
+  vf.addEventListener('touchend', longPressEnd);
+
+  $('btn-capture-back').addEventListener('click', function(){ showScreen('home'); });
+
+  // ---------- review ----------
+  function renderReview(){
+    var perimDone = state.shots >= state.perimeterTarget;
+    var interiorDone = state.shots >= state.interiorTarget;
+    var loopDone = state.shots >= state.loopTarget;
+    $('badge-perimeter').classList.toggle('lit', perimDone);
+    $('badge-interior').classList.toggle('lit', interiorDone);
+    $('badge-loop').classList.toggle('lit', loopDone);
+
+    // coverage map
+    var svg = $('coverage-svg');
+    var parts = ['<rect x="6" y="6" width="208" height="148" rx="10" fill="none" stroke="var(--hairline-strong)" stroke-width="2"/>'];
+    var pf = Math.min(perimeterPips.length, Math.round((Math.min(state.shots, state.perimeterTarget) / state.perimeterTarget) * perimeterPips.length));
+    perimeterPips.forEach(function(p, i){
+      var cx = 6 + (p.x/100)*208, cy = 6 + (p.y/100)*148;
+      var filled = i < pf;
+      parts.push('<circle cx="'+cx+'" cy="'+cy+'" r="4" fill="'+(filled?'var(--accent)':'var(--hairline-strong)')+'"/>');
+    });
+    var inf = state.shots <= state.perimeterTarget ? 0 : Math.min(interiorPips.length, Math.round(((Math.min(state.shots, state.interiorTarget) - state.perimeterTarget) / (state.interiorTarget - state.perimeterTarget)) * interiorPips.length));
+    interiorPips.forEach(function(p, i){
+      var cx = 6 + (p.x/100)*208, cy = 6 + (p.y/100)*148;
+      var filled = i < inf;
+      parts.push('<circle cx="'+cx+'" cy="'+cy+'" r="3.4" fill="'+(filled?'var(--processing-a)':'var(--hairline-strong)')+'"/>');
+    });
+    var weakCount = state.shotsData.filter(function(s){ return s.quality === 'weak'; }).length;
+    if(weakCount > 0){
+      parts.unshift('<path d="M 20 20 A 90 90 0 0 1 90 8" fill="none" stroke="var(--danger)" stroke-width="4" stroke-linecap="round" opacity="0.55"/>');
+    }
+    svg.innerHTML = parts.join('');
+
+    // gap list
+    var gapList = $('gap-list');
+    gapList.innerHTML = '';
+    var gaps = [];
+    if(weakCount > 0){ gaps.push({type:'overlap', text:'This stretch needs another pass.', idx: null}); }
+    state.heroSpots.filter(function(h){ return !h.resolved; }).forEach(function(){
+      gaps.push({type:'hero', text:'Marked as a hero area. Shoot it once more from a different height.', idx:null});
+    });
+    $('gaps-label').textContent = gaps.length ? 'Flagged gaps (' + gaps.length + ')' : 'Flagged gaps — none';
+    gaps.forEach(function(g){
+      var el = document.createElement('div');
+      el.className = 'gap-item';
+      el.innerHTML = '<span class="dot ' + (g.type === 'hero' ? 'warn' : '') + '"></span><p>' + g.text + '</p>' +
+        '<button class="btn btn-secondary btn-sm gap-fix">Retake</button>';
+      el.querySelector('.gap-fix').addEventListener('click', function(){
+        if(g.type === 'overlap'){
+          var w = state.shotsData.find(function(s){ return s.quality === 'weak'; });
+          if(w) w.quality = 'good';
+        } else {
+          var h = state.heroSpots.find(function(h){ return !h.resolved; });
+          if(h) h.resolved = true;
+        }
+        renderReview();
+      });
+      gapList.appendChild(el);
+    });
+
+    // thumbnails
+    var grid = $('thumb-grid');
+    grid.innerHTML = '';
+    $('thumb-count').textContent = state.shots;
+    state.shotsData.forEach(function(s, i){
+      var hue = (i * 47) % 360;
+      var t = document.createElement('div');
+      t.className = 'thumb' + (s.quality === 'weak' ? ' weak' : '');
+      t.style.background = 'hsl(' + hue + ',30%,26%)';
+      t.innerHTML = '<span class="q"></span><button aria-label="Photo ' + (i+1) + (s.quality==='weak' ? ', weak, tap to re-shoot' : '') + '"></button>';
+      if(s.quality === 'weak'){
+        t.querySelector('button').addEventListener('click', function(){
+          s.quality = 'good';
+          renderReview();
+        });
+      }
+      grid.appendChild(t);
+    });
+  }
+
+  $('btn-review-back').addEventListener('click', function(){ showScreen('capture'); });
+  $('btn-retake-gaps').addEventListener('click', function(){ showScreen('capture'); toast('Back to capture — fill the flagged stretch, then review again.', 'page-toast-host'); });
+  $('btn-to-bundle').addEventListener('click', function(){ showScreen('bundle'); });
+
+  // ---------- bundle ----------
+  function renderBundle(){
+    $('bundle-count').textContent = state.shots;
+    var manifest = {
+      app: "orbit-studio",
+      project: "living-room",
+      crops: state.shots,
+      rig: {
+        lane: "phone",
+        device: "Pixel 8",
+        focal_length_35mm_equiv_mm: 26,
+        exposure_locked: true,
+        capture_pattern: "perimeter+interior+loop",
+        photo_count: state.shots
+      }
+    };
+    $('manifest-pre').textContent = JSON.stringify(manifest, null, 2);
+    $('zip-fill').style.width = '0%';
+    $('zip-status').textContent = 'Zipping bundle…';
+    $('bundle-ready').classList.remove('show');
+    requestAnimationFrame(function(){
+      setTimeout(function(){
+        $('zip-fill').style.width = '100%';
+        setTimeout(function(){
+          $('zip-status').textContent = 'bundle.zip ready · ' + state.shots + ' photos, ZIP_STORED';
+          $('bundle-ready').classList.add('show');
+        }, 1250);
+      }, 80);
+    });
+  }
+  $('btn-bundle-back').addEventListener('click', function(){ showScreen('review'); });
+  $('btn-open-notebook').addEventListener('click', function(){
+    toast('Would open the Colab notebook — drop bundle.zip in and run all cells. (non-functional in this preview)', 'page-toast-host');
+  });
+  $('btn-to-done').addEventListener('click', function(){
+    showScreen('done');
+    $('done-pre').classList.remove('hidden');
+    $('done-post').classList.add('hidden');
+    $('done-title').textContent = 'Waiting on Colab';
+  });
+
+  // ---------- done ----------
+  function showReturn(kind){
+    $('done-pre').classList.add('hidden');
+    $('done-post').classList.remove('hidden');
+    $('done-title').textContent = 'Splat returned';
+    var pct = kind === 'healthy' ? 95 : 42;
+    $('reg-pct').textContent = pct + '%';
+    var banner = $('reg-banner');
+    banner.className = 'reg-banner ' + (kind === 'healthy' ? 'healthy' : 'warn');
+    if(kind === 'healthy'){
+      $('reg-title').textContent = '95% registered.';
+      $('reg-sub').textContent = 'This one held together.';
+    } else {
+      $('reg-title').textContent = 'Fewer than 60% registered.';
+      $('reg-sub').textContent = 'Check the gaps and reshoot the weak section.';
+    }
+  }
+  $('dropzone').addEventListener('click', function(){ showReturn('healthy'); });
+  $('btn-sim-healthy').addEventListener('click', function(){ showReturn('healthy'); });
+  $('btn-sim-weak').addEventListener('click', function(){ showReturn('weak'); });
+  $('btn-open-viewer').addEventListener('click', function(){
+    toast('Would launch start.bat → http://localhost:7360 (non-functional in this preview)', 'page-toast-host');
+  });
+  $('btn-done-back').addEventListener('click', function(){ showScreen('home'); });
+
+  // ---------- init ----------
+  buildPipLayer();
+  updateHUD();
+  paintOverlap();
+})();
+</script>

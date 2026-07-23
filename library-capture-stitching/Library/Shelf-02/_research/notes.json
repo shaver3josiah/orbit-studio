@@ -1,0 +1,406 @@
+{
+  "shelf": 2,
+  "sources": [
+    {
+      "title": "Command-line Interface — COLMAP (official docs)",
+      "url": "https://colmap.github.io/cli.html",
+      "date": "",
+      "key_claims": [
+        "automatic_reconstructor takes --workspace_path and --image_path and runs the full sparse+dense pipeline in one command.",
+        "automatic_reconstructor exposes --quality (LOW, MEDIUM, HIGH, EXTREME) and --data_type (INDIVIDUAL, VIDEO, INTERNET) to tune settings for the capture scenario.",
+        "automatic_reconstructor lets you pick --feature (SIFT or ALIKED), --mapper (INCREMENTAL, HIERARCHICAL, or GLOBAL), and --mesher (POISSON, DELAUNAY, ADVANCING_FRONT).",
+        "feature_extractor's --ImageReader.camera_model defaults to SIMPLE_RADIAL; --ImageReader.single_camera (default 0) and --ImageReader.single_camera_per_folder (default 0) control whether images share one camera model.",
+        "descriptor_normalization defaults to l1_root (RootSIFT) vs. l2 (standard SIFT normalization).",
+        "SiftExtraction.max_num_features defaults to 8192 features per image.",
+        "Matching commands include exhaustive_matcher, vocab_tree_matcher, sequential_matcher, spatial_matcher, transitive_matcher, and matches_importer.",
+        "mapper runs incremental sparse reconstruction; hierarchical_mapper partitions the scene into overlapping submodels for parallel reconstruction; global_mapper solves camera poses simultaneously via rotation averaging.",
+        "model_converter converts a COLMAP sparse model to other formats such as PLY or NVM.",
+        "image_registrator registers new images against an existing model but does not perform bundle adjustment."
+      ],
+      "quotes": [],
+      "code_refs": ["https://colmap.github.io/cli.html"]
+    },
+    {
+      "title": "Tutorial — COLMAP (official docs)",
+      "url": "https://colmap.github.io/tutorial.html",
+      "date": "",
+      "key_claims": [
+        "SfM in COLMAP proceeds in three stages: feature detection/extraction, feature matching and geometric verification, then incremental structure-and-motion reconstruction (registration + triangulation).",
+        "Incremental mapping seeds the reconstruction from an initial image pair, then progressively registers additional images and triangulates new 3D points as they're added.",
+        "COLMAP will reconstruct multiple separate models if not all images end up registered into one connected model.",
+        "The sparse output folder contains cameras.bin, images.bin, points3D.bin, and (for multi-camera setups) rigs.bin and frames.bin.",
+        "COLMAP loads all extracted database data into memory before starting reconstruction.",
+        "If registration fails, the documented remedies are performing additional (denser) matching or manually specifying the initial image pair."
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "Feature Extraction and Matching — COLMAP (official docs)",
+      "url": "https://colmap.github.io/features.html",
+      "date": "",
+      "key_claims": [
+        "exhaustive_matcher matches all possible image pairs and is suitable for small datasets (up to a few hundred images).",
+        "sequential_matcher matches images in capture/sequential order and is suited to video-like or ordered walkthrough sequences.",
+        "Feature extractor and matcher types must be paired correctly: SIFT extraction pairs with SIFT_BRUTEFORCE or SIFT_LIGHTGLUE matching; ALIKED_* extraction pairs with ALIKED_BRUTEFORCE or ALIKED_LIGHTGLUE matching.",
+        "SiftMatching.use_gpu defaults to enabled (1) for GPU-accelerated matching."
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "Output Format — COLMAP (official docs)",
+      "url": "https://colmap.github.io/format.html",
+      "date": "",
+      "key_claims": [
+        "cameras.txt has one line per camera: CAMERA_ID, MODEL, WIDTH, HEIGHT, PARAMS[] (variable-length intrinsics depending on the distortion model).",
+        "images.txt has two lines per image: line 1 is IMAGE_ID, QW,QX,QY,QZ (rotation quaternion), TX,TY,TZ (translation), CAMERA_ID, NAME; line 2 lists POINTS2D[] as (X, Y, POINT3D_ID) with -1 meaning no triangulated 3D point.",
+        "points3D.txt has one line per 3D point: POINT3D_ID, X, Y, Z, R, G, B, ERROR, TRACK[] as (IMAGE_ID, POINT2D_IDX) pairs.",
+        "ERROR in points3D.txt is the mean reprojection error in pixels, and it is only updated after a global bundle adjustment runs.",
+        "COLMAP logs summary statistics including number of images / mean observations per image, and number of points / mean track length.",
+        "Dense reconstruction outputs PLY files: fused.ply (fusion) and meshed-poisson.ply / meshed-delaunay.ply (meshing); depth/normal maps are mixed text-header + row-major float32 binary."
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "Frequently Asked Questions — COLMAP (official docs)",
+      "url": "https://colmap.github.io/faq.html",
+      "date": "",
+      "key_claims": [
+        "For datasets with few distinctive features, COLMAP recommends DSP-SIFT with affine feature-shape estimation and guided feature matching, plus disabling ignore_two_view_tracks to triangulate two-view-only tracks.",
+        "For weak-texture scenes, COLMAP recommends higher input image resolution, a larger patch-window radius, and a lower filter_min_ncc photometric-consistency threshold during dense/patch-match stereo.",
+        "ALIKED features can produce more repeatable matches than SIFT specifically in scenes with limited view overlap, little scene texture, and drastic illumination changes.",
+        "If camera intrinsics are known ahead of time, individual parameter groups can be fixed during bundle adjustment; with enough shared-intrinsic images, SfM-estimated intrinsics are often better than manual calibration-pattern parameters.",
+        "pycolmap and MATLAB scripts (scripts/matlab) are the documented ways to load sparse models programmatically."
+      ],
+      "quotes": [
+        "particularly for scenes with limited view overlap, little scene texture, and drastic illumination changes"
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "Rig Support — COLMAP (official docs)",
+      "url": "https://colmap.github.io/rigs.html",
+      "date": "",
+      "key_claims": [
+        "A COLMAP rig is a multi-sensor system whose sensors keep fixed relative poses to one reference sensor defining the rig's origin; synchronized captures across sensors are called frames.",
+        "Known rig geometry (cam_from_rig_rotation quaternion, cam_from_rig_translation xyz, optional camera_model_name/camera_params per camera) is supplied via a JSON config consumed by `colmap rig_configurator --database_path ... --rig_config_path rig_config.json`.",
+        "Setting --Mapper.ba_refine_sensor_from_rig 0 locks relative rig-sensor poses during bundle adjustment, preventing them from drifting apart.",
+        "When rig poses aren't known upfront, the documented workflow is: reconstruct without rig constraints first, then run rig_configurator against the existing reconstruction to average the relative sensor poses from all registered images."
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "COLMAP model_merger usage and limitations (GitHub issues + docs)",
+      "url": "https://github.com/colmap/colmap/issues/1595",
+      "date": "",
+      "key_claims": [
+        "model_merger merges two disconnected reconstructions that share common registered images, by computing a similarity transform from the shared images' poses.",
+        "Usage: colmap model_merger --input_path1 <sub-model1> --input_path2 <sub-model2> --output_path <merged-model>.",
+        "Best practice after merging is to run a full global bundle_adjuster pass on the merged model to refine the alignment.",
+        "model_merger assumes consistent image identifiers across the two sub-models and can produce large alignment errors since it uses only the two models' poses (not full re-triangulation/re-matching)."
+      ],
+      "quotes": [],
+      "code_refs": ["https://github.com/colmap/colmap/issues/3255"]
+    },
+    {
+      "title": "What is the difference between incremental and global SfM in COLMAP? (colmap.org)",
+      "url": "https://colmap.org/what-is-the-difference-between-incremental-and-global-sfm-in-colmap/",
+      "date": "",
+      "key_claims": [
+        "Incremental SfM (COLMAP's default/most robust pipeline) reconstructs by adding one image at a time; it is well-tested but can get slow on large collections because repeated bundle adjustment is the bottleneck.",
+        "Global SfM solves all camera poses simultaneously via rotation averaging followed by position/translation estimation, avoiding incremental mapping's sequential growth.",
+        "GLOMAP (integrated into recent COLMAP versions as the global pipeline) jointly estimates camera translations and 3D points instead of doing separate translation averaging then triangulation, matching incremental COLMAP's accuracy with large speed gains.",
+        "Global SfM can need more peak memory during joint optimization and depends more on good focal-length priors, while incremental SfM spreads compute over many smaller optimization steps."
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "Global and Hierarchical Mapping — colmap/colmap (DeepWiki)",
+      "url": "https://deepwiki.com/colmap/colmap/8.2-global-and-hierarchical-mapping",
+      "date": "",
+      "key_claims": [
+        "Hierarchical mapping partitions a large scene into overlapping submodels, reconstructs them (potentially in parallel), then merges them back together.",
+        "Global mapping performs rotation averaging across the whole view graph before solving positions, rather than growing the model image-by-image."
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "COLMAP incremental mapper console log format (PR #2420 discussion)",
+      "url": "https://github.com/colmap/colmap/pull/2420",
+      "date": "",
+      "key_claims": [
+        "COLMAP's incremental mapper logs per-image lines such as \"Registering image #241 (230)\" followed by \"=> Image sees 3755 / 8696 points\", giving a directly parseable registered-vs-total-points ratio per image.",
+        "By default (post-PR) only high-level milestones print (e.g. \"Finding good initial image pair\", \"Registering image #X\"); detailed per-image statistics require verbose logging via GLOG_v=1, --v=1, or pycolmap.logging.verbose_level = 1."
+      ],
+      "quotes": [
+        "Registering image #241 (230)"
+      ],
+      "code_refs": ["https://github.com/colmap/colmap/pull/2420"]
+    },
+    {
+      "title": "colmap-parameters: parameter defaults cheatsheet (community reference)",
+      "url": "https://github.com/mwtarnowski/colmap-parameters",
+      "date": "",
+      "key_claims": [
+        "Documents default values across COLMAP stages: feature_extractor (e.g. max_image_size 3200, max_num_features 8192), exhaustive_matcher (max_ratio 0.8, max_distance 0.7, min_num_inliers 15), mapper (min_num_matches 15, ba_local_num_images 6, ba_global_max_num_iterations 50), plus image_undistorter, patch_match_stereo, stereo_fusion, mesher, and bundle_adjuster.",
+        "Community-maintained cheatsheet, not official COLMAP documentation — useful as a quick-reference lead but should be cross-checked against colmap --help output for the installed version."
+      ],
+      "quotes": [],
+      "code_refs": ["https://github.com/mwtarnowski/colmap-parameters"]
+    },
+    {
+      "title": "pycolmap Python bindings — COLMAP docs / DeepWiki",
+      "url": "https://colmap.github.io/pycolmap/pycolmap.html",
+      "date": "",
+      "key_claims": [
+        "pycolmap exposes COLMAP's C++ core to Python: scene classes (Reconstruction, Image, Camera, Frame, Rig, Point3D), a Database class, IncrementalMapper/IncrementalPipeline, and BundleAdjuster.",
+        "A reconstruction is loaded with pycolmap.Reconstruction(\"path/to/sparse/model\"), after which .images, .points3D, and .cameras are accessible as Python objects.",
+        "pycolmap lets you override default incremental-mapping behavior (custom initialization, custom bundle adjustment) to build custom SfM pipelines instead of only using the CLI."
+      ],
+      "quotes": [],
+      "code_refs": [
+        "https://deepwiki.com/colmap/colmap/5-python-interface-(pycolmap)",
+        "https://deepwiki.com/colmap/colmap/5.2-python-examples-and-custom-pipelines",
+        "https://github.com/colmap/colmap/tree/main/python"
+      ]
+    },
+    {
+      "title": "3D Gaussian Splatting for Real-Time Radiance Field Rendering (Kerbl, Kopanas, Leimkühler, Drettakis — ACM TOG 42(4), 2023)",
+      "url": "https://arxiv.org/abs/2308.04079",
+      "date": "2023",
+      "key_claims": [
+        "The method starts from the sparse point cloud produced by camera-calibration/SfM (i.e. COLMAP-style output) and represents the scene as a set of 3D Gaussians instead of an implicit neural field.",
+        "Three core contributions: (1) a 3D Gaussian scene representation seeded from SfM points that avoids computing in empty space, (2) interleaved optimization and adaptive density control (splitting/cloning/pruning) of the Gaussians with emphasis on anisotropic covariance, (3) a fast, visibility-aware tile-based rasterizer supporting anisotropic splatting.",
+        "Achieves real-time rendering (>=30 fps) at 1080p for complete, unbounded real scenes.",
+        "Reaches visual quality comparable to or slightly exceeding Mip-NeRF360 while training in roughly 35-45 minutes versus Mip-NeRF360's ~48 hours, and renders at 93-135 fps versus Mip-NeRF360's ~0.071 fps."
+      ],
+      "quotes": [],
+      "code_refs": ["https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/"]
+    },
+    {
+      "title": "gsplat: An Open-Source Library for Gaussian Splatting (arXiv 2409.06765)",
+      "url": "https://arxiv.org/html/2409.06765v1",
+      "date": "2024",
+      "key_claims": [
+        "gsplat implements three densification strategies: ADC (the original Kerbl et al. adaptive density control that splits/clones Gaussians whose accumulated positional gradient exceeds a threshold), Absgrad (accumulates absolute-value view-space gradients to avoid sign-cancellation between opposing gradients), and MCMC (reframes densification as stochastic-gradient Langevin dynamics with injected noise, a Bayesian view of the same process).",
+        "On MipNeRF360 (7 scenes, 30k iterations) gsplat uses about 4x less memory than the original 3DGS implementation (5.6 GB vs 9.0 GB) and trains up to ~10% faster (19.39 min vs 26.19 min) at equivalent quality (PSNR 29.00, SSIM 0.87, LPIPS 0.14).",
+        "The MCMC strategy cuts memory further to about 1.98 GB with far fewer primitives (1.00M vs 3.24M Gaussians).",
+        "Design goals are modularity (swappable algorithmic components), efficiency (custom CUDA kernels + PyTorch bindings), and accessibility (documentation/tests for newcomers); Apache-2.0 licensed."
+      ],
+      "quotes": [],
+      "code_refs": ["https://github.com/nerfstudio-project/gsplat"]
+    },
+    {
+      "title": "gsplat documentation — Strategy API (DefaultStrategy / MCMCStrategy)",
+      "url": "https://docs.gsplat.studio/main/apis/strategy.html",
+      "date": "",
+      "key_claims": [
+        "DefaultStrategy defaults: prune_opa=0.005 (opacity floor below which Gaussians are pruned), grow_grad2d=0.0002 (image-plane gradient threshold above which Gaussians split/duplicate), grow_scale3d=0.01 (below this a Gaussian is duplicated, above it is split), grow_scale2d=0.05 (2D-scale split threshold), prune_scale3d=0.1 and prune_scale2d=0.15 (oversized-Gaussian pruning thresholds), refine_start_iter=500, refine_stop_iter=15000, refine_every=100, reset_every=3000 (periodic opacity reset).",
+        "MCMCStrategy defaults: min_opacity=0.005, refine_start_iter=500, refine_stop_iter=25000, refine_every=100, cap_max=1,000,000 (hard cap on total Gaussian count)."
+      ],
+      "quotes": [],
+      "code_refs": ["https://docs.gsplat.studio/main/apis/strategy.html"]
+    },
+    {
+      "title": "Splatfacto — nerfstudio documentation",
+      "url": "https://docs.nerf.studio/nerfology/methods/splat.html",
+      "date": "",
+      "key_claims": [
+        "Splatfacto (nerfstudio's 3DGS implementation) works much better when initialized from pre-existing SfM geometry (e.g. COLMAP points) than from random initialization, which yields lower quality.",
+        "Datasets processed via ns-process-data or COLMAP automatically save and use these SfM points for Gaussian initialization.",
+        "Unlike ray-based NeRF training, Splatfacto trains on full images via a dedicated full_images_datamanager that undistorts and caches images per training step.",
+        "Gaussian rasterization assumes a perspective camera model; fisheye and equirectangular camera models are not currently supported for the rasterization pipeline.",
+        "Long, spikey Gaussians are a common artifact; scale regularization helps mitigate them, and lowering the alpha-cull threshold (with culling disabled after 15k steps) trades performance for quality."
+      ],
+      "quotes": [
+        "Gaussian rasterization assumes a perspective camera"
+      ],
+      "code_refs": ["https://docs.nerf.studio/nerfology/methods/splat.html"]
+    },
+    {
+      "title": "Equirectangular Projection — PanoTools.org Wiki",
+      "url": "https://wiki.panotools.org/Equirectangular_Projection",
+      "date": "",
+      "key_claims": [
+        "In equirectangular projection, the horizontal image coordinate is longitude and the vertical coordinate is latitude, applied with no further transformation or scaling — pixel position maps linearly to pan/tilt angle.",
+        "A full equirectangular panorama must have a 2:1 aspect ratio (width exactly twice height) to cover 360 degrees horizontally and 180 degrees vertically.",
+        "Non-compliant dimensions (the wiki's example: 1650 x 824 px, one pixel short of true 2:1) can confuse downstream panorama-viewing applications.",
+        "The projection preserves vertical lines and keeps the horizon straight at image center, but stretches content horizontally near the poles."
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "Photo Sphere XMP Metadata (GPano) — Google for Developers",
+      "url": "https://developers.google.com/streetview/spherical-metadata",
+      "date": "",
+      "key_claims": [
+        "Google's photo-sphere viewers currently only support ProjectionType=equirectangular embedded via Adobe XMP under the http://ns.google.com/photos/1.0/panorama/ namespace.",
+        "Key GPano fields: FullPanoWidthPixels/FullPanoHeightPixels describe the full 360x180 sphere's dimensions even if the delivered file is cropped; CroppedAreaImageWidthPixels/HeightPixels and CroppedAreaLeftPixels/TopPixels describe the actual image's size and its position within the full sphere.",
+        "PoseHeadingDegrees records compass heading (degrees clockwise from north) for the image center.",
+        "A full, uncropped equirectangular photo sphere example uses 4000x2000 px, i.e. exactly 2:1."
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "Insta360 Developer Resources — SDK Guide",
+      "url": "https://onlinemanual.insta360.com/developer/en-us/resource/sdk",
+      "date": "",
+      "key_claims": [
+        "The Insta360 SDK has two parts: Camera SDK (connection, status, preview streams, parameter config, shooting control, file listing/deletion, live streaming) and Media SDK (preview/display, stitching, image/video export).",
+        "The SDK supports the X5, X4 Air, X4, X3, ONE RS 1-inch, ONE RS, ONE X2, ONE R, and ONE X panoramic camera lines.",
+        "Supported development platforms: Windows 7+, Ubuntu 22.04, Android 10.0+, iOS 13.0+; emulators are not supported.",
+        "In-camera video stitching is not supported for the unstitched dual-fisheye stream; stitching for video must go through the Media SDK."
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "Insta360 optical-flow stitching explainer (Insta360 blog, via search summary — direct fetch returned 403)",
+      "url": "https://www.insta360.com/blog/enterprise/optical-flow.html",
+      "date": "",
+      "key_claims": [
+        "Insta360's stitching uses an optical-flow-based algorithm that compares the overlapping regions of each lens's image (and, for video, adjacent frames from the same lens) to place the seam intelligently around actual scene content rather than a fixed geometric seam.",
+        "Insta360 offers multiple stitching-quality/speed tiers: a basic Optical Flow mode, a ~3x faster 'New Optical Flow' mode, and an 'AI Flow' mode built on their Disflow technology for higher-quality results.",
+        "GAP/CAUTION: this page returned HTTP 403 on direct fetch in this session; claims are based on the search engine's cached summary of the page, not a verified full read — re-verify before citing precise wording."
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "Insta360 X4 Air — product announcement / specs",
+      "url": "https://www.insta360.com/blog/news/insta360-x4-air-new-light-8k-360.html",
+      "date": "",
+      "key_claims": [
+        "X4 Air uses two fisheye lenses (1/1.8-inch sensors) to jointly capture a full 360-degree view, shooting up to 8K30fps in 360 mode.",
+        "In single-lens mode the front/back lens offers an ultra-wide 170-degree field of view at up to 4K60fps.",
+        "X4 Air weighs 165 g, is waterproof to 15 m (49 ft), and includes FlowState stabilization and 360-degree horizon lock — all of which apply before the dual-fisheye-to-equirectangular stitch step."
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "Bundle adjustment — Wikipedia (summarizing Hartley & Zisserman, Multiple View Geometry, 2nd ed., Cambridge University Press, 2004)",
+      "url": "https://en.wikipedia.org/wiki/Bundle_adjustment",
+      "date": "",
+      "key_claims": [
+        "Bundle adjustment jointly refines 3D point coordinates, camera motion parameters, and (optionally) optical/intrinsic parameters, given image observations of the same 3D points from multiple viewpoints.",
+        "The name refers to the bundles of light rays from each 3D feature converging on each camera's optical center, which are adjusted together under an optimality criterion tied to reprojection error.",
+        "Bundle adjustment is almost always used as the final refinement step of feature-based 3D reconstruction pipelines.",
+        "The bundle-adjustment Hessian has a characteristic sparse block structure (block-diagonal camera and point blocks, dense camera-point cross blocks), which is why solvers use the Schur complement rather than a direct solve."
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "Loop closure detection role in SLAM (SLAMTEC explainer + survey literature)",
+      "url": "https://www.slamtec.com/en/news/detail/820",
+      "date": "",
+      "key_claims": [
+        "Loop closure detection recognizes previously-visited places, which lets the system correct accumulated drift and keep the map/trajectory topologically and metrically consistent.",
+        "Per-step pose error compounds from sensor noise, motion-model error, and environmental factors (dynamic objects, featureless regions); loop closure supplies constraints that a global pose-graph optimization then uses to redistribute that accumulated error.",
+        "Classical visual SLAM systems (FAB-MAP, VINS-Mono, ORB-SLAM3) detect loop closures via local appearance features aggregated into a Bag-of-Words place-recognition index."
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "Perceptual aliasing and false loop closures in repetitive environments (ROVER, arXiv 2508.13488 + survey literature)",
+      "url": "https://arxiv.org/html/2508.13488v1",
+      "date": "2025",
+      "key_claims": [
+        "Perceptual aliasing — visually/structurally similar but spatially distinct places producing near-identical descriptors — is the core cause of false-positive loop closures, and is especially severe in repetitive environments.",
+        "A false loop closure that gets accepted corrupts the pose graph, since it wrongly asserts two distinct locations are the same place.",
+        "Mitigations include probabilistic/graph-based modeling of ambiguous candidates and matching short sequences of consecutive observations (temporal context) rather than single-frame descriptors, to reduce aliasing-driven false matches."
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "Pure rotation as a degenerate two-view geometry configuration (equivalent-constraints / rotation-only pose literature)",
+      "url": "https://link.springer.com/article/10.1007/s11263-018-1136-9",
+      "date": "",
+      "key_claims": [
+        "When two camera positions differ only by rotation (no translation/baseline), all corresponding rays intersect along the same 3D line, so absolute depth/scale cannot be recovered — there is no parallax to disambiguate it.",
+        "Standard two-view pose estimation (essential-matrix-based) becomes degenerate under pure rotation or a purely planar scene.",
+        "The rotational component itself can still often be recovered even when the translation/structure cannot — rotation-only sequences are not fully uninformative, just unusable for triangulating 3D structure."
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "Panorama stitching's single-viewpoint (no-parallax) assumption (image-stitching survey/tutorial literature, e.g. quasi-homography warps arXiv 1701.08006)",
+      "url": "https://arxiv.org/pdf/1701.08006",
+      "date": "",
+      "key_claims": [
+        "Classic automatic panorama stitching aligns images with a single homography under the assumption the camera only rotates about its optical center (no translation) and/or the scene is roughly planar — i.e., pure rotation, which is exactly the degenerate case that defeats SfM triangulation, is the case panorama stitching relies on.",
+        "Hand-held or translating captures introduce real parallax, which breaks the single-homography model and causes stretching/ghosting artifacts near non-overlapping regions; techniques like APAP (as-projective-as-possible) warping were developed to handle that parallax."
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "zipfile — Work with ZIP archives — Python 3 official documentation",
+      "url": "https://docs.python.org/3/library/zipfile.html",
+      "date": "",
+      "key_claims": [
+        "The zipfile module's ZipFile class opens an archive for read/write/append and exposes namelist() to list members and read(name) to return a member's raw bytes (e.g. to then json.loads() a manifest.json entry).",
+        "ZipFile can be used as a context manager (with zipfile.ZipFile(path) as zf:) and supports extracting individual members or the whole archive."
+      ],
+      "quotes": [],
+      "code_refs": ["https://docs.python.org/3/library/zipfile.html"]
+    },
+    {
+      "title": "Cultural Heritage Imaging — Photogrammetry guidelines",
+      "url": "https://culturalheritageimaging.org/Technologies/Photogrammetry/",
+      "date": "",
+      "key_claims": [
+        "Recommended overlap is ~66%, achieved by moving the camera roughly 34% of its field of view between consecutive shots.",
+        "Every point on the subject should appear in at least three separate frames (three-frame minimum coverage rule).",
+        "Recommended manual-exposure discipline: use aperture-priority or full manual mode, avoid apertures smaller than f/11 (diffraction blur), use the lowest usable ISO, lock focus manually, and keep the exposure metering point on the subject for consistency across the sequence.",
+        "For round/full-coverage objects, capture every 10-15 degrees around the full circuit, overlapping the first and last frames.",
+        "A three-row capture pattern is recommended for higher precision: one row level, one row angled ~15 degrees down and rotated to portrait, one row angled ~15 degrees up and rotated further — maximizing multi-angle overlap of the same surface."
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "OpenCV — Feature Detection and Description tutorials (official docs)",
+      "url": "https://docs.opencv.org/4.x/db/d27/tutorial_py_table_of_contents_feature2d.html",
+      "date": "",
+      "key_claims": [
+        "OpenCV's feature pipeline tutorials cover corner detectors (Harris, Shi-Tomasi, FAST) and descriptors (SIFT, SURF, BRIEF, ORB), then matching via Brute-Force matcher or the FLANN-based matcher.",
+        "ORB is presented as a free (unpatented) alternative to SIFT/SURF for feature description.",
+        "The tutorials build from single-image descriptor extraction to cross-image matching to homography-based object localization, mirroring the same feature-detect -> match -> geometric-verify structure COLMAP uses at reconstruction scale."
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "Descriptor matching sensitivity to illumination change (arXiv 1804.10855, Evaluation of Feature Detector-Descriptor for Real Object Matching under Various Conditions of Illumination and Affine Transformation)",
+      "url": "https://arxiv.org/pdf/1804.10855",
+      "date": "",
+      "key_claims": [
+        "SIFT and related gradient-based descriptors are not fully illumination-invariant in practice — they tolerate a limited range of exposure/illumination change before match quality degrades, since the descriptor is built from local intensity gradients that shift with lighting.",
+        "Under evaluation across illumination and affine-transformation conditions, matching accuracy for classic descriptors (SIFT, SURF, ORB, etc.) drops measurably as illumination divergence between the two images increases, rather than failing cleanly at one threshold."
+      ],
+      "quotes": [],
+      "code_refs": []
+    }
+  ],
+  "gaps": [
+    "Insta360's Media SDK / stitching API surface (exact function calls, controllable export resolution/aspect-ratio parameters, batch-stitch CLI options) is not publicly documented in detail on the open developer resource pages found — the SDK guide describes capability categories (preview/stitching/export) but not method signatures. Deeper API detail likely requires registering for SDK access, which was out of scope for open web research.",
+    "The specific registration-health-score thresholds named in the shelf spec (<60% warning, ~95% healthy) are Orbit Capture product conventions, not terminology COLMAP itself defines. Grounded these books instead in observed real-world registration-percentage variability reported across studies (ranges from ~46% up to 92-100% registered depending on dataset/parameters) plus COLMAP's own registered-image console log format (PR #2420) rather than inventing a specific 60/95 justification.",
+    "Could not directly fetch colmap.org (DNS resolution failed in this environment); the incremental-vs-global SfM comparison content came through the search tool's own page synthesis rather than a verified WebFetch — worth a second-pass fetch attempt by a writer agent if precise wording is needed.",
+    "The Insta360 optical-flow stitching blog post (insta360.com/blog/enterprise/optical-flow.html) returned HTTP 403 on direct fetch; its claims here rest on the search engine's summary only and should be re-verified if exact wording/quotes are needed.",
+    "No single authoritative source was found addressing 'white balance drift causing false color-dependent matches specifically at room-to-room boundaries' (book 17) — this is a plausible synthesis from general descriptor-illumination-sensitivity literature and COLMAP's FAQ note that drastic illumination changes hurt matching, not a directly-published finding. Flag this book's specific room-boundary framing as an inference, not a cited fact.",
+    "Did not find COLMAP GUI-specific (as opposed to CLI/format-doc) guidance on visually distinguishing a healthy vs. degenerate sparse model by eye (book 24) beyond the general point that PLY/points3D output can be opened in the GUI or a PLY viewer — a writer may want to lean on model_converter + generic point-cloud-viewer guidance rather than a single sourced 'this is what healthy looks like' reference.",
+    "gsplat's exact rasterization() function signature (apis/rasterization.html) was not independently fetched; only the Strategy API (densification/pruning parameters) was confirmed directly. The gsplat GitHub repo is a live code reference for exact call signatures."
+  ]
+}

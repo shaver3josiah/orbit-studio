@@ -1,0 +1,627 @@
+{
+  "shelf": 1,
+  "title": "Taking the Pictures: Capture Craft for Reconstruction",
+  "throughline": "Everything about physically capturing a building well: routing steps room-to-room, overlap/standoff/parallax, exposure and light control (AE/AWB lock, EV compensation, metering, clipping, banding, white balance across differently-lit areas), sharpness/motion-blur, coverage completeness, and knowing on-site whether a capture will reconstruct.",
+  "tier": "applied",
+  "rationale": "Reconstruction quality is decided in the building, not in software \u2014 overlap, standoff, exposure, and blur discipline that's made or broken on-site can't be fixed downstream.",
+  "research_seeds": [
+    "COLMAP image overlap requirements for sparse reconstruction \u2014 COLMAP official documentation",
+    "Android Camera2 API CONTROL_AE_LOCK and CONTROL_AWB_LOCK behavior \u2014 Android Developer docs",
+    "photogrammetry standoff distance and minimum object distance for interior capture \u2014 photogrammetry field guides / cultural heritage imaging standards",
+    "Laplacian variance blur detection method \u2014 OpenCV documentation and blur-metric papers",
+    "exposure metering off a mid-tone gray reference \u2014 photography technique references",
+    "fixed Kelvin white balance vs auto white balance lock indoor photography \u2014 camera manufacturer technical docs",
+    "structure-from-motion minimum baseline and parallax requirement \u2014 SfM/photogrammetry literature",
+    "3D Gaussian Splatting training data requirements \u2014 Kerbl et al. 2023 paper",
+    "CameraX vs Camera2 manual exposure and metering region control \u2014 Android CameraX documentation",
+    "indoor photogrammetry room-by-room coverage completeness checklist \u2014 professional photogrammetry field guides",
+    "highlight clipping and histogram banding in digital photography \u2014 exposure technique references",
+    "loop closure in visual SLAM and indoor mapping \u2014 SLAM research literature",
+    "ZIP_STORED vs deflate compression for image archive bundles \u2014 Python zipfile documentation"
+  ],
+  "books": [
+    {
+      "book": 1,
+      "title": "What Makes a Photoset Reconstructable",
+      "scope": "Introduces the four things a photoset must have \u2014 overlap, parallax, exposure consistency, and sharpness \u2014 before any pipeline can reconstruct it.",
+      "type": "essay",
+      "difficulty": "foundational",
+      "cross_refs": [
+        "The Parallax Requirement: Why Pure Rotation Kills a Splat",
+        "Overlap as the Currency of Structure-from-Motion",
+        "What Can Go Wrong: A Field Taxonomy of Bad Captures"
+      ]
+    },
+    {
+      "book": 2,
+      "title": "The Parallax Requirement: Why Pure Rotation Kills a Splat",
+      "scope": "Explains why gsplat training needs a translation baseline and why rotating in place without moving the camera produces a degenerate, untrainable scene.",
+      "type": "essay",
+      "difficulty": "foundational",
+      "cross_refs": [
+        "What Makes a Photoset Reconstructable",
+        "Standoff Distance and the Geometry of a Room",
+        "Adaptive Overlap: When to Shoot Tighter Than 70-80%"
+      ]
+    },
+    {
+      "book": 3,
+      "title": "Overlap as the Currency of Structure-from-Motion",
+      "scope": "Establishes the ~70-80% overlap target between consecutive frames as the resource every downstream match, pose, and splat depends on.",
+      "type": "essay",
+      "difficulty": "foundational",
+      "cross_refs": [
+        "The 70-80% Overlap Target in Practice: Counting Steps, Not Percentages",
+        "A Field Overlap Estimator: Comparing Consecutive Frames",
+        "What Makes a Photoset Reconstructable"
+      ]
+    },
+    {
+      "book": 4,
+      "title": "Standoff Distance and the Geometry of a Room",
+      "scope": "Sets the 0.3 m minimum / ~1 m ideal standoff rule and explains how distance-to-subject shapes parallax and feature stability.",
+      "type": "essay",
+      "difficulty": "foundational",
+      "cross_refs": [
+        "The Parallax Requirement: Why Pure Rotation Kills a Splat",
+        "Stairwells, Hallways, and Other Awkward Standoff Geometries",
+        "Routing a Room-by-Room Walk Without Backtracking"
+      ]
+    },
+    {
+      "book": 5,
+      "title": "One Person, One Building: The Solo Operator Constraint",
+      "scope": "Frames the whole capture craft around a single operator walking a building alone, with no second pair of hands or bounce card.",
+      "type": "essay",
+      "difficulty": "foundational",
+      "cross_refs": [
+        "From Building to Bundle: The Shape of the Orbit Capture Pipeline",
+        "Routing a Room-by-Room Walk Without Backtracking",
+        "Working the 1-3 Minute Room: Pacing a Capture Session"
+      ]
+    },
+    {
+      "book": 6,
+      "title": "From Building to Bundle: The Shape of the Orbit Capture Pipeline",
+      "scope": "Walks the end-to-end shape of a scan: room-by-room capture, per-room crops, manifest assembly, and handoff to the reconstruction side.",
+      "type": "essay",
+      "difficulty": "foundational",
+      "cross_refs": [
+        "One Person, One Building: The Solo Operator Constraint",
+        "The Bundle Contract: What Downstream Expects From You",
+        "Assembling and Packing the Bundle: manifest.json and ZIP_STORED Crops"
+      ]
+    },
+    {
+      "book": 7,
+      "title": "Exposure Consistency as a First-Class Requirement",
+      "scope": "Argues that locked exposure across a scan matters as much as overlap, because feature matchers assume a subject's brightness doesn't change between views.",
+      "type": "essay",
+      "difficulty": "foundational",
+      "cross_refs": [
+        "AE Lock: What It Freezes and What It Doesn't",
+        "Metering Off a Mid-Tone Wall and Locking It",
+        "Clipping and Banding: Reading a Histogram in the Field"
+      ]
+    },
+    {
+      "book": 8,
+      "title": "Reading a Room Before You Shoot It",
+      "scope": "Covers the 10-second visual read of a room \u2014 light sources, blank walls, tight corners \u2014 before deciding how to walk it.",
+      "type": "essay",
+      "difficulty": "foundational",
+      "cross_refs": [
+        "Routing a Room-by-Room Walk Without Backtracking",
+        "Texture-Poor Walls and Why Blank Surfaces Fail to Register",
+        "Mixed Lighting Zones: Transition Strategy Between Rooms"
+      ]
+    },
+    {
+      "book": 9,
+      "title": "What Can Go Wrong: A Field Taxonomy of Bad Captures",
+      "scope": "Catalogs the recurring failure modes \u2014 blur, blank walls, exposure drift, missed coverage \u2014 that this shelf treats in depth.",
+      "type": "essay",
+      "difficulty": "foundational",
+      "cross_refs": [
+        "What Makes a Photoset Reconstructable",
+        "Recognizing Motion Blur Before You Leave the Room",
+        "Texture-Poor Walls and Why Blank Surfaces Fail to Register"
+      ]
+    },
+    {
+      "book": 10,
+      "title": "The Bundle Contract: What Downstream Expects From You",
+      "scope": "Introduces the manifest.json + crops/*.jpg bundle shape as the contract the operator's capture discipline actually serves.",
+      "type": "essay",
+      "difficulty": "foundational",
+      "cross_refs": [
+        "From Building to Bundle: The Shape of the Orbit Capture Pipeline",
+        "Assembling and Packing the Bundle: manifest.json and ZIP_STORED Crops",
+        "Handoff Discipline: What the Operator Owes the Pipeline"
+      ]
+    },
+    {
+      "book": 11,
+      "title": "Routing a Room-by-Room Walk Without Backtracking",
+      "scope": "Lays out a walk pattern through a building's rooms that avoids doubling back and keeps overlap continuous at every doorway.",
+      "type": "essay",
+      "difficulty": "applied",
+      "cross_refs": [
+        "One Person, One Building: The Solo Operator Constraint",
+        "Doorways, Thresholds, and Keeping Continuity Between Rooms",
+        "Standoff Distance and the Geometry of a Room"
+      ]
+    },
+    {
+      "book": 12,
+      "title": "Doorways, Thresholds, and Keeping Continuity Between Rooms",
+      "scope": "Details how to shoot the transition frames at a doorway so two rooms' capture sequences still overlap into one connected set.",
+      "type": "essay",
+      "difficulty": "applied",
+      "cross_refs": [
+        "Routing a Room-by-Room Walk Without Backtracking",
+        "Loop Closure in the Field: Returning to Where You Started",
+        "Mixed Lighting Zones: Transition Strategy Between Rooms"
+      ]
+    },
+    {
+      "book": 13,
+      "title": "The 70-80% Overlap Target in Practice: Counting Steps, Not Percentages",
+      "scope": "Converts the abstract 70-80% overlap target into a concrete step-and-shoot cadence an operator can hold in their head on-site.",
+      "type": "essay",
+      "difficulty": "applied",
+      "cross_refs": [
+        "Overlap as the Currency of Structure-from-Motion",
+        "A Field Overlap Estimator: Comparing Consecutive Frames",
+        "Working the 1-3 Minute Room: Pacing a Capture Session"
+      ]
+    },
+    {
+      "book": 14,
+      "title": "Working the 1-3 Minute Room: Pacing a Capture Session",
+      "scope": "Turns the ~1-3 minute per-room budget into a repeatable rhythm of read, shoot, check, move on for a solo operator.",
+      "type": "essay",
+      "difficulty": "applied",
+      "cross_refs": [
+        "The 70-80% Overlap Target in Practice: Counting Steps, Not Percentages",
+        "One Person, One Building: The Solo Operator Constraint",
+        "Live Coverage Tracking: Am I Done With This Room?"
+      ]
+    },
+    {
+      "book": 15,
+      "title": "Metering Off a Mid-Tone Wall and Locking It",
+      "scope": "Shows how to pick a mid-tone reference surface to meter from before locking AE, so the whole room shares one exposure baseline.",
+      "type": "essay",
+      "difficulty": "applied",
+      "cross_refs": [
+        "AE Lock: What It Freezes and What It Doesn't",
+        "Exposure Consistency as a First-Class Requirement",
+        "Clipping and Banding: Reading a Histogram in the Field"
+      ]
+    },
+    {
+      "book": 16,
+      "title": "AE Lock: What It Freezes and What It Doesn't",
+      "scope": "Clarifies exactly which camera parameters AE lock holds constant and which ones (like EV bias) it silently ignores once engaged.",
+      "type": "essay",
+      "difficulty": "applied",
+      "cross_refs": [
+        "Metering Off a Mid-Tone Wall and Locking It",
+        "The Unlock-Set-EV-Relock Dance",
+        "Implementing AE Lock and a Fixed Metering Region in Camera2"
+      ]
+    },
+    {
+      "book": 17,
+      "title": "The Unlock-Set-EV-Relock Dance",
+      "scope": "Documents the unlock, set EV compensation, relock sequence needed to change exposure bias mid-scan without losing the lock's consistency.",
+      "type": "essay",
+      "difficulty": "applied",
+      "cross_refs": [
+        "AE Lock: What It Freezes and What It Doesn't",
+        "EV Compensation for Windows, Skylights, and Dark Corners",
+        "Coding the Unlock-Set-EV-Relock Sequence in Kotlin"
+      ]
+    },
+    {
+      "book": 18,
+      "title": "EV Compensation for Windows, Skylights, and Dark Corners",
+      "scope": "Gives rules of thumb for dialing EV compensation up or down before relocking, for rooms with windows, skylights, or unlit corners.",
+      "type": "essay",
+      "difficulty": "applied",
+      "cross_refs": [
+        "The Unlock-Set-EV-Relock Dance",
+        "Clipping and Banding: Reading a Histogram in the Field",
+        "Mixed Lighting Zones: Transition Strategy Between Rooms"
+      ]
+    },
+    {
+      "book": 19,
+      "title": "Clipping and Banding: Reading a Histogram in the Field",
+      "scope": "Teaches reading a live histogram on-device to catch highlight clipping and banding before a room's capture is called done.",
+      "type": "essay",
+      "difficulty": "applied",
+      "cross_refs": [
+        "Metering Off a Mid-Tone Wall and Locking It",
+        "EV Compensation for Windows, Skylights, and Dark Corners",
+        "Recognizing Motion Blur Before You Leave the Room"
+      ]
+    },
+    {
+      "book": 20,
+      "title": "AWB Lock vs. a True Fixed-Kelvin White Balance",
+      "scope": "Distinguishes AWB lock, which freezes whatever white balance the camera last guessed, from a true fixed-Kelvin setting chosen deliberately.",
+      "type": "essay",
+      "difficulty": "applied",
+      "cross_refs": [
+        "Carrying One White Balance Across Differently-Lit Rooms",
+        "AE Lock: What It Freezes and What It Doesn't",
+        "Reading and Applying AWB Lock State via Camera2"
+      ]
+    },
+    {
+      "book": 21,
+      "title": "Carrying One White Balance Across Differently-Lit Rooms",
+      "scope": "Covers the tradeoffs of holding one white balance through a building with mixed daylight, tungsten, and fluorescent rooms.",
+      "type": "essay",
+      "difficulty": "applied",
+      "cross_refs": [
+        "AWB Lock vs. a True Fixed-Kelvin White Balance",
+        "Mixed Lighting Zones: Transition Strategy Between Rooms",
+        "White Balance Drift and False Color Matches Across Rooms"
+      ]
+    },
+    {
+      "book": 22,
+      "title": "Recognizing Motion Blur Before You Leave the Room",
+      "scope": "Trains the operator's eye to spot motion blur on a phone screen preview before walking away from a room that will need a reshoot.",
+      "type": "essay",
+      "difficulty": "applied",
+      "cross_refs": [
+        "Estimating Capture Blur Risk with a Laplacian-Variance Score",
+        "What Can Go Wrong: A Field Taxonomy of Bad Captures",
+        "Deciding On-Site Whether a Room Needs a Reshoot"
+      ]
+    },
+    {
+      "book": 23,
+      "title": "Estimating Capture Blur Risk with a Laplacian-Variance Score",
+      "scope": "Introduces Laplacian-variance as a simple sharpness score and shows how to compute it as a quick field check on a captured frame.",
+      "type": "code",
+      "difficulty": "applied",
+      "cross_refs": [
+        "Recognizing Motion Blur Before You Leave the Room",
+        "On-Device Laplacian-Variance Blur Scoring in Kotlin",
+        "Flagging and Triggering a Reshoot Mid-Session"
+      ]
+    },
+    {
+      "book": 24,
+      "title": "A Field Overlap Estimator: Comparing Consecutive Frames",
+      "scope": "Builds a lightweight script that compares consecutive frames to estimate overlap percentage as a stand-in for a full feature match.",
+      "type": "code",
+      "difficulty": "applied",
+      "cross_refs": [
+        "Overlap as the Currency of Structure-from-Motion",
+        "The 70-80% Overlap Target in Practice: Counting Steps, Not Percentages",
+        "Live Coverage Tracking: Am I Done With This Room?"
+      ]
+    },
+    {
+      "book": 25,
+      "title": "Live Coverage Tracking: Am I Done With This Room?",
+      "scope": "Implements an on-device running tally of shots-per-wall so the operator gets a coverage-complete signal instead of guessing.",
+      "type": "code",
+      "difficulty": "applied",
+      "cross_refs": [
+        "A Field Overlap Estimator: Comparing Consecutive Frames",
+        "Working the 1-3 Minute Room: Pacing a Capture Session",
+        "Vertical Coverage: Ceilings, Floors, and the Frames People Skip"
+      ]
+    },
+    {
+      "book": 26,
+      "title": "Texture-Poor Walls and Why Blank Surfaces Fail to Register",
+      "scope": "Explains why a featureless painted wall gives a feature matcher nothing to lock onto, and why that silently weakens a room's registration.",
+      "type": "essay",
+      "difficulty": "implementation",
+      "cross_refs": [
+        "Reading a Room Before You Shoot It",
+        "What Can Go Wrong: A Field Taxonomy of Bad Captures",
+        "Common Failure Signatures: Texture-Poor Rooms in the Sparse Model"
+      ]
+    },
+    {
+      "book": 27,
+      "title": "Reflective and Transparent Surfaces: Windows, Mirrors, Glass Doors",
+      "scope": "Covers how mirrors, glass, and windows fake or destroy features, and what standoff and angle choices reduce the damage.",
+      "type": "essay",
+      "difficulty": "implementation",
+      "cross_refs": [
+        "Texture-Poor Walls and Why Blank Surfaces Fail to Register",
+        "Standoff Distance and the Geometry of a Room",
+        "Stairwells, Hallways, and Other Awkward Standoff Geometries"
+      ]
+    },
+    {
+      "book": 28,
+      "title": "Stairwells, Hallways, and Other Awkward Standoff Geometries",
+      "scope": "Handles the rooms where the 0.3-1 m standoff rule is hard to keep \u2014 narrow stairwells, tight hallways, cramped closets.",
+      "type": "essay",
+      "difficulty": "implementation",
+      "cross_refs": [
+        "Standoff Distance and the Geometry of a Room",
+        "Reflective and Transparent Surfaces: Windows, Mirrors, Glass Doors",
+        "Vertical Coverage: Ceilings, Floors, and the Frames People Skip"
+      ]
+    },
+    {
+      "book": 29,
+      "title": "Mixed Lighting Zones: Transition Strategy Between Rooms",
+      "scope": "Gives a strategy for the moment a scan crosses from a daylight room into a windowless one without breaking exposure consistency.",
+      "type": "essay",
+      "difficulty": "implementation",
+      "cross_refs": [
+        "Carrying One White Balance Across Differently-Lit Rooms",
+        "EV Compensation for Windows, Skylights, and Dark Corners",
+        "Doorways, Thresholds, and Keeping Continuity Between Rooms"
+      ]
+    },
+    {
+      "book": 30,
+      "title": "Camera2 Capture Session Basics for a Locked-Exposure App",
+      "scope": "Sets up a minimal Camera2 capture session in Kotlin as the foundation the rest of the on-device implementation books build on.",
+      "type": "code",
+      "difficulty": "implementation",
+      "cross_refs": [
+        "From Building to Bundle: The Shape of the Orbit Capture Pipeline",
+        "Implementing AE Lock and a Fixed Metering Region in Camera2",
+        "Building the Room-by-Room Session State Machine"
+      ]
+    },
+    {
+      "book": 31,
+      "title": "Implementing AE Lock and a Fixed Metering Region in Camera2",
+      "scope": "Codes CONTROL_AE_LOCK and a fixed metering region in Camera2 so exposure stays pinned to the mid-tone reference chosen at room start.",
+      "type": "code",
+      "difficulty": "implementation",
+      "cross_refs": [
+        "AE Lock: What It Freezes and What It Doesn't",
+        "Camera2 Capture Session Basics for a Locked-Exposure App",
+        "Coding the Unlock-Set-EV-Relock Sequence in Kotlin"
+      ]
+    },
+    {
+      "book": 32,
+      "title": "Coding the Unlock-Set-EV-Relock Sequence in Kotlin",
+      "scope": "Implements the unlock, apply EV compensation, relock state transition as a small, testable Camera2 routine.",
+      "type": "code",
+      "difficulty": "implementation",
+      "cross_refs": [
+        "The Unlock-Set-EV-Relock Dance",
+        "Implementing AE Lock and a Fixed Metering Region in Camera2",
+        "Capturing Frame Metadata: ISO, Shutter, EV, Timestamp"
+      ]
+    },
+    {
+      "book": 33,
+      "title": "Reading and Applying AWB Lock State via Camera2",
+      "scope": "Codes CONTROL_AWB_LOCK handling and shows where a true fixed-Kelvin CONTROL_AWB_MODE setting would diverge from it.",
+      "type": "code",
+      "difficulty": "implementation",
+      "cross_refs": [
+        "AWB Lock vs. a True Fixed-Kelvin White Balance",
+        "Implementing AE Lock and a Fixed Metering Region in Camera2",
+        "Capturing Frame Metadata: ISO, Shutter, EV, Timestamp"
+      ]
+    },
+    {
+      "book": 34,
+      "title": "Capturing Frame Metadata: ISO, Shutter, EV, Timestamp",
+      "scope": "Persists per-frame ISO, shutter, EV bias, and timestamp alongside each crop so later diagnostics can trace exposure drift back to a shot.",
+      "type": "code",
+      "difficulty": "implementation",
+      "cross_refs": [
+        "Coding the Unlock-Set-EV-Relock Sequence in Kotlin",
+        "Reading and Applying AWB Lock State via Camera2",
+        "Writing Per-Room Crops to Disk with Consistent Naming"
+      ]
+    },
+    {
+      "book": 35,
+      "title": "On-Device Laplacian-Variance Blur Scoring in Kotlin",
+      "scope": "Ports the Laplacian-variance blur score into an on-device Kotlin routine that runs right after each shot is taken.",
+      "type": "code",
+      "difficulty": "implementation",
+      "cross_refs": [
+        "Estimating Capture Blur Risk with a Laplacian-Variance Score",
+        "Flagging and Triggering a Reshoot Mid-Session",
+        "Building a Pre-Upload Capture Health Check on Device"
+      ]
+    },
+    {
+      "book": 36,
+      "title": "Flagging and Triggering a Reshoot Mid-Session",
+      "scope": "Wires the blur score into a live flag that prompts an immediate reshoot of the same frame before the operator moves on.",
+      "type": "code",
+      "difficulty": "implementation",
+      "cross_refs": [
+        "On-Device Laplacian-Variance Blur Scoring in Kotlin",
+        "Deciding On-Site Whether a Room Needs a Reshoot",
+        "Automating Reshoot Triggers from Blur and Overlap Scores Together"
+      ]
+    },
+    {
+      "book": 37,
+      "title": "Building the Room-by-Room Session State Machine",
+      "scope": "Models a scan as a state machine over rooms \u2014 entering, shooting, coverage-check, complete \u2014 that the rest of the app hangs off of.",
+      "type": "code",
+      "difficulty": "implementation",
+      "cross_refs": [
+        "Camera2 Capture Session Basics for a Locked-Exposure App",
+        "Live Coverage Tracking: Am I Done With This Room?",
+        "Writing Per-Room Crops to Disk with Consistent Naming"
+      ]
+    },
+    {
+      "book": 38,
+      "title": "Writing Per-Room Crops to Disk with Consistent Naming",
+      "scope": "Implements the file-naming and folder layout for crops/*.jpg so downstream tooling can trust the ordering and room grouping.",
+      "type": "code",
+      "difficulty": "implementation",
+      "cross_refs": [
+        "Building the Room-by-Room Session State Machine",
+        "Capturing Frame Metadata: ISO, Shutter, EV, Timestamp",
+        "Assembling and Packing the Bundle: manifest.json and ZIP_STORED Crops"
+      ]
+    },
+    {
+      "book": 39,
+      "title": "Assembling and Packing the Bundle: manifest.json and ZIP_STORED Crops",
+      "scope": "Builds manifest.json (app, project, crops, rig) and packs it with the crops into bundle.zip using ZIP_STORED so images stay unrecompressed.",
+      "type": "code",
+      "difficulty": "implementation",
+      "cross_refs": [
+        "The Bundle Contract: What Downstream Expects From You",
+        "Writing Per-Room Crops to Disk with Consistent Naming",
+        "Handoff Discipline: What the Operator Owes the Pipeline"
+      ]
+    },
+    {
+      "book": 40,
+      "title": "The Cost of a Missed Room: Why Reshoots Are Cheaper On-Site",
+      "scope": "Makes the case that a 1-3 minute on-site reshoot is always cheaper than discovering the gap after the operator has left the building.",
+      "type": "essay",
+      "difficulty": "implementation",
+      "cross_refs": [
+        "Deciding On-Site Whether a Room Needs a Reshoot",
+        "Working the 1-3 Minute Room: Pacing a Capture Session",
+        "Troubleshooting a Session That Feels Wrong Before You Leave"
+      ]
+    },
+    {
+      "book": 41,
+      "title": "Deciding On-Site Whether a Room Needs a Reshoot",
+      "scope": "Gives the operator a decision rule combining blur score, overlap estimate, and visual read to call a reshoot before leaving a room.",
+      "type": "essay",
+      "difficulty": "implementation",
+      "cross_refs": [
+        "The Cost of a Missed Room: Why Reshoots Are Cheaper On-Site",
+        "Flagging and Triggering a Reshoot Mid-Session",
+        "Recognizing Motion Blur Before You Leave the Room"
+      ]
+    },
+    {
+      "book": 42,
+      "title": "Handoff Discipline: What the Operator Owes the Pipeline",
+      "scope": "Sets the minimum bar a bundle must clear \u2014 coverage, exposure log, naming \u2014 before it's fair to hand it to the reconstruction side.",
+      "type": "essay",
+      "difficulty": "implementation",
+      "cross_refs": [
+        "Assembling and Packing the Bundle: manifest.json and ZIP_STORED Crops",
+        "The Bundle Contract: What Downstream Expects From You",
+        "Troubleshooting a Session That Feels Wrong Before You Leave"
+      ]
+    },
+    {
+      "book": 43,
+      "title": "Loop Closure in the Field: Returning to Where You Started",
+      "scope": "Explains why deliberately re-visiting an earlier vantage point at the end of a loop gives COLMAP the closure it needs to correct drift.",
+      "type": "essay",
+      "difficulty": "implementation",
+      "cross_refs": [
+        "Doorways, Thresholds, and Keeping Continuity Between Rooms",
+        "Multi-Room Buildings with Repeating Geometry: Avoiding False Loop Closures",
+        "Handoff Discipline: What the Operator Owes the Pipeline"
+      ]
+    },
+    {
+      "book": 44,
+      "title": "Vertical Coverage: Ceilings, Floors, and the Frames People Skip",
+      "scope": "Argues for deliberately shooting up and down, not just around, since ceilings and floors are the coverage gaps operators skip by habit.",
+      "type": "essay",
+      "difficulty": "implementation",
+      "cross_refs": [
+        "Live Coverage Tracking: Am I Done With This Room?",
+        "Stairwells, Hallways, and Other Awkward Standoff Geometries",
+        "What Can Go Wrong: A Field Taxonomy of Bad Captures"
+      ]
+    },
+    {
+      "book": 45,
+      "title": "Troubleshooting a Session That Feels Wrong Before You Leave",
+      "scope": "Walks through the on-site checklist for the vague sense a scan went badly, before it's ever run through reconstruction.",
+      "type": "essay",
+      "difficulty": "implementation",
+      "cross_refs": [
+        "The Cost of a Missed Room: Why Reshoots Are Cheaper On-Site",
+        "Handoff Discipline: What the Operator Owes the Pipeline",
+        "Deciding On-Site Whether a Room Needs a Reshoot"
+      ]
+    },
+    {
+      "book": 46,
+      "title": "Multi-Room Buildings with Repeating Geometry: Avoiding False Loop Closures",
+      "scope": "Covers buildings with repeated room layouts (identical offices, hotel rooms) where a naive loop closure can match the wrong instance.",
+      "type": "essay",
+      "difficulty": "advanced",
+      "cross_refs": [
+        "Loop Closure in the Field: Returning to Where You Started",
+        "Routing a Room-by-Room Walk Without Backtracking",
+        "Adaptive Overlap: When to Shoot Tighter Than 70-80%"
+      ]
+    },
+    {
+      "book": 47,
+      "title": "Low-Light Rooms Without Supplemental Lighting",
+      "scope": "Handles interior rooms too dark to meter normally, using longer standoff, wider EV compensation, and accepted noise tradeoffs.",
+      "type": "essay",
+      "difficulty": "advanced",
+      "cross_refs": [
+        "EV Compensation for Windows, Skylights, and Dark Corners",
+        "Mixed Lighting Zones: Transition Strategy Between Rooms",
+        "Clipping and Banding: Reading a Histogram in the Field"
+      ]
+    },
+    {
+      "book": 48,
+      "title": "Adaptive Overlap: When to Shoot Tighter Than 70-80%",
+      "scope": "Explains when to exceed the standard overlap target \u2014 texture-poor rooms, tight stairwells, repeating geometry \u2014 and by how much.",
+      "type": "essay",
+      "difficulty": "advanced",
+      "cross_refs": [
+        "Overlap as the Currency of Structure-from-Motion",
+        "Texture-Poor Walls and Why Blank Surfaces Fail to Register",
+        "Multi-Room Buildings with Repeating Geometry: Avoiding False Loop Closures"
+      ]
+    },
+    {
+      "book": 49,
+      "title": "Building a Pre-Upload Capture Health Check on Device",
+      "scope": "Combines blur scores, coverage counts, and exposure metadata into one on-device pass/fail check the operator runs before ending a scan.",
+      "type": "code",
+      "difficulty": "advanced",
+      "cross_refs": [
+        "On-Device Laplacian-Variance Blur Scoring in Kotlin",
+        "Live Coverage Tracking: Am I Done With This Room?",
+        "Assembling and Packing the Bundle: manifest.json and ZIP_STORED Crops"
+      ]
+    },
+    {
+      "book": 50,
+      "title": "Automating Reshoot Triggers from Blur and Overlap Scores Together",
+      "scope": "Combines the blur and overlap estimators into one automated trigger so the app itself recommends a reshoot without operator judgment.",
+      "type": "code",
+      "difficulty": "advanced",
+      "cross_refs": [
+        "Flagging and Triggering a Reshoot Mid-Session",
+        "A Field Overlap Estimator: Comparing Consecutive Frames",
+        "Building a Pre-Upload Capture Health Check on Device"
+      ]
+    }
+  ],
+  "topic": "Capturing photos and stitching them into a 3D reconstruction \u2014 the Orbit Capture way",
+  "audience": "a solo operator + the engineer building their capture tool \u2014 practical, technically literate, not academic.",
+  "code_language": "Python 3.11+ (COLMAP/gsplat pipeline and photogrammetry code books), with Kotlin + Camera2 for on-device capture code books"
+}

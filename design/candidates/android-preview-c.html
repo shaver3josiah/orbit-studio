@@ -1,0 +1,931 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Orbit Capture — Android preview (Room Wizard)</title>
+<style>
+:root{
+  --bg:#F2F2F7; --bg-elevated:#FFFFFF;
+  --glass:rgba(255,255,255,.72); --glass-strong:rgba(255,255,255,.88); --glass-tint:rgba(255,255,255,.5);
+  --hairline:rgba(60,60,67,.12); --hairline-strong:rgba(60,60,67,.2);
+  --stage-canvas:#0b0b0e;
+  --text:#1C1C1E; --text-secondary:rgba(60,60,67,.6); --text-tertiary:rgba(60,60,67,.38);
+  --accent:#0A84FF; --accent-ink:#ffffff; --accent-soft:rgba(10,132,255,.12);
+  --success:#30D158; --success-soft:rgba(48,209,88,.14);
+  --warning:#FF9F0A; --warning-soft:rgba(255,159,10,.14);
+  --danger:#FF453A; --danger-soft:rgba(255,69,58,.14);
+  --processing-a:#5856D6; --processing-b:#64D2FF;
+  --font-sans:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI Variable Display","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --font-mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --radius-button:12px; --radius-card:20px; --radius-sheet:26px; --radius-hero:28px; --radius-pill:999px;
+  --shadow-soft:0 1px 2px rgba(30,30,40,.05),0 8px 24px rgba(30,30,40,.07);
+  --shadow-lifted:0 6px 16px rgba(30,30,40,.08),0 20px 44px rgba(30,30,40,.14);
+  --shadow-sheet:0 -8px 40px rgba(20,20,30,.22);
+  --shadow-accent-button:0 8px 20px rgba(10,132,255,.28);
+  --blur-glass:blur(24px) saturate(180%); --blur-glass-strong:blur(30px) saturate(180%);
+  --ease-spring:cubic-bezier(.32,.72,0,1); --duration:280ms; --duration-fast:160ms;
+  --space-1:4px;--space-2:8px;--space-3:12px;--space-4:16px;--space-5:20px;--space-6:24px;--space-8:32px;--space-10:40px;--space-12:48px;
+  color-scheme:light;
+}
+html.dark{
+  --bg:#000000; --bg-elevated:#1C1C1E;
+  --glass:rgba(28,28,30,.68); --glass-strong:rgba(38,38,41,.86); --glass-tint:rgba(28,28,30,.5);
+  --hairline:rgba(255,255,255,.12); --hairline-strong:rgba(255,255,255,.18);
+  --text:#F2F2F7; --text-secondary:rgba(235,235,245,.6); --text-tertiary:rgba(235,235,245,.38);
+  --accent-soft:rgba(10,132,255,.2); --success-soft:rgba(48,209,88,.2); --warning-soft:rgba(255,159,10,.2); --danger-soft:rgba(255,69,58,.2);
+  --shadow-soft:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.32);
+  --shadow-lifted:0 6px 20px rgba(0,0,0,.34),0 24px 48px rgba(0,0,0,.4);
+  color-scheme:dark;
+}
+@media (prefers-color-scheme: dark){
+  html:not(.light-forced){
+    --bg:#000000; --bg-elevated:#1C1C1E;
+    --glass:rgba(28,28,30,.68); --glass-strong:rgba(38,38,41,.86); --glass-tint:rgba(28,28,30,.5);
+    --hairline:rgba(255,255,255,.12); --hairline-strong:rgba(255,255,255,.18);
+    --text:#F2F2F7; --text-secondary:rgba(235,235,245,.6); --text-tertiary:rgba(235,235,245,.38);
+    --accent-soft:rgba(10,132,255,.2); --success-soft:rgba(48,209,88,.2); --warning-soft:rgba(255,159,10,.2); --danger-soft:rgba(255,69,58,.2);
+    color-scheme:dark;
+  }
+}
+*{box-sizing:border-box;}
+body{
+  margin:0; background:var(--bg); color:var(--text); font-family:var(--font-sans);
+  -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+  min-height:100vh;
+}
+@media (prefers-reduced-motion: reduce){ *{transition-duration:.01ms !important; animation-duration:.01ms !important;} }
+
+/* ---------- desktop chrome ---------- */
+.page-wrap{ max-width:1100px; margin:0 auto; padding:var(--space-6) var(--space-5) var(--space-12); }
+.desktop-header{ display:flex; align-items:center; justify-content:space-between; gap:var(--space-4); margin-bottom:var(--space-8); flex-wrap:wrap; }
+.desktop-header h1{ font-size:17px; font-weight:600; letter-spacing:-.01em; margin:0; }
+.desktop-header .sub{ font-size:12.5px; color:var(--text-secondary); margin-top:2px; }
+.header-controls{ display:flex; align-items:center; gap:var(--space-2); }
+.jump-nav{ display:flex; gap:4px; background:var(--glass); backdrop-filter:var(--blur-glass); border:1px solid var(--hairline); border-radius:var(--radius-pill); padding:4px; }
+.jump-nav button{ border:none; background:transparent; color:var(--text-secondary); font:inherit; font-size:12px; font-weight:600; padding:6px 10px; border-radius:var(--radius-pill); cursor:pointer; }
+.jump-nav button.is-active{ background:var(--accent); color:var(--accent-ink); }
+.jump-nav button:focus-visible, .icon-btn:focus-visible, .btn:focus-visible, .toggle:focus-visible, .scan-card:focus-visible, .weak-item button:focus-visible{
+  outline:2px solid var(--accent); outline-offset:2px;
+}
+.theme-btn{ width:34px; height:34px; border-radius:50%; border:1px solid var(--hairline); background:var(--glass); backdrop-filter:var(--blur-glass); cursor:pointer; display:flex; align-items:center; justify-content:center; color:var(--text); }
+.stage-canvas-strip{ text-align:center; }
+
+/* ---------- phone frame ---------- */
+.phone-shell{ display:flex; justify-content:center; }
+.phone-frame{
+  width:412px; height:892px; background:#08080a; border-radius:54px; padding:14px;
+  box-shadow:var(--shadow-lifted), 0 0 0 2px rgba(255,255,255,.04) inset; position:relative;
+}
+.phone-inner{
+  width:100%; height:100%; background:var(--bg); border-radius:40px; overflow:hidden; position:relative;
+  display:flex; flex-direction:column;
+}
+.status-bar{ display:flex; align-items:center; justify-content:space-between; padding:14px 26px 6px; font-size:14px; font-weight:600; flex-shrink:0; }
+.status-bar .punch{ position:absolute; left:50%; top:14px; transform:translateX(-50%); width:12px; height:12px; border-radius:50%; background:#000; }
+.status-icons{ display:flex; align-items:center; gap:5px; }
+.status-icons svg{ display:block; }
+.gesture-bar{ position:absolute; bottom:8px; left:50%; transform:translateX(-50%); width:134px; height:5px; border-radius:3px; background:var(--text); opacity:.35; }
+
+/* ---------- screens ---------- */
+.app-screens{ flex:1; position:relative; overflow:hidden; }
+.screen{ display:none; position:absolute; inset:0; flex-direction:column; }
+.screen.active{ display:flex; }
+.screen-header{ display:flex; align-items:center; gap:var(--space-2); padding:var(--space-2) var(--space-4) var(--space-3); flex-shrink:0; }
+.screen-header .header-title{ flex:1; min-width:0; }
+.screen-header h2{ font-size:17px; font-weight:600; letter-spacing:-.01em; margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.icon-btn{ width:34px; height:34px; border-radius:50%; border:1px solid var(--hairline); background:var(--glass); backdrop-filter:var(--blur-glass); display:flex; align-items:center; justify-content:center; cursor:pointer; color:var(--text); flex-shrink:0; }
+.icon-btn:hover{ background:var(--glass-strong); }
+.screen-body{ flex:1; overflow-y:auto; padding:0 var(--space-4) var(--space-4); }
+.screen-footer{ padding:var(--space-3) var(--space-4) var(--space-5); border-top:1px solid var(--hairline); background:var(--glass); backdrop-filter:var(--blur-glass); flex-shrink:0; display:flex; gap:var(--space-2); }
+h1,h2,h3{ color:var(--text); }
+p{ margin:0; }
+
+/* ---------- buttons ---------- */
+.btn{ font:inherit; font-size:15px; font-weight:600; border-radius:var(--radius-button); padding:12px 20px; display:inline-flex; align-items:center; justify-content:center; gap:var(--space-2); border:none; cursor:pointer; transition:transform var(--duration-fast) var(--ease-spring), background var(--duration-fast); }
+.btn:active{ transform:scale(.97); }
+.btn-primary{ background:var(--accent); color:var(--accent-ink); box-shadow:var(--shadow-accent-button); }
+.btn-primary:hover{ background:#1a8cff; }
+.btn-secondary{ background:var(--glass); color:var(--text); border:1px solid var(--hairline); backdrop-filter:var(--blur-glass); }
+.btn-secondary:hover{ background:var(--glass-strong); }
+.btn-danger{ background:var(--danger); color:#fff; }
+.btn-ghost{ background:transparent; color:var(--accent); }
+.btn-ghost:hover{ background:var(--accent-soft); }
+.btn-sm{ padding:8px 14px; font-size:13px; }
+.btn-block{ width:100%; }
+.btn:disabled{ cursor:not-allowed; opacity:.5; }
+
+/* ---------- home ---------- */
+.scan-card{ display:block; width:100%; text-align:left; background:var(--bg-elevated); border:1px solid var(--hairline); border-radius:var(--radius-card); overflow:hidden; box-shadow:var(--shadow-soft); cursor:pointer; padding:0; margin-bottom:var(--space-4); }
+.scan-poster{ height:96px; background:linear-gradient(150deg,#6f6fe0,#58c7e8); position:relative; }
+.scan-card-body{ padding:var(--space-4); }
+.scan-title-row{ display:flex; align-items:center; gap:var(--space-2); }
+.scan-title{ font-size:15.5px; font-weight:600; letter-spacing:-.01em; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.chip{ font-size:12px; font-weight:600; padding:4px 10px; border-radius:var(--radius-pill); flex-shrink:0; }
+.chip-draft{ background:var(--glass-tint); color:var(--text-secondary); border:1px solid var(--hairline); }
+.chip-bundled{ background:var(--accent-soft); color:var(--accent); }
+.chip-training{ background:linear-gradient(90deg,var(--processing-a),var(--processing-b)); color:#fff; }
+.chip-done{ background:var(--success-soft); color:var(--success); }
+.scan-meta{ font-size:12.5px; color:var(--text-secondary); margin-top:4px; }
+.reg-badge{ margin-top:var(--space-2); font-size:12.5px; font-weight:600; display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:var(--radius-pill); }
+.reg-healthy{ background:var(--success-soft); color:var(--success); }
+.reg-warning{ background:var(--danger-soft); color:var(--danger); }
+.reg-mid{ background:var(--warning-soft); color:var(--warning); }
+.empty-state{ text-align:center; padding:var(--space-12) var(--space-4); color:var(--text-secondary); font-size:14px; }
+
+/* ---------- capture ---------- */
+.time-chip{ font-size:12px; font-weight:600; color:var(--text-secondary); background:var(--glass-tint); border:1px solid var(--hairline); border-radius:var(--radius-pill); padding:2px 9px; margin-top:2px; display:inline-block; }
+.stepper{ display:flex; gap:6px; padding:0 var(--space-4) var(--space-3); flex-shrink:0; }
+.step{ flex:1; text-align:center; }
+.step-dot{ width:22px; height:22px; margin:0 auto 5px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:var(--glass-tint); border:1px solid var(--hairline); color:var(--text-tertiary); font-size:11px; font-weight:700; }
+.step.is-done .step-dot{ background:var(--success); border-color:var(--success); color:#fff; }
+.step.is-active .step-dot{ background:var(--accent); border-color:var(--accent); color:#fff; animation:pulse 1.6s ease-in-out infinite; }
+@keyframes pulse{ 0%,100%{ box-shadow:0 0 0 0 rgba(10,132,255,.4);} 50%{ box-shadow:0 0 0 6px rgba(10,132,255,0);} }
+.step-label{ font-size:10px; font-weight:600; color:var(--text-secondary); line-height:1.2; }
+.step.is-active .step-label{ color:var(--text); }
+.step-bar-track{ height:3px; border-radius:2px; background:var(--hairline-strong); margin-top:5px; overflow:hidden; }
+.step-bar-fill{ height:100%; background:var(--accent); border-radius:2px; transition:width var(--duration) var(--ease-spring); }
+
+.viewfinder{ margin:0 var(--space-4); border-radius:22px; overflow:hidden; position:relative; aspect-ratio:3/4; background:var(--stage-canvas); flex-shrink:0; touch-action:none; user-select:none; }
+.vf-scene{ position:absolute; inset:0;
+  background:
+    radial-gradient(ellipse 60% 40% at 78% 18%, rgba(255,238,200,.30), transparent 60%),
+    linear-gradient(180deg,#2c3040 0%, #23262f 45%, #191b21 100%);
+}
+.vf-scene::before{ content:""; position:absolute; left:8%; right:46%; top:20%; bottom:38%; background:rgba(255,241,209,.14); border-radius:4px; box-shadow:0 0 40px 6px rgba(255,235,190,.10) inset; }
+.vf-scene::after{ content:""; position:absolute; left:14%; right:14%; bottom:0; top:70%; background:linear-gradient(180deg, rgba(90,70,55,.35), rgba(40,30,24,.55)); border-radius:6px 6px 0 0; }
+.vf-vignette{ position:absolute; inset:0; box-shadow:inset 0 0 60px 20px rgba(0,0,0,.55); pointer-events:none; }
+.viewfinder.is-charging .vf-vignette{ box-shadow:inset 0 0 0 3px rgba(10,132,255,.7), inset 0 0 60px 20px rgba(0,0,0,.55); }
+.vf-overlay{ position:absolute; inset:0; padding:var(--space-3); display:flex; flex-direction:column; justify-content:space-between; pointer-events:none; }
+.meter-row{ display:flex; gap:6px; flex-wrap:wrap; }
+.hud-chip{ background:var(--glass); backdrop-filter:var(--blur-glass); border:1px solid var(--hairline-strong); border-radius:var(--radius-pill); padding:5px 10px; font-size:11.5px; font-weight:600; color:#fff; display:flex; align-items:center; gap:5px; }
+.hud-dot{ width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+.dot-good{ background:var(--success); } .dot-warn{ background:var(--warning); } .dot-bad{ background:var(--danger); }
+.overlap-bar-track{ width:70px; height:5px; border-radius:3px; background:rgba(255,255,255,.25); overflow:hidden; }
+.overlap-bar-fill{ height:100%; border-radius:3px; transition:width var(--duration) var(--ease-spring), background var(--duration); }
+.focus-indicator{ align-self:center; background:rgba(0,0,0,.55); backdrop-filter:var(--blur-glass); color:#fff; font-size:13px; font-weight:600; padding:8px 16px; border-radius:var(--radius-pill); opacity:0; transition:opacity var(--duration-fast); }
+.focus-indicator.is-visible{ opacity:1; }
+.shot-counter{ align-self:flex-start; background:rgba(0,0,0,.5); color:#fff; font-size:12px; font-weight:700; padding:5px 10px; border-radius:var(--radius-pill); }
+.hero-hint{ align-self:center; text-align:center; background:rgba(0,0,0,.45); color:rgba(255,255,255,.85); font-size:11px; padding:4px 10px; border-radius:var(--radius-pill); }
+
+.capture-controls{ display:flex; align-items:center; justify-content:center; gap:var(--space-6); padding:var(--space-4); flex-shrink:0; }
+.shutter-btn{ width:70px; height:70px; border-radius:50%; background:#fff; border:4px solid var(--hairline-strong); box-shadow:var(--shadow-lifted); cursor:pointer; position:relative; }
+.shutter-btn::after{ content:""; position:absolute; inset:5px; border-radius:50%; background:var(--accent); transition:transform var(--duration-fast) var(--ease-spring); }
+.shutter-btn:active::after{ transform:scale(.85); }
+.shutter-btn:disabled{ cursor:not-allowed; opacity:.6; }
+.simulate-chip{ font-size:11px; font-weight:600; }
+
+/* precapture sheet */
+.sheet-backdrop{ position:absolute; inset:0; background:rgba(0,0,0,.4); display:flex; align-items:flex-end; z-index:20; }
+.sheet{ width:100%; background:var(--glass-strong); backdrop-filter:var(--blur-glass-strong); border-top-left-radius:var(--radius-sheet); border-top-right-radius:var(--radius-sheet); padding:var(--space-6) var(--space-5) var(--space-6); box-shadow:var(--shadow-sheet); border-top:1px solid var(--hairline); }
+.sheet h3{ font-size:20px; font-weight:700; letter-spacing:-.01em; margin:0 0 var(--space-4); }
+.checklist-item{ display:flex; align-items:center; gap:var(--space-3); font-size:14px; padding:var(--space-2) 0; cursor:pointer; }
+.checklist-item input{ width:20px; height:20px; accent-color:var(--accent); }
+.coaching-card{ background:var(--warning-soft); color:var(--text); border-radius:14px; padding:var(--space-3); font-size:13px; margin:var(--space-3) 0; border:1px solid var(--hairline); }
+.toggle-row{ display:flex; align-items:center; justify-content:space-between; padding:var(--space-2) 0 var(--space-4); font-size:14px; font-weight:600; }
+.toggle{ width:48px; height:28px; border-radius:16px; background:var(--hairline-strong); border:none; position:relative; cursor:pointer; padding:0; }
+.toggle::after{ content:""; position:absolute; top:3px; left:3px; width:22px; height:22px; border-radius:50%; background:#fff; box-shadow:var(--shadow-soft); transition:transform var(--duration-fast) var(--ease-spring); }
+.toggle[aria-checked="true"]{ background:var(--success); }
+.toggle[aria-checked="true"]::after{ transform:translateX(20px); }
+
+/* ---------- review ---------- */
+.section-title{ font-size:13px; font-weight:600; text-transform:uppercase; letter-spacing:.02em; color:var(--text-secondary); margin:var(--space-5) 0 var(--space-2); }
+.coverage-map-wrap{ background:var(--bg-elevated); border:1px solid var(--hairline); border-radius:var(--radius-card); padding:var(--space-3); box-shadow:var(--shadow-soft); margin-top:var(--space-3); }
+.coverage-map-wrap svg{ width:100%; display:block; }
+.map-legend{ display:flex; gap:var(--space-3); flex-wrap:wrap; margin-top:var(--space-2); font-size:11px; color:var(--text-secondary); }
+.map-legend span{ display:inline-flex; align-items:center; gap:4px; }
+.legend-dot{ width:8px; height:8px; border-radius:50%; display:inline-block; }
+.checklist-row{ display:flex; gap:6px; margin-top:var(--space-3); }
+.badge-pill{ flex:1; text-align:center; font-size:11px; font-weight:600; padding:8px 4px; border-radius:12px; background:var(--glass-tint); border:1px solid var(--hairline); color:var(--text-tertiary); }
+.badge-pill.is-done{ background:var(--success-soft); color:var(--success); border-color:transparent; }
+.stats-grid{ display:grid; grid-template-columns:1fr 1fr; gap:var(--space-2); margin-top:var(--space-3); }
+.stat-tile{ background:var(--bg-elevated); border:1px solid var(--hairline); border-radius:14px; padding:var(--space-3); box-shadow:var(--shadow-soft); }
+.stat-value{ font-size:19px; font-weight:700; letter-spacing:-.01em; }
+.stat-label{ font-size:11.5px; color:var(--text-secondary); margin-top:2px; }
+table.room-table{ width:100%; border-collapse:collapse; font-size:12.5px; background:var(--bg-elevated); border:1px solid var(--hairline); border-radius:14px; overflow:hidden; }
+table.room-table th, table.room-table td{ padding:8px 8px; text-align:left; border-bottom:1px solid var(--hairline); }
+table.room-table th{ color:var(--text-secondary); font-weight:600; font-size:11px; text-transform:uppercase; }
+table.room-table tr:last-child td{ border-bottom:none; }
+.weak-list{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px; }
+.weak-item{ display:flex; align-items:flex-start; gap:var(--space-2); background:var(--danger-soft); border-radius:12px; padding:var(--space-3); font-size:12.5px; }
+.weak-item svg{ flex-shrink:0; margin-top:1px; color:var(--danger); }
+.weak-item .weak-text{ flex:1; }
+.weak-item .weak-desc{ color:var(--text-secondary); margin-top:2px; }
+.weak-item button{ font-size:11px; font-weight:600; color:var(--accent); background:none; border:none; cursor:pointer; padding:2px; flex-shrink:0; }
+.thumb-grid{ display:grid; grid-template-columns:repeat(5,1fr); gap:6px; }
+.thumb{ aspect-ratio:1; border-radius:9px; position:relative; }
+.thumb.is-weak{ box-shadow:0 0 0 2px var(--danger); }
+.thumb-more{ aspect-ratio:1; border-radius:9px; background:var(--glass-tint); border:1px solid var(--hairline); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:600; color:var(--text-secondary); }
+
+/* ---------- bundle ---------- */
+.lede{ font-size:14px; color:var(--text-secondary); margin-top:var(--space-3); }
+.progress-track{ height:8px; border-radius:4px; background:rgba(120,120,140,.18); overflow:hidden; margin-top:var(--space-4); }
+.progress-fill{ height:100%; width:0%; border-radius:4px; background:linear-gradient(90deg,var(--processing-a),var(--processing-b)); transition:width 1.6s var(--ease-spring); }
+.manifest-card{ background:var(--bg-elevated); border:1px solid var(--hairline); border-radius:var(--radius-card); margin-top:var(--space-4); box-shadow:var(--shadow-soft); overflow:hidden; }
+.manifest-head{ font-size:12px; font-weight:600; color:var(--text-secondary); padding:var(--space-3) var(--space-3) 0; }
+.manifest-pre{ margin:0; padding:var(--space-3); font-family:var(--font-mono); font-size:11.5px; line-height:1.5; color:var(--text); overflow-x:auto; white-space:pre; }
+.handoff-steps{ margin:var(--space-4) 0 0; padding-left:20px; font-size:13px; color:var(--text-secondary); display:flex; flex-direction:column; gap:6px; }
+.handoff-steps li::marker{ color:var(--accent); font-weight:700; }
+
+/* ---------- done ---------- */
+.dropzone{ margin-top:var(--space-4); border:2px dashed var(--hairline-strong); border-radius:var(--radius-hero); padding:var(--space-8) var(--space-4); text-align:center; transition:background var(--duration-fast), border-color var(--duration-fast); }
+.dropzone.is-drag{ background:var(--accent-soft); border-color:var(--accent); }
+.dropzone p{ font-size:14px; color:var(--text-secondary); margin-bottom:var(--space-4); }
+.banner{ margin-top:var(--space-4); padding:var(--space-4); border-radius:16px; font-size:13.5px; font-weight:600; line-height:1.4; }
+.banner-healthy{ background:var(--success-soft); color:var(--success); }
+.banner-warning{ background:var(--danger-soft); color:var(--danger); }
+.banner-mid{ background:var(--warning-soft); color:var(--warning); }
+
+/* ---------- toasts ---------- */
+#toastRoot{ position:absolute; left:0; right:0; bottom:96px; display:flex; flex-direction:column; align-items:center; gap:8px; pointer-events:none; z-index:50; padding:0 var(--space-4); }
+.toast{ background:var(--glass-strong); backdrop-filter:var(--blur-glass-strong); border:1px solid var(--hairline); border-left:3px solid var(--accent); color:var(--text); font-size:12.5px; font-weight:600; padding:10px 14px; border-radius:14px; box-shadow:var(--shadow-lifted); max-width:320px; text-align:left; animation:toast-in var(--duration) var(--ease-spring); }
+.toast.t-warning{ border-left-color:var(--warning); }
+.toast.t-danger{ border-left-color:var(--danger); }
+.toast.t-success{ border-left-color:var(--success); }
+@keyframes toast-in{ from{ opacity:0; transform:translateY(8px);} to{ opacity:1; transform:translateY(0);} }
+
+@media (max-width:480px){
+  .phone-frame{ width:100%; max-width:412px; height:auto; aspect-ratio:412/892; }
+}
+</style>
+</head>
+<body>
+<div class="page-wrap">
+  <div class="desktop-header">
+    <div>
+      <h1>Orbit Capture — Android app preview</h1>
+      <div class="sub">Angle C — Room Wizard · methodical, information-forward</div>
+    </div>
+    <div class="header-controls">
+      <div class="jump-nav" id="jumpNav" role="navigation" aria-label="Jump to screen">
+        <button data-jump="home" class="is-active">1 Home</button>
+        <button data-jump="capture">2 Capture</button>
+        <button data-jump="review">3 Review</button>
+        <button data-jump="bundle">4 Bundle</button>
+        <button data-jump="done">5 Done</button>
+      </div>
+      <button class="theme-btn" id="themeBtn" aria-label="Toggle light and dark theme" title="Toggle theme">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36A5.4 5.4 0 0 1 12 3z"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="phone-shell">
+    <div class="phone-frame">
+      <div class="phone-inner">
+        <div class="status-bar">
+          <span>9:41</span>
+          <span class="punch" aria-hidden="true"></span>
+          <span class="status-icons" aria-hidden="true">
+            <svg width="16" height="11" viewBox="0 0 16 11"><rect x="0" y="7" width="3" height="4" rx=".5" fill="currentColor"/><rect x="4.5" y="5" width="3" height="6" rx=".5" fill="currentColor"/><rect x="9" y="2" width="3" height="9" rx=".5" fill="currentColor"/><rect x="13.5" y="0" width="3" height="11" rx=".5" fill="currentColor"/></svg>
+            <svg width="22" height="11" viewBox="0 0 22 11"><rect x=".5" y=".5" width="19" height="10" rx="2.5" stroke="currentColor" fill="none"/><rect x="2" y="2" width="14" height="7" rx="1" fill="currentColor"/><rect x="20.5" y="3.5" width="1.5" height="4" rx=".7" fill="currentColor"/></svg>
+          </span>
+        </div>
+
+        <div class="app-screens" id="appScreens">
+
+          <!-- 1. HOME -->
+          <section class="screen active" id="screen-home" aria-label="Home, scan list">
+            <div class="screen-header"><div class="header-title"><h2>Orbit Capture</h2></div></div>
+            <div class="screen-body" id="scanList"></div>
+            <div class="screen-footer">
+              <button class="btn btn-primary btn-block" id="newScanBtn">New scan</button>
+            </div>
+          </section>
+
+          <!-- 2. CAPTURE -->
+          <section class="screen" id="screen-capture" aria-label="Capture">
+            <div class="screen-header">
+              <button class="icon-btn" data-nav="home" aria-label="Back to home">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 5l-7 7 7 7"/></svg>
+              </button>
+              <div class="header-title">
+                <h2 id="captureRoomName">Living Room</h2>
+                <span class="time-chip" id="timeChip">0:00 spent</span>
+              </div>
+              <button class="icon-btn" id="simulateFullBtn" aria-label="Simulate full room" title="Simulate full room">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2 3 14h7l-1 8 11-14h-8l1-6z"/></svg>
+              </button>
+            </div>
+
+            <div class="stepper" id="stepper"></div>
+
+            <div class="viewfinder" id="viewfinder" role="button" tabindex="0" aria-label="Long-press to tag a hero area">
+              <div class="vf-scene"></div>
+              <div class="vf-vignette"></div>
+              <div class="vf-overlay">
+                <div class="meter-row">
+                  <span class="hud-chip" id="overlapChip"><span class="hud-dot dot-good"></span>Overlap 78%<span class="overlap-bar-track"><span class="overlap-bar-fill" id="overlapBarFill"></span></span></span>
+                  <span class="hud-chip" id="distanceChip"><span class="hud-dot dot-good"></span>Good distance</span>
+                </div>
+                <div class="focus-indicator" id="focusIndicator">Hold still — focusing.</div>
+                <div>
+                  <div class="shot-counter" id="shotCounter">0 photos</div>
+                  <div class="hero-hint">Long-press to tag a hero area</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="capture-controls">
+              <button class="shutter-btn" id="shutterBtn" aria-label="Take photo"></button>
+            </div>
+
+            <div class="sheet-backdrop" id="precaptureSheet" hidden>
+              <div class="sheet" role="dialog" aria-modal="true" aria-label="Pre-capture checklist">
+                <h3>Three things before you start.</h3>
+                <label class="checklist-item">
+                  <input type="checkbox" id="chkLens">
+                  Wipe the phone's rear lens.
+                </label>
+                <div class="coaching-card">Turn on the room lights, avoid shooting into windows.</div>
+                <div class="toggle-row">
+                  <span>Exposure locked</span>
+                  <button class="toggle" id="exposureToggle" role="switch" aria-checked="false" aria-label="Exposure locked"></button>
+                </div>
+                <p style="font-size:12px;color:var(--text-secondary);margin-bottom:var(--space-4);">Lock exposure so lighting doesn't drift between shots.</p>
+                <button class="btn btn-primary btn-block" id="startCaptureBtn">Start capture</button>
+              </div>
+            </div>
+          </section>
+
+          <!-- 3. REVIEW -->
+          <section class="screen" id="screen-review" aria-label="Review coverage">
+            <div class="screen-header">
+              <button class="icon-btn" data-nav="capture" aria-label="Back to capture">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 5l-7 7 7 7"/></svg>
+              </button>
+              <div class="header-title"><h2>Review coverage</h2></div>
+            </div>
+            <div class="screen-body">
+              <div class="coverage-map-wrap">
+                <svg id="coverageMap" viewBox="0 0 300 190" aria-label="Top-down coverage map"></svg>
+                <div class="map-legend">
+                  <span><span class="legend-dot" style="background:var(--accent)"></span>Perimeter</span>
+                  <span><span class="legend-dot" style="background:var(--processing-a)"></span>Interior</span>
+                  <span><span class="legend-dot" style="background:var(--warning)"></span>Hero</span>
+                  <span><span class="legend-dot" style="background:var(--success)"></span>Loop close</span>
+                </div>
+              </div>
+              <div class="checklist-row" id="stageChecklist"></div>
+
+              <div class="section-title">Coverage analytics</div>
+              <div class="stats-grid" id="reviewStats"></div>
+
+              <div class="section-title">Per-room breakdown</div>
+              <table class="room-table">
+                <thead><tr><th>Room</th><th>Perim.</th><th>Int.</th><th>Hero</th><th>Loop</th><th>Total</th></tr></thead>
+                <tbody id="roomTableBody"></tbody>
+              </table>
+
+              <div class="section-title">Weak spots</div>
+              <ul class="weak-list" id="weakList"></ul>
+
+              <div class="section-title">Photos</div>
+              <div class="thumb-grid" id="thumbGrid"></div>
+            </div>
+            <div class="screen-footer">
+              <button class="btn btn-secondary" id="retakeBtn">Retake gaps</button>
+              <button class="btn btn-primary" id="bundleBtn" style="flex:1">Looks good — bundle</button>
+            </div>
+          </section>
+
+          <!-- 4. BUNDLE -->
+          <section class="screen" id="screen-bundle" aria-label="Bundle and handoff">
+            <div class="screen-header">
+              <button class="icon-btn" data-nav="review" aria-label="Back to review">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 5l-7 7 7 7"/></svg>
+              </button>
+              <div class="header-title"><h2>Bundle</h2></div>
+            </div>
+            <div class="screen-body">
+              <p class="lede" id="bundleLede">Packing crops into bundle.zip…</p>
+              <div class="progress-track"><div class="progress-fill" id="zipProgress"></div></div>
+              <div class="manifest-card">
+                <div class="manifest-head">manifest.json</div>
+                <pre class="manifest-pre" id="manifestPre"></pre>
+              </div>
+              <ol class="handoff-steps">
+                <li>Copy bundle.zip to your laptop.</li>
+                <li>Open the Colab notebook.</li>
+                <li>Drop the bundle in and run all cells.</li>
+              </ol>
+            </div>
+            <div class="screen-footer">
+              <button class="btn btn-primary btn-block" id="openNotebookBtn">Open notebook</button>
+            </div>
+          </section>
+
+          <!-- 5. DONE -->
+          <section class="screen" id="screen-done" aria-label="Done">
+            <div class="screen-header">
+              <button class="icon-btn" data-nav="bundle" aria-label="Back to bundle">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 5l-7 7 7 7"/></svg>
+              </button>
+              <div class="header-title"><h2>Done</h2></div>
+            </div>
+            <div class="screen-body">
+              <div class="dropzone" id="splatDropzone" role="button" tabindex="0" aria-label="Drop a splat file to preview">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" style="color:var(--text-tertiary);margin-bottom:8px"><path d="M12 3v12m0 0-4-4m4 4 4-4M4 21h16"/></svg>
+                <p>Drop artifact.splat here</p>
+                <button class="btn btn-secondary btn-sm" id="simulateSplatBtn">Simulate splat received</button>
+              </div>
+              <div id="regResult" hidden>
+                <div class="banner" id="regBanner"></div>
+                <div class="stats-grid" id="doneStats"></div>
+                <button class="btn btn-primary btn-block" id="openViewerBtn" style="margin-top:var(--space-4)">Open in Orbit Studio viewer — localhost:7360</button>
+              </div>
+            </div>
+          </section>
+
+        </div>
+        <div id="toastRoot" aria-live="polite"></div>
+        <div class="gesture-bar" aria-hidden="true"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------- theme ---------- */
+  var themeBtn = document.getElementById('themeBtn');
+  var themeState = 'auto'; // auto -> light -> dark -> auto
+  themeBtn.addEventListener('click', function(){
+    themeState = themeState === 'auto' ? 'light' : themeState === 'light' ? 'dark' : 'auto';
+    document.documentElement.classList.remove('dark','light-forced');
+    if(themeState === 'light'){ document.documentElement.classList.add('light-forced'); }
+    if(themeState === 'dark'){ document.documentElement.classList.add('dark'); }
+  });
+
+  /* ---------- nav ---------- */
+  var screens = ['home','capture','review','bundle','done'];
+  var current = 'home';
+  function showScreen(name, opts){
+    opts = opts || {};
+    if(!opts.skipReadyCheck && (name==='review'||name==='bundle'||name==='done') && state.totalShots()===0){
+      simulateFullRoom();
+    }
+    screens.forEach(function(s){
+      document.getElementById('screen-'+s).classList.toggle('active', s===name);
+    });
+    document.querySelectorAll('.jump-nav button').forEach(function(b){
+      b.classList.toggle('is-active', b.dataset.jump===name);
+    });
+    current = name;
+    if(name==='capture'){ renderCapture(); if(!state.precaptureDone){ openPrecapture(); } }
+    if(name==='review'){ renderReview(); }
+    if(name==='bundle'){ renderBundle(); }
+    if(name==='home'){ renderHome(); }
+  }
+  document.getElementById('jumpNav').addEventListener('click', function(e){
+    var b = e.target.closest('button[data-jump]');
+    if(b) showScreen(b.dataset.jump);
+  });
+  document.querySelectorAll('[data-nav]').forEach(function(el){
+    el.addEventListener('click', function(){ showScreen(el.dataset.nav); });
+  });
+
+  /* ---------- toast ---------- */
+  function showToast(msg, variant){
+    var root = document.getElementById('toastRoot');
+    var t = document.createElement('div');
+    t.className = 'toast' + (variant ? ' t-'+variant : '');
+    t.textContent = msg;
+    root.appendChild(t);
+    setTimeout(function(){ t.remove(); }, 2600);
+  }
+
+  /* ---------- state ---------- */
+  var scan = { name:'Living Room', status:'draft', regHealth:null };
+
+  var STAGE_TARGET = { perimeter:10, interior:12, hero:1, loop:1 };
+  var state = {
+    perimeter:0, interior:0, loop:0,
+    heroSpots:[], // {height:'eye'|'low'}
+    weakSpots:[], // {label, desc}
+    seconds:0,
+    precaptureDone:false,
+    timeNudgeShown:false,
+    loopPromptShown:false,
+    totalShots:function(){ return this.perimeter + this.interior + this.loop + this.heroSpots.length; },
+    stageDone:function(){
+      return {
+        perimeter: this.perimeter >= STAGE_TARGET.perimeter,
+        interior: this.interior >= STAGE_TARGET.interior,
+        hero: this.heroSpots.filter(function(h){return h.height==='low';}).length >= STAGE_TARGET.hero,
+        loop: this.loop >= STAGE_TARGET.loop
+      };
+    },
+    currentStage:function(){
+      var d = this.stageDone();
+      if(!d.perimeter) return 'perimeter';
+      if(!d.interior) return 'interior';
+      if(!d.hero) return 'hero';
+      if(!d.loop) return 'loop';
+      return 'complete';
+    },
+    reset:function(){
+      this.perimeter=0; this.interior=0; this.loop=0; this.heroSpots=[]; this.weakSpots=[];
+      this.seconds=0; this.precaptureDone=false; this.timeNudgeShown=false; this.loopPromptShown=false;
+    }
+  };
+
+  function fmtTime(sec){
+    var m = Math.floor(sec/60), s = sec%60;
+    return m+':'+(s<10?'0':'')+s;
+  }
+
+  /* ---------- home ---------- */
+  function statusLabel(s){ return {draft:'Draft',bundled:'Bundled',training:'Training',done:'Done'}[s]; }
+  function renderHome(){
+    var list = document.getElementById('scanList');
+    if(scan.status==='new'){
+      list.innerHTML = '<div class="empty-state">No scans yet. Walk a room, come back with a splat.</div>';
+      return;
+    }
+    var regHtml = '';
+    if(scan.status==='done' && scan.regHealth!=null){
+      var cls = scan.regHealth<60?'reg-warning':scan.regHealth>=95?'reg-healthy':'reg-mid';
+      regHtml = '<div class="reg-badge '+cls+'">'+scan.regHealth+'% registered</div>';
+    }
+    list.innerHTML =
+      '<button class="scan-card" id="scanCardBtn" aria-label="Open '+scan.name+'">'+
+        '<div class="scan-poster"></div>'+
+        '<div class="scan-card-body">'+
+          '<div class="scan-title-row"><span class="scan-title">'+scan.name+'</span>'+
+            '<span class="chip chip-'+scan.status+'">'+statusLabel(scan.status)+'</span></div>'+
+          '<div class="scan-meta">'+state.totalShots()+' photos · '+fmtTime(state.seconds)+' capture time</div>'+
+          regHtml+
+        '</div>'+
+      '</button>';
+    document.getElementById('scanCardBtn').addEventListener('click', function(){
+      showScreen(state.totalShots()===0 ? 'capture' : (scan.status==='draft' ? 'capture' : scan.status==='bundled'||scan.status==='training' ? 'bundle' : 'done'));
+    });
+  }
+  document.getElementById('newScanBtn').addEventListener('click', function(){
+    state.reset();
+    scan = { name:'Living Room', status:'draft', regHealth:null };
+    showScreen('capture');
+  });
+
+  /* ---------- precapture sheet ---------- */
+  function openPrecapture(){ document.getElementById('precaptureSheet').hidden = false; }
+  document.getElementById('exposureToggle').addEventListener('click', function(){
+    var on = this.getAttribute('aria-checked') === 'true';
+    this.setAttribute('aria-checked', on ? 'false' : 'true');
+  });
+  document.getElementById('startCaptureBtn').addEventListener('click', function(){
+    var lockOn = document.getElementById('exposureToggle').getAttribute('aria-checked') === 'true';
+    if(!lockOn){
+      showToast("Lock exposure so lighting doesn't drift between shots.", 'warning');
+      return;
+    }
+    state.precaptureDone = true;
+    document.getElementById('precaptureSheet').hidden = true;
+  });
+
+  /* ---------- capture screen ---------- */
+  var STAGES = [
+    {key:'perimeter', label:'Perimeter'},
+    {key:'interior', label:'Interior'},
+    {key:'hero', label:'Hero'},
+    {key:'loop', label:'Loop'}
+  ];
+  function renderCapture(){
+    document.getElementById('captureRoomName').textContent = scan.name;
+    document.getElementById('timeChip').textContent = fmtTime(state.seconds)+' spent';
+    document.getElementById('shotCounter').textContent = state.totalShots()+' photos';
+    renderStepper();
+  }
+  function renderStepper(){
+    var d = state.stageDone(), cur = state.currentStage();
+    var wrap = document.getElementById('stepper');
+    wrap.innerHTML = STAGES.map(function(st){
+      var isDone = d[st.key];
+      var isActive = cur === st.key;
+      var pct = st.key==='hero'
+        ? Math.min(100, (state.heroSpots.filter(function(h){return h.height==='low';}).length/STAGE_TARGET.hero)*100)
+        : Math.min(100, (state[st.key]/STAGE_TARGET[st.key])*100);
+      return '<div class="step '+(isDone?'is-done':'')+' '+(isActive?'is-active':'')+'">'+
+        '<div class="step-dot">'+(isDone?'✓':'')+'</div>'+
+        '<div class="step-label">'+st.label+'</div>'+
+        '<div class="step-bar-track"><div class="step-bar-fill" style="width:'+pct+'%"></div></div>'+
+      '</div>';
+    }).join('');
+  }
+
+  function randomOverlap(){
+    var r = Math.random();
+    if(r < 0.16) return 45 + Math.round(Math.random()*14); // low, <60
+    if(r < 0.3) return 60 + Math.round(Math.random()*9);   // amber 60-69
+    return 70 + Math.round(Math.random()*20);               // green-ish 70-90+
+  }
+  function randomDistance(){
+    var r = Math.random();
+    if(r < 0.1) return 'close';
+    if(r < 0.2) return 'far';
+    return 'good';
+  }
+  function updateMeters(overlap, dist){
+    var oChip = document.getElementById('overlapChip');
+    var oFill = document.getElementById('overlapBarFill');
+    var color = overlap<60 ? 'var(--danger)' : (overlap>=70 && overlap<=90) ? 'var(--success)' : 'var(--warning)';
+    var dotClass = overlap<60?'dot-bad':(overlap>=70&&overlap<=90)?'dot-good':'dot-warn';
+    oChip.innerHTML = '<span class="hud-dot '+dotClass+'"></span>Overlap '+overlap+'%<span class="overlap-bar-track"><span class="overlap-bar-fill" id="overlapBarFill" style="width:'+overlap+'%;background:'+color+'"></span></span>';
+
+    var dChip = document.getElementById('distanceChip');
+    var dText = dist==='close'?'Too close':dist==='far'?'Too far':'Good distance';
+    var dDot = dist==='good'?'dot-good':'dot-warn';
+    dChip.innerHTML = '<span class="hud-dot '+dDot+'"></span>'+dText;
+  }
+
+  var gating = false;
+  document.getElementById('shutterBtn').addEventListener('click', function(){
+    if(gating || !state.precaptureDone) return;
+    gating = true;
+    var btn = this;
+    btn.disabled = true;
+    var indicator = document.getElementById('focusIndicator');
+    indicator.classList.add('is-visible');
+    setTimeout(function(){
+      indicator.classList.remove('is-visible');
+      commitShot();
+      btn.disabled = false;
+      gating = false;
+    }, 450);
+  });
+
+  function commitShot(){
+    var stage = state.currentStage();
+    var overlap = randomOverlap();
+    var dist = randomDistance();
+    updateMeters(overlap, dist);
+
+    if(overlap < 60){
+      state.weakSpots.push({label:'Overlap dip', desc:'Overlap dropped to '+overlap+'% during the '+(stage==='complete'?'final':stage)+' pass.'});
+      showToast('Move a little less between shots. Aim to keep most of the last photo in view.', 'warning');
+    }
+    if(dist === 'close'){ showToast("Back up. You're inside the 0.3 m minimum.", 'danger'); }
+    if(dist === 'far'){ showToast('Step in closer for detail.', 'warning'); }
+
+    if(stage === 'perimeter'){ state.perimeter++; }
+    else if(stage === 'interior'){ state.interior++; }
+    else if(stage === 'hero'){ state.interior++; } // extra filler shots while in hero phase
+    else if(stage === 'loop'){ state.loop++; }
+    else { state.loop++; }
+
+    state.seconds += 7 + Math.round(Math.random()*4);
+
+    var wasStage = stage;
+    var nowStage = state.currentStage();
+    if(wasStage !== 'loop' && nowStage === 'loop' && !state.loopPromptShown){
+      state.loopPromptShown = true;
+      showToast('Almost there — walk back to your starting point to close the loop.');
+    }
+    if(state.totalShots() >= 18 && !state.timeNudgeShown){
+      state.timeNudgeShown = true;
+      showToast("You've covered the essentials. Wrap up or keep going — your call.");
+    }
+
+    renderCapture();
+  }
+
+  /* hero long-press on viewfinder */
+  var vf = document.getElementById('viewfinder');
+  var pressTimer = null;
+  function startPress(){
+    if(!state.precaptureDone) return;
+    vf.classList.add('is-charging');
+    pressTimer = setTimeout(function(){
+      vf.classList.remove('is-charging');
+      tagHero();
+    }, 600);
+  }
+  function cancelPress(){
+    vf.classList.remove('is-charging');
+    if(pressTimer){ clearTimeout(pressTimer); pressTimer = null; }
+  }
+  vf.addEventListener('pointerdown', startPress);
+  vf.addEventListener('pointerup', cancelPress);
+  vf.addEventListener('pointerleave', cancelPress);
+  vf.addEventListener('keydown', function(e){ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); tagHero(); } });
+
+  function tagHero(){
+    state.heroSpots.push({height:'eye'});
+    showToast('Marked as a hero area. Shoot it once more from a different height.');
+    renderCapture();
+    // ponytail: auto-generate the second-height shot for demo purposes instead of
+    // requiring a second real long-press — upgrade to a real second capture if this
+    // mockup becomes the production capture flow.
+    setTimeout(function(){
+      state.heroSpots.push({height:'low'});
+      state.seconds += 6;
+      renderCapture();
+    }, 900);
+  }
+
+  /* simulate full room */
+  function simulateFullRoom(){
+    state.reset();
+    state.precaptureDone = true;
+    state.perimeter = 18;
+    state.interior = 24;
+    state.heroSpots = [{height:'eye'},{height:'low'},{height:'eye'},{height:'low'},{height:'eye'},{height:'low'}];
+    state.loop = 1;
+    state.seconds = 285;
+    state.weakSpots = [
+      {label:'Overlap dip', desc:'West wall stretch — overlap dipped to 54% for 3 frames.'},
+      {label:'Overlap dip', desc:'Kitchen corner — only one photo, needs another pass.'}
+    ];
+    state.timeNudgeShown = true;
+    state.loopPromptShown = true;
+    if(current==='capture') renderCapture();
+  }
+  document.getElementById('simulateFullBtn').addEventListener('click', function(){
+    simulateFullRoom();
+    showToast('Simulated a full room scan.', 'success');
+  });
+
+  /* ---------- review ---------- */
+  function predictedHealth(){
+    var base = 96 - state.weakSpots.length*4;
+    return Math.max(40, Math.min(98, base));
+  }
+  function scatterPerimeter(n){
+    var pts = [], w=260,h=170,x0=20,y0=15, perim = 2*(w+h);
+    for(var i=0;i<n;i++){
+      var d = (i/n)*perim;
+      var px,py;
+      if(d < w){ px = x0+d; py = y0; }
+      else if(d < w+h){ px = x0+w; py = y0+(d-w); }
+      else if(d < 2*w+h){ px = x0+w-(d-w-h); py = y0+h; }
+      else { px = x0; py = y0+h-(d-2*w-h); }
+      pts.push([px + (Math.random()*8-4), py + (Math.random()*8-4)]);
+    }
+    return pts;
+  }
+  function scatterInterior(n){
+    var pts = [], cols = Math.ceil(Math.sqrt(n));
+    for(var i=0;i<n;i++){
+      var cx = 60 + (i%cols)*(180/cols);
+      var cy = 45 + Math.floor(i/cols)*(110/cols);
+      pts.push([cx+(Math.random()*10-5), cy+(Math.random()*10-5)]);
+    }
+    return pts;
+  }
+  function buildCoverageSVG(){
+    var perimPts = scatterPerimeter(state.perimeter);
+    var intPts = scatterInterior(state.interior);
+    var heroPts = state.heroSpots.filter(function(h){return h.height==='eye';}).map(function(_,i){
+      return [70+i*70, 90];
+    });
+    var loopPt = state.loop>0 ? [24,19] : null;
+    var svg = '<rect x="20" y="15" width="260" height="170" rx="6" fill="none" stroke="var(--hairline-strong)" stroke-width="2"/>';
+    perimPts.forEach(function(p){ svg += '<circle cx="'+p[0]+'" cy="'+p[1]+'" r="3" fill="var(--accent)"/>'; });
+    intPts.forEach(function(p){ svg += '<circle cx="'+p[0]+'" cy="'+p[1]+'" r="3" fill="var(--processing-a)"/>'; });
+    heroPts.forEach(function(p){ svg += '<circle cx="'+p[0]+'" cy="'+p[1]+'" r="5" fill="var(--warning)"/>'; });
+    if(loopPt){ svg += '<circle cx="'+loopPt[0]+'" cy="'+loopPt[1]+'" r="5" fill="var(--success)" stroke="#fff" stroke-width="1.5"/>'; }
+    if(state.weakSpots.length){
+      svg += '<circle cx="220" cy="150" r="9" fill="none" stroke="var(--danger)" stroke-width="2" stroke-dasharray="3 2"/>';
+    }
+    return svg;
+  }
+  function renderReview(){
+    document.getElementById('coverageMap').innerHTML = buildCoverageSVG();
+    var d = state.stageDone();
+    document.getElementById('stageChecklist').innerHTML = STAGES.map(function(st){
+      return '<div class="badge-pill '+(d[st.key]?'is-done':'')+'">'+st.label+(d[st.key]?' ✓':'')+'</div>';
+    }).join('');
+
+    var health = predictedHealth();
+    var avgOverlapText = state.weakSpots.length ? '~68%' : '~79%';
+    document.getElementById('reviewStats').innerHTML =
+      statTile(state.totalShots(), 'Total photos') +
+      statTile(avgOverlapText, 'Avg. overlap') +
+      statTile(state.weakSpots.length, 'Weak spots') +
+      statTile(health+'%', 'Predicted registration');
+
+    document.getElementById('roomTableBody').innerHTML =
+      '<tr><td>'+scan.name+'</td><td>'+state.perimeter+'</td><td>'+state.interior+'</td>'+
+      '<td>'+state.heroSpots.length+'</td><td>'+state.loop+'</td><td>'+state.totalShots()+'</td></tr>';
+
+    var weakList = document.getElementById('weakList');
+    if(state.weakSpots.length===0){
+      weakList.innerHTML = '<li style="font-size:12.5px;color:var(--text-secondary)">No weak spots flagged. Coverage looks solid.</li>';
+    } else {
+      weakList.innerHTML = state.weakSpots.map(function(w,i){
+        return '<li class="weak-item"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4m0 4h.01M10.3 3.9 2 18a2 2 0 0 0 1.7 3h16.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>'+
+          '<div class="weak-text"><div>This stretch needs another pass.</div><div class="weak-desc">'+w.desc+'</div></div>'+
+          '<button data-reshoot="'+i+'">Reshoot</button></li>';
+      }).join('');
+      weakList.querySelectorAll('[data-reshoot]').forEach(function(btn){
+        btn.addEventListener('click', function(){
+          var idx = +btn.dataset.reshoot;
+          state.weakSpots.splice(idx,1);
+          showToast('Reshoot queued.', 'success');
+          renderReview();
+        });
+      });
+    }
+
+    var thumbs = document.getElementById('thumbGrid');
+    var total = state.totalShots();
+    var showCount = Math.min(total, 24);
+    var weakIdx = {}; if(state.weakSpots.length>0) weakIdx[2]=true;
+    if(state.weakSpots.length>1) weakIdx[9]=true;
+    var html = '';
+    var hues = [212, 250, 190, 35];
+    for(var i=0;i<showCount;i++){
+      var hue = hues[i%hues.length];
+      html += '<div class="thumb '+(weakIdx[i]?'is-weak':'')+'" style="background:linear-gradient(150deg, hsl('+hue+' 55% 55%), hsl('+(hue+40)+' 55% 40%))" title="Photo '+(i+1)+'"></div>';
+    }
+    if(total > showCount){ html += '<div class="thumb-more">+'+(total-showCount)+'</div>'; }
+    thumbs.innerHTML = html || '<div style="font-size:12.5px;color:var(--text-secondary)">No photos yet.</div>';
+  }
+  function statTile(val, label){
+    return '<div class="stat-tile"><div class="stat-value">'+val+'</div><div class="stat-label">'+label+'</div></div>';
+  }
+  document.getElementById('retakeBtn').addEventListener('click', function(){ showScreen('capture', {skipReadyCheck:true}); });
+  document.getElementById('bundleBtn').addEventListener('click', function(){
+    scan.status = 'bundled';
+    showScreen('bundle');
+  });
+
+  /* ---------- bundle ---------- */
+  function renderBundle(){
+    var count = state.totalShots();
+    var manifest = {
+      app: 'orbit-studio',
+      project: scan.name,
+      crops: count,
+      rig: {
+        lane: 'phone',
+        device: 'Pixel 8',
+        focal_length_35mm_equiv_mm: 26,
+        exposure_locked: true,
+        capture_pattern: 'perimeter+interior+hero+loop',
+        photo_count: count
+      }
+    };
+    document.getElementById('manifestPre').textContent = JSON.stringify(manifest, null, 2);
+    document.getElementById('bundleLede').textContent = 'Packing crops into bundle.zip…';
+    var fill = document.getElementById('zipProgress');
+    fill.style.transition = 'none';
+    fill.style.width = '0%';
+    requestAnimationFrame(function(){
+      fill.style.transition = '';
+      requestAnimationFrame(function(){
+        fill.style.width = '100%';
+      });
+    });
+    clearTimeout(renderBundle._t);
+    renderBundle._t = setTimeout(function(){
+      document.getElementById('bundleLede').textContent = "Bundle's ready. Open the notebook and run all cells.";
+    }, 1700);
+  }
+  document.getElementById('openNotebookBtn').addEventListener('click', function(){
+    scan.status = 'training';
+    showToast('Opening the Colab notebook — drop bundle.zip in and run all cells.');
+    setTimeout(function(){ showScreen('done'); }, 900);
+  });
+
+  /* ---------- done ---------- */
+  var dz = document.getElementById('splatDropzone');
+  ['dragover','dragenter'].forEach(function(ev){ dz.addEventListener(ev, function(e){ e.preventDefault(); dz.classList.add('is-drag'); }); });
+  ['dragleave','drop'].forEach(function(ev){ dz.addEventListener(ev, function(e){ e.preventDefault(); dz.classList.remove('is-drag'); if(ev==='drop') receiveSplat(); }); });
+  dz.addEventListener('keydown', function(e){ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); receiveSplat(); } });
+
+  document.getElementById('simulateSplatBtn').addEventListener('click', function(e){ e.stopPropagation(); receiveSplat(); });
+
+  function receiveSplat(){
+    var pct = Math.max(1, Math.min(100, predictedHealth() + Math.round(Math.random()*6-3)));
+    scan.status = 'done';
+    scan.regHealth = pct;
+    document.getElementById('regResult').hidden = false;
+    var banner = document.getElementById('regBanner');
+    if(pct < 60){
+      banner.className = 'banner banner-warning';
+      banner.textContent = 'Fewer than 60% of your photos registered. Check the gaps and reshoot the weak section.';
+    } else if(pct >= 95){
+      banner.className = 'banner banner-healthy';
+      banner.textContent = pct+'% registered. This one held together.';
+    } else {
+      banner.className = 'banner banner-mid';
+      banner.textContent = pct+'% registered. Usable, with a few soft spots.';
+    }
+    document.getElementById('doneStats').innerHTML =
+      statTile(pct+'%', 'Registered') + statTile(state.totalShots(), 'Photos submitted');
+    showToast('Your splat is back. Open it in the viewer.', 'success');
+  }
+  document.getElementById('openViewerBtn').addEventListener('click', function(){
+    showToast('Launching http://localhost:7360 via start.bat…');
+  });
+
+  /* ---------- init ---------- */
+  renderHome();
+})();
+</script>
+</body>
+</html>

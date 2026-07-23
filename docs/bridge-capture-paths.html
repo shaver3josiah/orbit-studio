@@ -1,0 +1,329 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bridge Capture Paths, 1 to 3 Spans</title>
+<style>
+:root{
+  --bg:#000;--panel:#141416;--panel2:#1C1C1E;--line:rgba(84,84,88,.42);
+  --text:#F2F2F7;--dim:rgba(235,235,245,.62);--faint:rgba(235,235,245,.35);
+  --blue:#0A84FF;--cyan:#64D2FF;--green:#30D158;--amber:#FF9F0A;--red:#FF453A;--violet:#BF5AF2;--teal:#40C8E0;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,"SF Pro Display","Segoe UI Variable Display","Segoe UI",Roboto,sans-serif;line-height:1.5;padding:48px 24px 80px}
+.wrap{max-width:1120px;margin:0 auto}
+header{margin-bottom:34px}
+.brand{display:flex;align-items:center;gap:10px;color:var(--dim);font-size:13px;letter-spacing:.14em;text-transform:uppercase;font-weight:600}
+.brand svg{width:18px;height:18px}
+h1{font-size:38px;font-weight:700;letter-spacing:-.02em;margin:10px 0 6px}
+.sub{color:var(--dim);font-size:16px;max-width:760px}
+section{margin-top:44px}
+h2{font-size:22px;font-weight:700;letter-spacing:-.01em;margin-bottom:6px}
+.lede{color:var(--dim);font-size:14px;margin-bottom:18px;max-width:780px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:22px;overflow:hidden}
+svg{display:block;width:100%;height:auto}
+.legend{display:flex;flex-wrap:wrap;gap:14px;margin-top:14px;font-size:12.5px;color:var(--dim)}
+.legend span{display:inline-flex;align-items:center;gap:7px}
+.sw{width:16px;height:0;border-top:3px solid;flex:none}
+.swdot{width:12px;height:12px;border-radius:50%;flex:none}
+.phases{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px}
+.phase{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px 16px 16px 56px;position:relative;font-size:13.5px}
+.phase b{display:block;font-size:14.5px;margin-bottom:3px}
+.phase span{color:var(--dim)}
+.phase i{position:absolute;left:16px;top:16px;width:28px;height:28px;border-radius:50%;background:rgba(10,132,255,.16);color:var(--blue);font-weight:700;font-size:13px;font-style:normal;display:flex;align-items:center;justify-content:center}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px}
+.card .big{font-size:24px;font-weight:700;letter-spacing:-.02em}
+.card .unit{font-size:13px;color:var(--blue);font-weight:600}
+.card p{font-size:12.5px;color:var(--dim);margin-top:6px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--dim);font-size:11px;text-transform:uppercase;letter-spacing:.08em}
+td b{color:var(--text)}
+td{color:var(--dim)}
+.bridge-head{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+.bridge-head h3{font-size:18px;font-weight:700}
+.bridge-head .meta{color:var(--dim);font-size:13px}
+.diffs{margin-top:12px;font-size:13px;color:var(--dim);border-top:1px solid var(--line);padding-top:12px}
+.diffs b{color:var(--text)}
+footer{margin-top:56px;color:var(--faint);font-size:12.5px;border-top:1px solid var(--line);padding-top:18px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="brand">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#0A84FF" stroke-width="1.8"><circle cx="12" cy="12" r="9"></circle><ellipse cx="12" cy="12" rx="9" ry="3.6"></ellipse></svg>
+    Orbit Studio, Inspection Capture
+  </div>
+  <h1>Bridge Capture Paths, 1 to 3 Spans</h1>
+  <p class="sub">One walk that serves two masters: every required NBIS photo stop lands on the path, and the path itself is engineered so COLMAP recovers precise poses and the splat holds together over and under the deck. Camera rides the pole overhead, hands stay free for the inspection.</p>
+</header>
+
+<section>
+  <h2>The one problem that decides everything</h2>
+  <p class="lede">Deck top and deck underside share almost no visual features. Captured separately, they reconstruct as two disconnected islands and the model is worthless for measurement. The fix is geometric: descend the embankment at the corners while recording, so approach, wing wall, abutment face, fascia, and soffit all appear in the same frames. Tie at least two diagonal corners, all four for precision work.</p>
+  <div class="panel">
+    <svg viewBox="0 0 1000 250" xmlns="http://www.w3.org/2000/svg" aria-label="Over-under tie section view">
+      <rect x="0" y="0" width="1000" height="250" fill="#0B0B0F" rx="12"></rect>
+      <path d="M 40 90 L 250 90 L 260 100 L 740 100 L 750 90 L 960 90" fill="none" stroke="#3A3A40" stroke-width="6"></path>
+      <rect x="255" y="100" width="18" height="110" fill="#2A2A30"></rect>
+      <rect x="727" y="100" width="18" height="110" fill="#2A2A30"></rect>
+      <path d="M 40 96 L 255 96 L 255 210 L 60 210" fill="none" stroke="#26262C" stroke-width="2"></path>
+      <path d="M 960 96 L 745 96 L 745 210 L 940 210" fill="none" stroke="#26262C" stroke-width="2"></path>
+      <path d="M 273 210 Q 500 196 727 210" fill="none" stroke="#26262C" stroke-width="2"></path>
+      <text x="475" y="128" fill="rgba(235,235,245,.5)" font-size="13">deck and girders</text>
+      <text x="130" y="82" fill="rgba(235,235,245,.5)" font-size="13">approach A</text>
+      <text x="800" y="82" fill="rgba(235,235,245,.5)" font-size="13">approach B</text>
+      <path id="tieA" d="M 150 78 Q 220 70 252 84 Q 232 140 210 168 Q 260 186 320 186" fill="none" stroke="#30D158" stroke-width="3.5" stroke-linecap="round"></path>
+      <path id="tieB" d="M 850 78 Q 780 70 748 84 Q 768 140 790 168 Q 740 186 680 186" fill="none" stroke="#30D158" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="1 0"></path>
+      <text x="163" y="150" fill="#30D158" font-size="13" font-weight="600">corner tie</text>
+      <text x="757" y="150" fill="#30D158" font-size="13" font-weight="600">corner tie</text>
+      <text x="330" y="176" fill="rgba(235,235,245,.55)" font-size="12.5">slow continuous descent, camera sees rail, wing, abutment face, bearings, soffit in one sweep</text>
+      <circle cx="150" cy="78" r="6" fill="#0A84FF"></circle>
+      <circle cx="320" cy="186" r="6" fill="#BF5AF2"></circle>
+      <circle cx="850" cy="78" r="6" fill="#0A84FF"></circle>
+      <circle cx="680" cy="186" r="6" fill="#BF5AF2"></circle>
+      <text x="120" y="238" fill="rgba(235,235,245,.45)" font-size="12.5">blue joins the topside loop, violet joins the underside lattice, green is the weld between them</text>
+    </svg>
+  </div>
+</section>
+
+<section>
+  <h2>Single span</h2>
+  <div class="panel">
+    <div class="bridge-head"><h3>1 span, no piers</h3><div class="meta">2 support lines, 2 joint sightings per curb, 2 bearing lines, 4 corner ties, about 20 to 30 minutes</div></div>
+    <svg viewBox="0 0 1000 470" xmlns="http://www.w3.org/2000/svg" aria-label="Single span capture path plan view">
+      <rect x="0" y="0" width="1000" height="470" fill="#0B0B0F" rx="12"></rect>
+      <path d="M 455 20 Q 470 90 450 160 Q 435 235 455 310 Q 470 390 452 450 L 548 450 Q 532 385 545 310 Q 560 235 542 160 Q 528 90 545 20 Z" fill="rgba(64,200,224,.10)" stroke="rgba(64,200,224,.35)" stroke-width="1.5"></path>
+      <text x="462" y="44" fill="#40C8E0" font-size="12">stream</text>
+      <rect x="180" y="150" width="640" height="160" fill="#15151B" stroke="#3A3A40" stroke-width="5"></rect>
+      <rect x="180" y="150" width="22" height="160" fill="#26262C"></rect>
+      <rect x="798" y="150" width="22" height="160" fill="#26262C"></rect>
+      <line x1="180" y1="150" x2="140" y2="112" stroke="#3A3A40" stroke-width="5"></line>
+      <line x1="180" y1="310" x2="140" y2="348" stroke="#3A3A40" stroke-width="5"></line>
+      <line x1="820" y1="150" x2="860" y2="112" stroke="#3A3A40" stroke-width="5"></line>
+      <line x1="820" y1="310" x2="860" y2="348" stroke="#3A3A40" stroke-width="5"></line>
+      <text x="120" y="100" fill="rgba(235,235,245,.45)" font-size="12">wings</text>
+      <path id="s1top" fill="none" stroke="rgba(10,132,255,.9)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"
+        d="M 120 340 L 120 296 L 878 296 L 878 164 L 120 164 L 120 296"></path>
+      <path id="s1under" fill="none" stroke="rgba(191,90,242,.9)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="7 6"
+        d="M 212 300 L 212 162 L 246 162 L 246 298 L 300 298 Q 360 230 300 176 L 380 176 Q 320 230 386 292 L 470 292 Q 540 230 470 172 L 560 172 Q 500 230 566 292 L 650 292 Q 716 230 656 172 L 726 172 L 726 298 L 762 298 L 762 162 L 790 162 L 790 300"></path>
+      <path id="s1elev" fill="none" stroke="rgba(100,210,255,.8)" stroke-width="2" stroke-dasharray="3 6"
+        d="M 160 366 L 840 366 M 160 408 L 840 408 M 160 104 L 840 104 M 160 62 L 840 62"></path>
+      <path id="s1chan" fill="none" stroke="#40C8E0" stroke-width="2.4" stroke-linecap="round"
+        d="M 430 120 Q 500 84 570 120 M 430 344 Q 500 382 570 344"></path>
+      <path d="M 120 164 Q 96 200 150 214 Q 190 224 212 300" fill="none" stroke="#30D158" stroke-width="3.2" stroke-linecap="round"></path>
+      <path d="M 878 164 Q 904 200 850 214 Q 810 224 790 300" fill="none" stroke="#30D158" stroke-width="3.2" stroke-linecap="round"></path>
+      <path d="M 120 296 Q 100 258 156 250 Q 194 244 212 210" fill="none" stroke="#30D158" stroke-width="2.4" stroke-linecap="round" opacity=".6"></path>
+      <path d="M 878 296 Q 900 258 844 250 Q 806 244 790 210" fill="none" stroke="#30D158" stroke-width="2.4" stroke-linecap="round" opacity=".6"></path>
+      <g fill="#FF9F0A">
+        <path d="M 196 296 l 7 -7 l 7 7 l -7 7 z"></path><path d="M 196 164 l 7 -7 l 7 7 l -7 7 z"></path>
+        <path d="M 800 296 l 7 -7 l 7 7 l -7 7 z"></path><path d="M 800 164 l 7 -7 l 7 7 l -7 7 z"></path>
+      </g>
+      <circle cx="120" cy="340" r="8" fill="#30D158"></circle>
+      <text x="96" y="368" fill="#30D158" font-size="12.5" font-weight="600">START and END</text>
+      <text x="250" y="332" fill="#BF5AF2" font-size="12">bearing line pass, every beam</text>
+      <text x="392" y="242" fill="rgba(235,235,245,.5)" font-size="12">bay serpentine</text>
+      <text x="640" y="390" fill="#64D2FF" font-size="12">near elevation pass about 3 m</text>
+      <text x="640" y="430" fill="#64D2FF" font-size="12">far elevation pass 8 to 12 m</text>
+      <text x="586" y="100" fill="#40C8E0" font-size="12">channel arcs, both banks in frame</text>
+      <text x="182" y="140" fill="#FF9F0A" font-size="12">joints sighted at both support lines</text>
+    </svg>
+    <div class="diffs"><b>Why this is enough for one span:</b> the deck loop and the underside lattice each close on themselves, four green corner ties weld the two together, and the two-distance elevation passes give the solver long-baseline frames that pin global scale and straightness.</div>
+  </div>
+</section>
+
+<section>
+  <h2>Two spans</h2>
+  <div class="panel">
+    <div class="bridge-head"><h3>2 spans, 1 pier</h3><div class="meta">3 support lines, 3 joint sightings per curb, 3 bearing lines, 1 pier orbit, about 35 to 50 minutes</div></div>
+    <svg viewBox="0 0 1000 470" xmlns="http://www.w3.org/2000/svg" aria-label="Two span capture path plan view">
+      <rect x="0" y="0" width="1000" height="470" fill="#0B0B0F" rx="12"></rect>
+      <path d="M 455 20 Q 470 90 450 160 Q 435 235 455 310 Q 470 390 452 450 L 548 450 Q 532 385 545 310 Q 560 235 542 160 Q 528 90 545 20 Z" fill="rgba(64,200,224,.10)" stroke="rgba(64,200,224,.35)" stroke-width="1.5"></path>
+      <rect x="150" y="150" width="700" height="160" fill="#15151B" stroke="#3A3A40" stroke-width="5"></rect>
+      <rect x="150" y="150" width="22" height="160" fill="#26262C"></rect>
+      <rect x="828" y="150" width="22" height="160" fill="#26262C"></rect>
+      <rect x="490" y="150" width="20" height="160" fill="#22222A" stroke="#3A3A40" stroke-width="2" stroke-dasharray="5 4"></rect>
+      <line x1="150" y1="150" x2="112" y2="112" stroke="#3A3A40" stroke-width="5"></line>
+      <line x1="150" y1="310" x2="112" y2="348" stroke="#3A3A40" stroke-width="5"></line>
+      <line x1="850" y1="150" x2="888" y2="112" stroke="#3A3A40" stroke-width="5"></line>
+      <line x1="850" y1="310" x2="888" y2="348" stroke="#3A3A40" stroke-width="5"></line>
+      <path id="s2top" fill="none" stroke="rgba(10,132,255,.9)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"
+        d="M 92 340 L 92 296 L 908 296 L 908 164 L 92 164 L 92 296"></path>
+      <path id="s2under" fill="none" stroke="rgba(191,90,242,.9)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="7 6"
+        d="M 182 300 L 182 162 L 214 162 L 214 298 L 268 298 Q 322 230 268 176 L 340 176 Q 290 230 350 292 L 424 292 Q 470 246 448 200
+           L 472 186 Q 500 166 528 186 Q 556 210 540 246 Q 524 276 500 268 Q 470 258 468 226 Q 468 200 490 190
+           L 556 176 Q 520 230 576 292 L 648 292 Q 700 230 652 176 L 724 176 Q 680 230 736 292 L 786 292 L 786 162 L 818 162 L 818 300"></path>
+      <path id="s2elev" fill="none" stroke="rgba(100,210,255,.8)" stroke-width="2" stroke-dasharray="3 6"
+        d="M 130 366 L 870 366 M 130 408 L 870 408 M 130 104 L 870 104 M 130 62 L 870 62"></path>
+      <path id="s2chan" fill="none" stroke="#40C8E0" stroke-width="2.4" stroke-linecap="round"
+        d="M 430 120 Q 500 84 570 120 M 430 344 Q 500 382 570 344"></path>
+      <path d="M 92 164 Q 68 200 122 214 Q 162 224 182 300" fill="none" stroke="#30D158" stroke-width="3.2" stroke-linecap="round"></path>
+      <path d="M 908 164 Q 932 200 878 214 Q 838 224 818 300" fill="none" stroke="#30D158" stroke-width="3.2" stroke-linecap="round"></path>
+      <path d="M 92 296 Q 72 258 128 250 Q 166 244 182 210" fill="none" stroke="#30D158" stroke-width="2.4" stroke-linecap="round" opacity=".6"></path>
+      <path d="M 908 296 Q 928 258 872 250 Q 834 244 818 210" fill="none" stroke="#30D158" stroke-width="2.4" stroke-linecap="round" opacity=".6"></path>
+      <ellipse cx="500" cy="228" rx="52" ry="62" fill="none" stroke="#FF9F0A" stroke-width="2.6" stroke-dasharray="2 5"></ellipse>
+      <g fill="#FF9F0A">
+        <path d="M 166 296 l 7 -7 l 7 7 l -7 7 z"></path><path d="M 166 164 l 7 -7 l 7 7 l -7 7 z"></path>
+        <path d="M 493 296 l 7 -7 l 7 7 l -7 7 z"></path><path d="M 493 164 l 7 -7 l 7 7 l -7 7 z"></path>
+        <path d="M 826 296 l 7 -7 l 7 7 l -7 7 z"></path><path d="M 826 164 l 7 -7 l 7 7 l -7 7 z"></path>
+      </g>
+      <circle cx="92" cy="340" r="8" fill="#30D158"></circle>
+      <text x="68" y="368" fill="#30D158" font-size="12.5" font-weight="600">START and END</text>
+      <text x="560" y="248" fill="#FF9F0A" font-size="12" font-weight="600">pier orbit, the graph hub</text>
+      <text x="522" y="132" fill="#FF9F0A" font-size="12">joint at pier line too</text>
+    </svg>
+    <div class="diffs"><b>What changes with the pier:</b> the underside becomes two lattices joined through a full orbit of the pier. Enter the orbit from span 1, circle it completely seeing both faces plus every bearing on the cap, exit into span 2. The orbit is the strongest node in the whole pose graph, so give it the slowest, smoothest 90 seconds of the take. Sight the third expansion joint on the deck directly above it.</div>
+  </div>
+</section>
+
+<section>
+  <h2>Three spans</h2>
+  <div class="panel">
+    <div class="bridge-head"><h3>3 spans, 2 piers</h3><div class="meta">4 support lines, 4 joint sightings per curb, 4 bearing lines, 2 pier orbits, mid-length re-anchors, about 50 to 75 minutes</div></div>
+    <svg viewBox="0 0 1000 470" xmlns="http://www.w3.org/2000/svg" aria-label="Three span capture path plan view">
+      <rect x="0" y="0" width="1000" height="470" fill="#0B0B0F" rx="12"></rect>
+      <path d="M 455 20 Q 470 90 450 160 Q 435 235 455 310 Q 470 390 452 450 L 548 450 Q 532 385 545 310 Q 560 235 542 160 Q 528 90 545 20 Z" fill="rgba(64,200,224,.10)" stroke="rgba(64,200,224,.35)" stroke-width="1.5"></path>
+      <rect x="130" y="150" width="740" height="160" fill="#15151B" stroke="#3A3A40" stroke-width="5"></rect>
+      <rect x="130" y="150" width="22" height="160" fill="#26262C"></rect>
+      <rect x="848" y="150" width="22" height="160" fill="#26262C"></rect>
+      <rect x="368" y="150" width="20" height="160" fill="#22222A" stroke="#3A3A40" stroke-width="2" stroke-dasharray="5 4"></rect>
+      <rect x="612" y="150" width="20" height="160" fill="#22222A" stroke="#3A3A40" stroke-width="2" stroke-dasharray="5 4"></rect>
+      <line x1="130" y1="150" x2="94" y2="112" stroke="#3A3A40" stroke-width="5"></line>
+      <line x1="130" y1="310" x2="94" y2="348" stroke="#3A3A40" stroke-width="5"></line>
+      <line x1="870" y1="150" x2="906" y2="112" stroke="#3A3A40" stroke-width="5"></line>
+      <line x1="870" y1="310" x2="906" y2="348" stroke="#3A3A40" stroke-width="5"></line>
+      <path id="s3top" fill="none" stroke="rgba(10,132,255,.9)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"
+        d="M 74 340 L 74 296 L 926 296 L 926 164 L 74 164 L 74 296"></path>
+      <path id="s3under" fill="none" stroke="rgba(191,90,242,.9)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="7 6"
+        d="M 162 300 L 162 162 L 192 162 L 192 298 L 238 298 Q 286 230 240 176 L 302 176 Q 260 230 312 292
+           L 344 264 Q 360 240 352 212 L 372 194 Q 396 176 420 196 Q 442 222 428 252 Q 412 278 388 268 Q 362 256 362 228
+           L 428 180 Q 400 230 448 288 L 500 288 Q 544 230 504 178 L 560 178 Q 528 230 572 288
+           L 596 260 Q 608 240 602 214 L 618 196 Q 642 178 664 198 Q 686 224 672 252 Q 656 278 632 268 Q 608 256 606 230
+           L 672 182 Q 648 230 692 290 L 754 290 Q 800 230 758 176 L 806 176 Q 772 230 812 292 L 838 292 L 838 162 L 866 162 L 866 300"></path>
+      <path id="s3elev" fill="none" stroke="rgba(100,210,255,.8)" stroke-width="2" stroke-dasharray="3 6"
+        d="M 110 366 L 890 366 M 110 408 L 890 408 M 110 104 L 890 104 M 110 62 L 890 62"></path>
+      <path id="s3chan" fill="none" stroke="#40C8E0" stroke-width="2.4" stroke-linecap="round"
+        d="M 430 120 Q 500 84 570 120 M 430 344 Q 500 382 570 344"></path>
+      <path d="M 74 164 Q 50 200 104 214 Q 144 224 162 300" fill="none" stroke="#30D158" stroke-width="3.2" stroke-linecap="round"></path>
+      <path d="M 926 164 Q 950 200 896 214 Q 856 224 866 300" fill="none" stroke="#30D158" stroke-width="3.2" stroke-linecap="round"></path>
+      <path d="M 74 296 Q 54 258 110 250 Q 148 244 162 210" fill="none" stroke="#30D158" stroke-width="2.4" stroke-linecap="round" opacity=".6"></path>
+      <path d="M 926 296 Q 946 258 890 250 Q 852 244 866 210" fill="none" stroke="#30D158" stroke-width="2.4" stroke-linecap="round" opacity=".6"></path>
+      <ellipse cx="378" cy="230" rx="46" ry="58" fill="none" stroke="#FF9F0A" stroke-width="2.6" stroke-dasharray="2 5"></ellipse>
+      <ellipse cx="622" cy="230" rx="46" ry="58" fill="none" stroke="#FF9F0A" stroke-width="2.6" stroke-dasharray="2 5"></ellipse>
+      <g fill="#FF9F0A">
+        <path d="M 146 296 l 7 -7 l 7 7 l -7 7 z"></path><path d="M 146 164 l 7 -7 l 7 7 l -7 7 z"></path>
+        <path d="M 371 296 l 7 -7 l 7 7 l -7 7 z"></path><path d="M 371 164 l 7 -7 l 7 7 l -7 7 z"></path>
+        <path d="M 615 296 l 7 -7 l 7 7 l -7 7 z"></path><path d="M 615 164 l 7 -7 l 7 7 l -7 7 z"></path>
+        <path d="M 846 296 l 7 -7 l 7 7 l -7 7 z"></path><path d="M 846 164 l 7 -7 l 7 7 l -7 7 z"></path>
+      </g>
+      <g stroke="#64D2FF" stroke-width="2">
+        <line x1="500" y1="356" x2="500" y2="376"></line>
+        <line x1="255" y1="356" x2="255" y2="376"></line>
+        <line x1="745" y1="356" x2="745" y2="376"></line>
+      </g>
+      <text x="222" y="396" fill="#64D2FF" font-size="12">pause square to the fascia at each mid-span, both elevation distances</text>
+      <circle cx="74" cy="340" r="8" fill="#30D158"></circle>
+      <text x="50" y="368" fill="#30D158" font-size="12.5" font-weight="600">START and END</text>
+      <text x="330" y="136" fill="#FF9F0A" font-size="12">orbit each pier fully</text>
+    </svg>
+    <div class="diffs"><b>What changes at three spans:</b> drift along the length becomes the enemy. Two pier orbits act as hubs, the serpentine alternates direction span to span so you exit at the far abutment without backtracking, and the elevation passes gain deliberate mid-span pause stations at both distances. Those long perpendicular frames re-anchor the chain the way loop closure does indoors. On bridges past about 250 ft, add a fifth far pass at 20 m if the site allows.</div>
+  </div>
+</section>
+
+<section>
+  <h2>Phase order, every bridge</h2>
+  <div class="phases">
+    <div class="phase"><i>1</i><b>Deck loop</b><span>Approach A, down one curb, approach B, back the other curb. Pause 2 seconds sighting along every expansion joint. Barriers and wearing surface land automatically.</span></div>
+    <div class="phase"><i>2</i><b>Corner tie down</b><span>Descend the embankment at the first corner, slow and continuous. This weld frame set is the most valuable 15 seconds of the take.</span></div>
+    <div class="phase"><i>3</i><b>Elevation passes, near then far</b><span>Walk parallel to the fascia at about 3 m, again at 8 to 12 m, both sides. Cover wings and abutment faces square-on at each end.</span></div>
+    <div class="phase"><i>4</i><b>Bearing line pass</b><span>Lateral pass along each support line at knee to chest height, every beam seat, sole plate to pad to masonry plate in frame.</span></div>
+    <div class="phase"><i>5</i><b>Underside lattice</b><span>Serpentine the bays span by span, pole up for soffit and cross-frames, mid-bay and support ends per NBIS. Route through each pier orbit as the hub between spans.</span></div>
+    <div class="phase"><i>6</i><b>Channel arcs</b><span>Upstream and downstream arcs with both faces and both banks in frame, connected along one bank so the arcs join the graph.</span></div>
+    <div class="phase"><i>7</i><b>Close the loop</b><span>Tie up the far corner, re-walk a short deck segment, end within sight of your start point. The solver zeroes accumulated drift against it.</span></div>
+  </div>
+</section>
+
+<section>
+  <h2>Precision rules on structure</h2>
+  <div class="cards">
+    <div class="card"><div class="big">1-1.5 <span class="unit">m</span></div><p>Standoff from girders, soffit, and pier faces. Never inside 0.5 m of steel, the stitch and the matcher both suffer.</p></div>
+    <div class="card"><div class="big">2 <span class="unit">distances</span></div><p>Every large planar face gets a near detail pass and a far geometry pass. Near frames carry defects, far frames carry shape.</p></div>
+    <div class="card"><div class="big">0.3 <span class="unit">m</span></div><p>Frame spacing on structure at slow walk. Half speed again inside bearing lines and orbits.</p></div>
+    <div class="card"><div class="big">2 <span class="unit">s</span></div><p>Dwell at every expansion joint, sighting along it. Doubles as the NBIS joint photo and a parallax anchor at the support line.</p></div>
+    <div class="card"><div class="big">2+ <span class="unit">targets</span></div><p>Known-dimension scale references at opposite abutment corners. Splats have no native scale, targets make the model measurable.</p></div>
+    <div class="card"><div class="big">1 <span class="unit">take</span></div><p>Exposure locked before the first step, one continuous recording. If you must split, overlap 20 seconds of path at the seam.</p></div>
+  </div>
+</section>
+
+<section>
+  <h2>NBIS stop coverage map</h2>
+  <p class="lede">Every required photo stop from the SNBI, BIRM, and MBEI-based checklist falls on a phase of this path, so the reconstruction walk and the documentation walk are the same walk.</p>
+  <div class="panel">
+    <table>
+      <thead><tr><th>Required NBIS stop</th><th>Covered by</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td><b>Approach roadway, each end</b></td><td>Phase 1</td><td>Loop starts and turns on both approaches</td></tr>
+        <tr><td><b>Deck wearing surface per span</b></td><td>Phase 1</td><td>Both curb passes see full width</td></tr>
+        <tr><td><b>Expansion joints, every support line</b></td><td>Phase 1</td><td>2 second dwell sighting along each joint</td></tr>
+        <tr><td><b>Barriers each side each span</b></td><td>Phase 1</td><td>Sighted along the length from both passes</td></tr>
+        <tr><td><b>Full elevations, perpendicular</b></td><td>Phase 3</td><td>Far pass frames are the elevation record</td></tr>
+        <tr><td><b>Fascia at each abutment plus obliques</b></td><td>Phases 2, 3</td><td>Corner ties give the angled backups</td></tr>
+        <tr><td><b>Wing walls, overall plus toe close-up</b></td><td>Phases 2, 3</td><td>Near pass covers the toe detail</td></tr>
+        <tr><td><b>Bearings, every beam every support</b></td><td>Phase 4</td><td>Knee height lateral pass per line</td></tr>
+        <tr><td><b>Pier faces, elevations, obliques</b></td><td>Phase 5 orbit</td><td>Full orbit sees N, S, E, W continuously</td></tr>
+        <tr><td><b>Underside per span per bay</b></td><td>Phase 5</td><td>Serpentine hits support ends and mid-bay soffit</td></tr>
+        <tr><td><b>Channel up and downstream</b></td><td>Phase 6</td><td>Both banks in frame, flow direction readable</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<footer>
+  Grounded in: verbolta-photo-plan NBIS photo requirements (SNBI 2022, BIRM, AASHTO MBEI), the 360 GGPT bridge documentation track (FHWA InfoTechnology on photography for 3D reconstruction, FHWA UAS TechBrief), and Orbit Studio capture spacing research. 360 capture supplements the inspection record, it does not replace hands-on NBIS judgement or access requirements. Orbit Studio, Insta360 X4 Air workflow.
+</footer>
+
+</div>
+<script>
+(function(){
+  var specs = [["s1top",20],["s1under",20],["s2top",20],["s2under",20],["s3top",20],["s3under",20]];
+  specs.forEach(function(spec){
+    var path = document.getElementById(spec[0]);
+    if (!path) return;
+    var svg = path.ownerSVGElement;
+    var group = document.createElementNS("http://www.w3.org/2000/svg","g");
+    var total = path.getTotalLength();
+    for (var d = 0; d <= total; d += spec[1]) {
+      var pt = path.getPointAtLength(d);
+      var c = document.createElementNS("http://www.w3.org/2000/svg","circle");
+      c.setAttribute("cx", pt.x.toFixed(1));
+      c.setAttribute("cy", pt.y.toFixed(1));
+      c.setAttribute("r", "2.2");
+      c.setAttribute("fill", spec[0].indexOf("top") > -1 ? "#64D2FF" : "#BF5AF2");
+      c.setAttribute("opacity", "0.85");
+      group.appendChild(c);
+    }
+    svg.appendChild(group);
+  });
+  var legends = document.querySelectorAll(".panel svg");
+  legends.forEach(function(svg){
+    var parent = svg.parentElement;
+    if (parent.querySelector(".legend") || !svg.getAttribute("aria-label") || svg.getAttribute("aria-label").indexOf("plan view") < 0) return;
+    var div = document.createElement("div");
+    div.className = "legend";
+    div.innerHTML = '<span><span class="sw" style="border-color:#0A84FF"></span>topside deck loop</span>' +
+      '<span><span class="sw" style="border-color:#BF5AF2;border-top-style:dashed"></span>underside lattice</span>' +
+      '<span><span class="sw" style="border-color:#30D158"></span>corner ties, over to under weld</span>' +
+      '<span><span class="sw" style="border-color:#64D2FF;border-top-style:dotted"></span>elevation passes, near and far</span>' +
+      '<span><span class="sw" style="border-color:#FF9F0A;border-top-style:dashed"></span>pier orbit</span>' +
+      '<span><span class="swdot" style="background:#FF9F0A;border-radius:2px;transform:rotate(45deg)"></span>expansion joint dwell</span>' +
+      '<span><span class="sw" style="border-color:#40C8E0"></span>channel arcs</span>';
+    parent.appendChild(div);
+  });
+})();
+</script>
+</body>
+</html>

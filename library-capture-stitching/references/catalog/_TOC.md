@@ -1,0 +1,4 @@
+# Library: Capturing photos and stitching them into a 3D reconstruction — the Orbit Capture way (level 2)
+
+01 Taking the Pictures: Capture Craft for Reconstruction - Everything about physically capturing a building well: routing steps room-to-room, overlap/standoff/parallax, exposure and light control (AE/AWB lock, EV compensation, metering, clipping, banding, white balance across differently-lit areas), sharpness/motion-blur, coverage completeness, and knowing on-site whether a capture will reconstruct.
+02 Stitching It Together: From Frames to a 3D Scene - Turning captured frames into a reconstruction: equirectangular/360 stitching from dual-fisheye, feature matching, COLMAP structure-from-motion pose recovery, bundle adjustment, Gaussian-splat (gsplat) training, loop closure, registration diagnostics, and the bundle/manifest data contract.

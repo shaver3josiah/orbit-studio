@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Orbit Capture — Solutions Architecture</title>
+<style>
+  :root {
+    --bg: #eef1f6; --panel: #ffffff; --ink: #14181f; --muted: #5b6472;
+    --band: #e6ebf3; --band-br: #d6dde8; --node: #ffffff; --node-br: #cfd7e2;
+    --edge: #93a0b2; --edge-soft: #b9c3d1;
+    --accent: #1763c2; --accent-tint: #e7f0fc;
+    --c-ui: #2f6fd6; --c-logic: #0f9d92; --c-data: #2e9e57;
+    --c-platform: #6b7688; --c-cloud: #d98a13; --c-secure: #2e9e57;
+    --c-boundary: #d1483f; --c-warn: #d98a13;
+    --sensitive: #b0472f;
+    --shadow: 0 1px 2px rgba(20,30,45,.06), 0 6px 20px rgba(20,30,45,.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0b0d12; --panel: #12151c; --ink: #e8ecf4; --muted: #97a3b6;
+      --band: #161b24; --band-br: #26303f; --node: #1a212b; --node-br: #2d3846;
+      --edge: #5d6c82; --edge-soft: #3a4557;
+      --accent: #2f80e8; --accent-tint: #15243c;
+      --c-ui: #4f9bec; --c-logic: #2bc4b6; --c-data: #43c46f;
+      --c-platform: #8592a6; --c-cloud: #e6a53e; --c-secure: #43c46f;
+      --c-boundary: #ff6b5e; --c-warn: #e6a53e;
+      --sensitive: #ff7d63;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 26px rgba(0,0,0,.45);
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #eef1f6; --panel: #ffffff; --ink: #14181f; --muted: #5b6472;
+    --band: #e6ebf3; --band-br: #d6dde8; --node: #ffffff; --node-br: #cfd7e2;
+    --edge: #93a0b2; --edge-soft: #b9c3d1; --accent: #1763c2; --accent-tint: #e7f0fc;
+    --c-ui: #2f6fd6; --c-logic: #0f9d92; --c-data: #2e9e57; --c-platform: #6b7688;
+    --c-cloud: #d98a13; --c-secure: #2e9e57; --c-boundary: #d1483f; --c-warn: #d98a13;
+    --sensitive: #b0472f; --shadow: 0 1px 2px rgba(20,30,45,.06), 0 6px 20px rgba(20,30,45,.06);
+  }
+  :root[data-theme="dark"] {
+    --bg: #0b0d12; --panel: #12151c; --ink: #e8ecf4; --muted: #97a3b6;
+    --band: #161b24; --band-br: #26303f; --node: #1a212b; --node-br: #2d3846;
+    --edge: #5d6c82; --edge-soft: #3a4557; --accent: #2f80e8; --accent-tint: #15243c;
+    --c-ui: #4f9bec; --c-logic: #2bc4b6; --c-data: #43c46f; --c-platform: #8592a6;
+    --c-cloud: #e6a53e; --c-secure: #43c46f; --c-boundary: #ff6b5e; --c-warn: #e6a53e;
+    --sensitive: #ff7d63; --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 26px rgba(0,0,0,.45);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.5; -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 32px 20px 80px; }
+  header.top { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 8px; }
+  h1 { font-size: clamp(1.5rem, 3vw, 2.1rem); letter-spacing: -0.02em; margin: 0 0 6px; }
+  .sub { color: var(--muted); max-width: 68ch; margin: 0; }
+  .meta { color: var(--muted); font-size: .82rem; margin-top: 10px; font-variant-numeric: tabular-nums; }
+  .themebtn {
+    flex: 0 0 auto; cursor: pointer; border: 1px solid var(--node-br); background: var(--panel);
+    color: var(--ink); border-radius: 10px; padding: 8px 12px; font-size: .82rem; font-weight: 600;
+    display: inline-flex; align-items: center; gap: 7px;
+  }
+  .themebtn:hover { border-color: var(--accent); }
+  section.diagram { background: var(--panel); border: 1px solid var(--node-br); border-radius: 18px;
+    box-shadow: var(--shadow); padding: 22px 22px 26px; margin-top: 26px; }
+  .dhead { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 4px; }
+  .dnum { font-size: .72rem; font-weight: 700; letter-spacing: .12em; color: var(--accent);
+    background: var(--accent-tint); border-radius: 999px; padding: 4px 11px; }
+  .dhead h2 { font-size: 1.2rem; margin: 0; letter-spacing: -0.01em; }
+  .dintro { color: var(--muted); margin: 6px 0 16px; max-width: 82ch; font-size: .92rem; }
+  .scroll { overflow-x: auto; border-radius: 12px; }
+  svg.diagram-svg { display: block; width: 100%; min-width: 720px; height: auto; }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 14px; }
+  .legend span { display: inline-flex; align-items: center; gap: 7px; font-size: .8rem; color: var(--muted); }
+  .swatch { width: 12px; height: 12px; border-radius: 3px; flex: 0 0 auto; }
+  footer { margin-top: 40px; color: var(--muted); font-size: .82rem; border-top: 1px solid var(--node-br); padding-top: 18px; }
+  code { background: var(--accent-tint); color: var(--accent); padding: 1px 5px; border-radius: 5px; font-size: .85em; }
+
+  /* SVG text classes */
+  .t-title { fill: var(--ink); font: 700 12.5px -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .t-sub { fill: var(--muted); font: 400 10px -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .t-band { fill: var(--muted); font: 700 10.5px -apple-system, "Segoe UI", Roboto, sans-serif; letter-spacing: .11em; }
+  .t-edge { fill: var(--muted); font: 600 9.5px -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .t-big { fill: var(--ink); font: 700 14px -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .t-num { fill: var(--accent-ink, #fff); font: 800 12px -apple-system, sans-serif; }
+  .band-bg { fill: var(--band); stroke: var(--band-br); }
+  .node { fill: var(--node); stroke: var(--node-br); }
+  .zone { fill: none; stroke: var(--node-br); }
+  .edge { stroke: var(--edge); fill: none; }
+  .edge-soft { stroke: var(--edge-soft); fill: none; stroke-dasharray: 5 4; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div>
+      <h1>Orbit Capture — Solutions Architecture</h1>
+      <p class="sub">Three interworking views of the Android room-scanning app that feeds Orbit Studio: how it runs, how it stays secure, and how a scan actually flows from a sketch to a 3D model.</p>
+      <p class="meta">Reflects Orbit Capture v0.5.0 &middot; native Kotlin / Jetpack Compose / CameraX &middot; drawn from the shipping source</p>
+    </div>
+    <button class="themebtn" id="themeToggle" aria-label="Toggle light and dark theme">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19"/></svg>
+      <span id="themeLabel">Theme</span>
+    </button>
+  </header>
+
+  <!-- shared arrow markers -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="var(--edge)"/>
+    </marker>
+    <marker id="ah-soft" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="var(--edge-soft)"/>
+    </marker>
+    <marker id="ah-acc" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7.5" markerHeight="7.5" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/>
+    </marker>
+  </defs></svg>
+
+  <!-- ============================ DIAGRAM 1 : RUNTIME ============================ -->
+  <section class="diagram">
+    <div class="dhead"><span class="dnum">01</span><h2>How the app runs</h2></div>
+    <p class="dintro">A four-layer on-device stack — Compose UI over a domain/engine layer over data &amp; memory over the Android platform — plus the two-file bridge (<code>bundle.zip</code> out, <code>artifact.splat</code> back) to the user's laptop and a free Colab GPU. The heavy GPU work lives in the cloud; capture, planning, review, and viewing stay on hardware the user already owns.</p>
+    <div class="scroll">
+      <svg class="diagram-svg" viewBox="0 0 1180 500" role="img" aria-label="Runtime architecture: on-device four-layer stack feeding a cloud reconstruction pipeline">
+        <!-- device container -->
+        <rect class="zone" x="20" y="58" width="770" height="432" rx="16"/>
+        <text class="t-band" x="34" y="46">ON THE ANDROID PHONE</text>
+
+        <!-- cloud container -->
+        <rect class="zone" x="810" y="58" width="350" height="432" rx="16" stroke-dasharray="2 0"/>
+        <text class="t-band" x="824" y="46">USER LAPTOP + FREE COLAB (T4 GPU)</text>
+
+        <!-- band backgrounds -->
+        <rect class="band-bg" x="30" y="72" width="750" height="76" rx="11"/>
+        <rect class="band-bg" x="30" y="176" width="750" height="82" rx="11"/>
+        <rect class="band-bg" x="30" y="286" width="750" height="82" rx="11"/>
+        <rect class="band-bg" x="30" y="396" width="750" height="82" rx="11"/>
+        <text class="t-band" x="44" y="88">COMPOSE UI &middot; NAVIGATION</text>
+        <text class="t-band" x="44" y="192">DOMAIN / ENGINE</text>
+        <text class="t-band" x="44" y="302">DATA &amp; MEMORY</text>
+        <text class="t-band" x="44" y="412">ANDROID PLATFORM</text>
+
+        <!-- UI nodes (6) y=96 h=48 -->
+        <g>
+          <rect class="node" x="48" y="96" width="112" height="46" rx="9"/><rect x="55" y="103" width="8" height="8" rx="2" fill="var(--c-ui)"/>
+          <text class="t-title" x="55" y="122">Home</text><text class="t-sub" x="55" y="135">scans &middot; crash chip</text>
+          <rect class="node" x="171" y="96" width="112" height="46" rx="9"/><rect x="178" y="103" width="8" height="8" rx="2" fill="var(--c-ui)"/>
+          <text class="t-title" x="178" y="122">Floor Plan</text><text class="t-sub" x="178" y="135">Home Sketch editor</text>
+          <rect class="node" x="294" y="96" width="112" height="46" rx="9"/><rect x="301" y="103" width="8" height="8" rx="2" fill="var(--c-ui)"/>
+          <text class="t-title" x="301" y="122">Capture</text><text class="t-sub" x="301" y="135">viewfinder + coach</text>
+          <rect class="node" x="417" y="96" width="112" height="46" rx="9"/><rect x="424" y="103" width="8" height="8" rx="2" fill="var(--c-ui)"/>
+          <text class="t-title" x="424" y="122">Review</text><text class="t-sub" x="424" y="135">weak spots</text>
+          <rect class="node" x="540" y="96" width="112" height="46" rx="9"/><rect x="547" y="103" width="8" height="8" rx="2" fill="var(--c-ui)"/>
+          <text class="t-title" x="547" y="122">Bundle</text><text class="t-sub" x="547" y="135">zip + share</text>
+          <rect class="node" x="663" y="96" width="112" height="46" rx="9"/><rect x="670" y="103" width="8" height="8" rx="2" fill="var(--c-ui)"/>
+          <text class="t-title" x="670" y="122">Done</text><text class="t-sub" x="670" y="135">handoff</text>
+        </g>
+
+        <!-- Engine nodes (5) y=200 h=50 -->
+        <g>
+          <rect class="node" x="48" y="200" width="134" height="50" rx="9"/><rect x="55" y="207" width="8" height="8" rx="2" fill="var(--c-logic)"/>
+          <text class="t-title" x="55" y="226">CaptureEngine</text><text class="t-sub" x="55" y="240">CameraX + Camera2 caps</text>
+          <rect class="node" x="197" y="200" width="134" height="50" rx="9"/><rect x="204" y="207" width="8" height="8" rx="2" fill="var(--c-logic)"/>
+          <text class="t-title" x="204" y="226">CoachSensors</text><text class="t-sub" x="204" y="240">rotation &rarr; game fallback</text>
+          <rect class="node" x="346" y="200" width="134" height="50" rx="9"/><rect x="353" y="207" width="8" height="8" rx="2" fill="var(--c-logic)"/>
+          <text class="t-title" x="353" y="226">PlanMath</text><text class="t-sub" x="353" y="240">walk path &middot; estimates</text>
+          <rect class="node" x="495" y="200" width="134" height="50" rx="9"/><rect x="502" y="207" width="8" height="8" rx="2" fill="var(--c-logic)"/>
+          <text class="t-title" x="502" y="226">PlanView</text><text class="t-sub" x="502" y="240">flashlight-cone map</text>
+          <rect class="node" x="644" y="200" width="131" height="50" rx="9"/><rect x="651" y="207" width="8" height="8" rx="2" fill="var(--c-logic)"/>
+          <text class="t-title" x="651" y="226">BlurScore</text><text class="t-sub" x="651" y="240">Laplacian sharpness</text>
+        </g>
+
+        <!-- Data nodes (4) y=310 h=50 -->
+        <g>
+          <rect class="node" x="48" y="310" width="168" height="50" rx="9"/><rect x="55" y="317" width="8" height="8" rx="2" fill="var(--c-data)"/>
+          <text class="t-title" x="55" y="336">ScanRepository</text><text class="t-sub" x="55" y="350">filesDir/scans &middot; scan.json</text>
+          <rect class="node" x="235" y="310" width="168" height="50" rx="9"/><rect x="242" y="317" width="8" height="8" rx="2" fill="var(--c-data)"/>
+          <text class="t-title" x="242" y="336">FloorPlanRepository</text><text class="t-sub" x="242" y="350">plans.json</text>
+          <rect class="node" x="422" y="310" width="168" height="50" rx="9"/><rect x="429" y="317" width="8" height="8" rx="2" fill="var(--c-data)"/>
+          <text class="t-title" x="429" y="336">ThumbCache</text><text class="t-sub" x="429" y="350">LruCache &middot; RGB_565</text>
+          <rect class="node" x="609" y="310" width="166" height="50" rx="9"/><rect x="616" y="317" width="8" height="8" rx="2" fill="var(--c-data)"/>
+          <text class="t-title" x="616" y="336">BundleBuilder</text><text class="t-sub" x="616" y="350">streaming zip &middot; rig.plan</text>
+        </g>
+
+        <!-- Platform nodes (5) y=420 h=50 -->
+        <g>
+          <rect class="node" x="48" y="420" width="134" height="50" rx="9"/><rect x="55" y="427" width="8" height="8" rx="2" fill="var(--c-platform)"/>
+          <text class="t-title" x="55" y="446">CameraX / Camera2</text><text class="t-sub" x="55" y="460">preview + JPEG + AE</text>
+          <rect class="node" x="197" y="420" width="134" height="50" rx="9"/><rect x="204" y="427" width="8" height="8" rx="2" fill="var(--c-platform)"/>
+          <text class="t-title" x="204" y="446">SensorManager</text><text class="t-sub" x="204" y="460">rotation vector</text>
+          <rect class="node" x="346" y="420" width="134" height="50" rx="9"/><rect x="353" y="427" width="8" height="8" rx="2" fill="var(--c-platform)"/>
+          <text class="t-title" x="353" y="446">Internal storage</text><text class="t-sub" x="353" y="460">filesDir (private)</text>
+          <rect class="node" x="495" y="420" width="134" height="50" rx="9"/><rect x="502" y="427" width="8" height="8" rx="2" fill="var(--c-platform)"/>
+          <text class="t-title" x="502" y="446">MediaStore +</text><text class="t-sub" x="502" y="460">FileProvider share</text>
+          <rect class="node" x="644" y="420" width="131" height="50" rx="9"/><rect x="651" y="427" width="8" height="8" rx="2" fill="var(--c-platform)"/>
+          <text class="t-title" x="651" y="446">Crash handler</text><text class="t-sub" x="651" y="460">last-crash.txt</text>
+        </g>
+
+        <!-- vertical main-flow arrows (center) -->
+        <path class="edge" d="M405 148 L405 174" marker-end="url(#ah)"/>
+        <path class="edge" d="M405 258 L405 284" marker-end="url(#ah)"/>
+        <path class="edge" d="M405 368 L405 394" marker-end="url(#ah)"/>
+        <text class="t-edge" x="412" y="166">invokes</text>
+        <text class="t-edge" x="412" y="276">reads / writes</text>
+        <text class="t-edge" x="412" y="386">persists</text>
+
+        <!-- left gutter: hardware feeds engine (D <-> B) -->
+        <path class="edge" d="M33 446 L33 226" marker-end="url(#ah)"/>
+        <text class="t-edge" x="26" y="342" transform="rotate(-90 26 342)">frames + sensor events</text>
+
+        <!-- cloud chain -->
+        <g>
+          <rect class="node" x="835" y="96" width="300" height="44" rx="9" style="fill:var(--accent-tint);stroke:var(--accent)"/>
+          <text class="t-title" x="849" y="114" style="fill:var(--accent)">bundle.zip</text><text class="t-sub" x="849" y="130" style="fill:var(--accent)">manifest + crops/*.jpg + rig.plan</text>
+          <rect class="node" x="835" y="158" width="300" height="44" rx="9"/><rect x="842" y="165" width="8" height="8" rx="2" fill="var(--c-cloud)"/>
+          <text class="t-title" x="856" y="176">Orbit Studio (laptop)</text><text class="t-sub" x="856" y="192">start.bat &middot; localhost:7360</text>
+          <rect class="node" x="835" y="216" width="300" height="44" rx="9"/><rect x="842" y="223" width="8" height="8" rx="2" fill="var(--c-cloud)"/>
+          <text class="t-title" x="856" y="234">COLMAP poses</text><text class="t-sub" x="856" y="250">pycolmap on Colab</text>
+          <rect class="node" x="835" y="274" width="300" height="44" rx="9"/><rect x="842" y="281" width="8" height="8" rx="2" fill="var(--c-cloud)"/>
+          <text class="t-title" x="856" y="292">gsplat training</text><text class="t-sub" x="856" y="308">free Colab T4 GPU</text>
+          <rect class="node" x="835" y="332" width="300" height="44" rx="9" style="fill:var(--accent-tint);stroke:var(--accent)"/>
+          <text class="t-title" x="849" y="350" style="fill:var(--accent)">artifact.splat</text><text class="t-sub" x="849" y="366" style="fill:var(--accent)">trained scene, returns to laptop</text>
+          <rect class="node" x="835" y="390" width="300" height="44" rx="9"/><rect x="842" y="397" width="8" height="8" rx="2" fill="var(--c-cloud)"/>
+          <text class="t-title" x="856" y="408">Spark viewer</text><text class="t-sub" x="856" y="424">three.js fly-through</text>
+        </g>
+        <!-- handoff arrow BundleBuilder -> bundle.zip -->
+        <path class="edge" d="M775 330 C 800 300, 810 150, 833 122" marker-end="url(#ah-acc)" style="stroke:var(--accent)"/>
+        <text class="t-edge" x="726" y="300" style="fill:var(--accent)">share / USB</text>
+        <!-- cloud vertical arrows -->
+        <path class="edge" d="M985 140 L985 156" marker-end="url(#ah)"/>
+        <path class="edge" d="M985 202 L985 214" marker-end="url(#ah)"/>
+        <path class="edge" d="M985 260 L985 272" marker-end="url(#ah)"/>
+        <path class="edge" d="M985 318 L985 330" marker-end="url(#ah)"/>
+        <path class="edge" d="M985 376 L985 388" marker-end="url(#ah)"/>
+      </svg>
+    </div>
+    <div class="legend">
+      <span><span class="swatch" style="background:var(--c-ui)"></span>Compose UI</span>
+      <span><span class="swatch" style="background:var(--c-logic)"></span>Domain / engine</span>
+      <span><span class="swatch" style="background:var(--c-data)"></span>Data &amp; memory</span>
+      <span><span class="swatch" style="background:var(--c-platform)"></span>Android platform</span>
+      <span><span class="swatch" style="background:var(--c-cloud)"></span>Cloud / laptop</span>
+      <span><span class="swatch" style="background:var(--accent)"></span>Cross-boundary file</span>
+    </div>
+  </section>
+
+  <!-- ============================ DIAGRAM 2 : SECURITY ============================ -->
+  <section class="diagram">
+    <div class="dhead"><span class="dnum">02</span><h2>How it stays secure &amp; private</h2></div>
+    <p class="dintro">The design is secure by <em>subtraction</em>: there is no network permission, no account, and no third-party SDK, so the app has no way to send a photo anywhere. Room imagery stays in private storage until the user personally hands the bundle to their own laptop. Three boundaries — a permission gate, an explicit share gate, and a user-owned cloud — are the only ways data moves, and each is under the user's control.</p>
+    <div class="scroll">
+      <svg class="diagram-svg" viewBox="0 0 1180 540" role="img" aria-label="Security model: trusted device sandbox with no network, gated by a permission boundary and an explicit-share boundary before any user-owned cloud">
+        <!-- trusted sandbox -->
+        <rect x="20" y="40" width="620" height="360" rx="16" fill="var(--accent-tint)" stroke="var(--c-secure)"/>
+        <text class="t-band" x="36" y="30" style="fill:var(--c-secure)">TRUSTED &mdash; DEVICE APP SANDBOX</text>
+
+        <!-- headline: no internet -->
+        <rect x="38" y="56" width="584" height="58" rx="11" fill="var(--node)" stroke="var(--c-secure)" stroke-width="1.5"/>
+        <circle cx="70" cy="85" r="15" fill="none" stroke="var(--c-secure)" stroke-width="2.5"/>
+        <path d="M60 75 L80 95" stroke="var(--c-secure)" stroke-width="2.5"/>
+        <text class="t-big" x="98" y="82">No INTERNET permission &middot; no network code</text>
+        <text class="t-sub" x="98" y="100">The app cannot open a socket. There is no exfiltration surface — verified in the manifest and source.</text>
+
+        <!-- private storage -->
+        <rect class="node" x="38" y="128" width="286" height="120" rx="11"/>
+        <rect x="46" y="136" width="9" height="9" rx="2" fill="var(--c-secure)"/>
+        <text class="t-title" x="62" y="146">App-private storage (filesDir)</text>
+        <text class="t-sub" x="46" y="168">&bull; Room photos, scan.json</text>
+        <text class="t-sub" x="46" y="184">&bull; plans.json (floor sketches)</text>
+        <text class="t-sub" x="46" y="200">&bull; last-crash.txt</text>
+        <text class="t-sub" x="46" y="220">Never world-readable. Other apps</text>
+        <text class="t-sub" x="46" y="234">cannot read it. No SD-card sprawl.</text>
+
+        <!-- supply chain / identity -->
+        <rect class="node" x="336" y="128" width="286" height="120" rx="11"/>
+        <rect x="344" y="136" width="9" height="9" rx="2" fill="var(--c-secure)"/>
+        <text class="t-title" x="360" y="146">No identity, no trackers</text>
+        <text class="t-sub" x="344" y="168">&bull; No account, login, or cloud ID</text>
+        <text class="t-sub" x="344" y="184">&bull; No analytics / ad / crash SDK</text>
+        <text class="t-sub" x="344" y="200">&bull; Dependencies 100% AndroidX</text>
+        <text class="t-sub" x="344" y="220">Nothing in the app is watching the</text>
+        <text class="t-sub" x="344" y="234">user or calling a vendor server.</text>
+
+        <!-- permissions -->
+        <rect class="node" x="38" y="260" width="584" height="126" rx="11"/>
+        <rect x="46" y="268" width="9" height="9" rx="2" fill="var(--c-warn)"/>
+        <text class="t-title" x="62" y="278">Least-privilege permission set (exactly two)</text>
+        <rect x="52" y="292" width="270" height="80" rx="8" fill="var(--band)" stroke="var(--band-br)"/>
+        <text class="t-title" x="66" y="312">CAMERA</text>
+        <text class="t-sub" x="66" y="330">Runtime prompt with a written</text>
+        <text class="t-sub" x="66" y="344">rationale; denial shows a designed</text>
+        <text class="t-sub" x="66" y="358">"open settings" state, never a crash.</text>
+        <rect x="338" y="292" width="270" height="80" rx="8" fill="var(--band)" stroke="var(--band-br)"/>
+        <text class="t-title" x="352" y="312">WRITE_EXTERNAL_STORAGE</text>
+        <text class="t-sub" x="352" y="330">Capped at maxSdkVersion 28;</text>
+        <text class="t-sub" x="352" y="344">inert on every modern device.</text>
+        <text class="t-sub" x="352" y="358">Camera/sensors marked not-required.</text>
+
+        <!-- boundary A: permission gate (between hardware and sandbox) -->
+        <line x1="660" y1="60" x2="660" y2="380" stroke="var(--c-boundary)" stroke-width="2" stroke-dasharray="6 5"/>
+        <text class="t-band" x="668" y="52" style="fill:var(--c-boundary)">GATE</text>
+
+        <!-- explicit share gate -->
+        <rect x="686" y="70" width="210" height="150" rx="12" fill="var(--node)" stroke="var(--c-boundary)" stroke-width="1.5"/>
+        <text class="t-title" x="700" y="92" style="fill:var(--c-boundary)">Explicit user share</text>
+        <text class="t-sub" x="700" y="112">The only way data leaves:</text>
+        <text class="t-sub" x="700" y="128">&bull; System share sheet</text>
+        <text class="t-sub" x="700" y="144">&bull; FileProvider scoped grant</text>
+        <text class="t-sub" x="700" y="160">&bull; No world-readable files</text>
+        <text class="t-sub" x="700" y="180">User picks the recipient and</text>
+        <text class="t-sub" x="700" y="194">the moment. Nothing auto-sends.</text>
+        <text class="t-sub" x="700" y="210" style="fill:var(--c-boundary)">bundle.zip &middot; crash report</text>
+
+        <!-- user owned cloud -->
+        <rect x="686" y="240" width="210" height="146" rx="12" fill="var(--band)" stroke="var(--node-br)"/>
+        <text class="t-band" x="700" y="262" style="fill:var(--c-cloud)">USER-OWNED &middot; OPT-IN</text>
+        <text class="t-title" x="700" y="286">The user's own laptop</text>
+        <text class="t-sub" x="700" y="302">Orbit Studio, offline, localhost.</text>
+        <text class="t-title" x="700" y="326">The user's own Colab</text>
+        <text class="t-sub" x="700" y="342">Their Google account, their photos,</text>
+        <text class="t-sub" x="700" y="356">their GPU session. The app never</text>
+        <text class="t-sub" x="700" y="372">uploads — the user does, if they choose.</text>
+
+        <!-- sensitive data + mitigations strip -->
+        <rect x="920" y="70" width="242" height="316" rx="12" fill="var(--node)" stroke="var(--node-br)"/>
+        <text class="t-band" x="934" y="92" style="fill:var(--sensitive)">WHAT'S SENSITIVE</text>
+        <text class="t-sub" x="934" y="112">Photos of a home interior — the</text>
+        <text class="t-sub" x="934" y="126">most personal thing the app holds.</text>
+        <text class="t-band" x="934" y="156">HOW IT'S PROTECTED</text>
+        <text class="t-sub" x="934" y="176">&bull; Stays in private storage</text>
+        <text class="t-sub" x="934" y="192">&bull; Leaves only by user share</text>
+        <text class="t-sub" x="934" y="208">&bull; No background upload path</text>
+        <text class="t-sub" x="934" y="224">&bull; No location / mic / contacts</text>
+        <text class="t-sub" x="934" y="240">&bull; Crash logs stay on device</text>
+        <text class="t-sub" x="934" y="256">&bull; MediaStore write hardened,</text>
+        <text class="t-sub" x="934" y="270">&nbsp;&nbsp;falls back to app folder</text>
+        <text class="t-band" x="934" y="300">NO PARSED EXTERNAL INPUT</text>
+        <text class="t-sub" x="934" y="320">The app reads only its own files</text>
+        <text class="t-sub" x="934" y="336">and the camera — no web content,</text>
+        <text class="t-sub" x="934" y="352">no deep links, no injection surface.</text>
+
+        <!-- arrows -->
+        <path class="edge" d="M660 300 L684 240" marker-end="url(#ah)" style="stroke:var(--c-boundary)"/>
+        <path class="edge" d="M791 220 L791 238" marker-end="url(#ah)"/>
+        <text class="t-edge" x="666" y="330" style="fill:var(--c-boundary)">user acts</text>
+      </svg>
+    </div>
+    <div class="legend">
+      <span><span class="swatch" style="background:var(--c-secure)"></span>Trusted (on device)</span>
+      <span><span class="swatch" style="background:var(--c-boundary)"></span>Boundary / user-controlled gate</span>
+      <span><span class="swatch" style="background:var(--c-cloud)"></span>User-owned, opt-in cloud</span>
+      <span><span class="swatch" style="background:var(--sensitive)"></span>Sensitive data</span>
+    </div>
+  </section>
+
+  <!-- ============================ DIAGRAM 3 : USER WORKFLOW ============================ -->
+  <section class="diagram">
+    <div class="dhead"><span class="dnum">03</span><h2>The expected user workflow</h2></div>
+    <p class="dintro">One coherent journey in three phases: sketch the space before walking it, capture each room with live coaching, then reconstruct on the laptop. The plan the user draws in phase 1 actively steers the capture in phase 2 — shot targets, a walk path, and window/obstacle warnings all come from the sketch. Up to five rooms loop through capture; learnings from the final 3D model feed the next scan.</p>
+    <div class="scroll">
+      <svg class="diagram-svg" viewBox="0 0 1180 560" role="img" aria-label="User workflow across three phases: plan on phone, capture per room, reconstruct on laptop">
+        <!-- phase bands -->
+        <rect class="band-bg" x="20" y="40" width="1140" height="150" rx="12"/>
+        <rect class="band-bg" x="20" y="204" width="1140" height="196" rx="12"/>
+        <rect class="band-bg" x="20" y="414" width="1140" height="126" rx="12"/>
+        <text class="t-band" x="36" y="60" style="fill:var(--c-ui)">PHASE 1 &middot; PLAN THE BUILDING (on the phone, before walking)</text>
+        <text class="t-band" x="36" y="224" style="fill:var(--c-logic)">PHASE 2 &middot; CAPTURE EACH ROOM (on the phone &middot; repeats for up to 5 rooms)</text>
+        <text class="t-band" x="36" y="434" style="fill:var(--c-cloud)">PHASE 3 &middot; RECONSTRUCT (on the laptop + free Colab)</text>
+
+        <!-- helper: numbered step pill = rect + circle number -->
+        <!-- Phase 1 steps -->
+        <g>
+          <rect class="node" x="40" y="82" width="230" height="92" rx="11"/>
+          <circle cx="64" cy="106" r="13" fill="var(--c-ui)"/><text class="t-num" x="60" y="110">1</text>
+          <text class="t-title" x="86" y="104">Open app &rarr; Home</text>
+          <text class="t-sub" x="54" y="128">See the scan list. Tap</text>
+          <text class="t-sub" x="54" y="143">"Plan a building" to start</text>
+          <text class="t-sub" x="54" y="158">a sketch of the space.</text>
+
+          <rect class="node" x="300" y="82" width="250" height="92" rx="11"/>
+          <circle cx="324" cy="106" r="13" fill="var(--c-ui)"/><text class="t-num" x="320" y="110">2</text>
+          <text class="t-title" x="346" y="104">Sketch the rooms</text>
+          <text class="t-sub" x="314" y="128">Draw up to 5 rooms; drop</text>
+          <text class="t-sub" x="314" y="143">walls, windows, doors,</text>
+          <text class="t-sub" x="314" y="158">obstacles. Set the scale.</text>
+
+          <rect class="node" x="580" y="82" width="250" height="92" rx="11"/>
+          <circle cx="604" cy="106" r="13" fill="var(--c-ui)"/><text class="t-num" x="600" y="110">3</text>
+          <text class="t-title" x="626" y="104">See the walk path</text>
+          <text class="t-sub" x="594" y="128">Each room shows a suggested</text>
+          <text class="t-sub" x="594" y="143">route, ~photo count and</text>
+          <text class="t-sub" x="594" y="158">~minutes. Pick a room to scan.</text>
+        </g>
+
+        <!-- Phase 2 steps (5) two rows -->
+        <g>
+          <rect class="node" x="40" y="246" width="212" height="66" rx="11"/>
+          <circle cx="64" cy="270" r="13" fill="var(--c-logic)"/><text class="t-num" x="60" y="274">4</text>
+          <text class="t-title" x="86" y="268">Start scan &rarr; checklist</text>
+          <text class="t-sub" x="54" y="290">Lock exposure, turn on lights,</text>
+          <text class="t-sub" x="54" y="304">wipe the lens. Then shoot.</text>
+
+          <rect class="node" x="278" y="246" width="256" height="66" rx="11"/>
+          <circle cx="302" cy="270" r="13" fill="var(--c-logic)"/><text class="t-num" x="298" y="274">5</text>
+          <text class="t-title" x="324" y="268">Capture with coaching</text>
+          <text class="t-sub" x="292" y="290">Follow the arrows / plan-view map.</text>
+          <text class="t-sub" x="292" y="304">AE lock, EV slider, overlap + blur nudges.</text>
+
+          <rect class="node" x="560" y="246" width="230" height="66" rx="11"/>
+          <circle cx="584" cy="270" r="13" fill="var(--c-logic)"/><text class="t-num" x="580" y="274">6</text>
+          <text class="t-title" x="606" y="268">Review coverage</text>
+          <text class="t-sub" x="574" y="290">Check weak spots (blurry / low</text>
+          <text class="t-sub" x="574" y="304">overlap). Reshoot in place.</text>
+
+          <rect class="node" x="816" y="246" width="230" height="66" rx="11"/>
+          <circle cx="840" cy="270" r="13" fill="var(--c-logic)"/><text class="t-num" x="836" y="274">7</text>
+          <text class="t-title" x="862" y="268">Build the bundle</text>
+          <text class="t-sub" x="830" y="290">Pack manifest + photos + plan</text>
+          <text class="t-sub" x="830" y="304">into bundle.zip. Share it.</text>
+
+          <rect class="node" x="1058" y="246" width="86" height="66" rx="11"/>
+          <circle cx="1082" cy="270" r="13" fill="var(--c-logic)"/><text class="t-num" x="1078" y="274">8</text>
+          <text class="t-title" x="1080" y="268" text-anchor="middle">Done</text>
+          <text class="t-sub" x="1101" y="290" text-anchor="middle">room</text>
+          <text class="t-sub" x="1101" y="304" text-anchor="middle">complete</text>
+
+          <!-- retake loop -->
+          <path class="edge-soft" d="M560 300 C 480 350, 400 350, 340 312" marker-end="url(#ah-soft)"/>
+          <text class="t-edge" x="410" y="356">soft frame &rarr; retake</text>
+
+          <!-- next-room loop -->
+          <path class="edge-soft" d="M1101 312 C 1101 372, 120 372, 120 314" marker-end="url(#ah-soft)"/>
+          <text class="t-edge" x="560" y="388">next room &middot; up to 5 rooms on one floor</text>
+        </g>
+
+        <!-- Phase 3 steps -->
+        <g>
+          <rect class="node" x="40" y="452" width="250" height="74" rx="11"/>
+          <circle cx="64" cy="476" r="13" fill="var(--c-cloud)"/><text class="t-num" x="60" y="480">9</text>
+          <text class="t-title" x="86" y="474">Drop into Orbit Studio</text>
+          <text class="t-sub" x="54" y="496">On the laptop: run start.bat,</text>
+          <text class="t-sub" x="54" y="510">open localhost:7360, drop the zip.</text>
+
+          <rect class="node" x="320" y="452" width="270" height="74" rx="11"/>
+          <circle cx="344" cy="476" r="13" fill="var(--c-cloud)"/><text class="t-num" x="335" y="480">10</text>
+          <text class="t-title" x="366" y="474">Run the Colab notebook</text>
+          <text class="t-sub" x="334" y="496">Free T4 GPU recovers camera poses</text>
+          <text class="t-sub" x="334" y="510">(COLMAP) and trains the splat (gsplat).</text>
+
+          <rect class="node" x="620" y="452" width="250" height="74" rx="11"/>
+          <circle cx="644" cy="476" r="13" fill="var(--c-cloud)"/><text class="t-num" x="635" y="480">11</text>
+          <text class="t-title" x="666" y="474">artifact.splat returns</text>
+          <text class="t-sub" x="634" y="496">The trained 3D scene comes back</text>
+          <text class="t-sub" x="634" y="510">to the laptop.</text>
+
+          <rect class="node" x="900" y="452" width="244" height="74" rx="11"/>
+          <circle cx="924" cy="476" r="13" fill="var(--c-cloud)"/><text class="t-num" x="915" y="480">12</text>
+          <text class="t-title" x="946" y="474">Fly through it</text>
+          <text class="t-sub" x="914" y="496">Explore the room in the Spark</text>
+          <text class="t-sub" x="914" y="510">viewer. Learnings improve next scan.</text>
+        </g>
+
+        <!-- inter-step arrows phase1 -->
+        <path class="edge" d="M270 128 L298 128" marker-end="url(#ah)"/>
+        <path class="edge" d="M550 128 L578 128" marker-end="url(#ah)"/>
+        <!-- phase1 -> phase2 -->
+        <path class="edge" d="M700 174 C 700 210, 150 200, 146 244" marker-end="url(#ah-acc)" style="stroke:var(--accent)"/>
+        <text class="t-edge" x="360" y="216" style="fill:var(--accent)">the plan steers the capture &middot; shot targets, path, window &amp; obstacle warnings</text>
+        <!-- phase2 inter -->
+        <path class="edge" d="M252 279 L276 279" marker-end="url(#ah)"/>
+        <path class="edge" d="M534 279 L558 279" marker-end="url(#ah)"/>
+        <path class="edge" d="M790 279 L814 279" marker-end="url(#ah)"/>
+        <path class="edge" d="M1046 279 L1056 279" marker-end="url(#ah)"/>
+        <!-- phase2 -> phase3 -->
+        <path class="edge" d="M932 312 C 960 400, 200 405, 160 450" marker-end="url(#ah-acc)" style="stroke:var(--accent)"/>
+        <text class="t-edge" x="470" y="430" style="fill:var(--accent)">bundle.zip &rarr; laptop (share / USB / Drive)</text>
+        <!-- phase3 inter -->
+        <path class="edge" d="M290 489 L318 489" marker-end="url(#ah)"/>
+        <path class="edge" d="M590 489 L618 489" marker-end="url(#ah)"/>
+        <path class="edge" d="M870 489 L898 489" marker-end="url(#ah)"/>
+      </svg>
+    </div>
+    <div class="legend">
+      <span><span class="swatch" style="background:var(--c-ui)"></span>Plan (phone)</span>
+      <span><span class="swatch" style="background:var(--c-logic)"></span>Capture (phone)</span>
+      <span><span class="swatch" style="background:var(--c-cloud)"></span>Reconstruct (laptop + Colab)</span>
+      <span><span class="swatch" style="background:var(--accent)"></span>Cross-phase handoff</span>
+      <span><span class="swatch" style="background:var(--edge-soft)"></span>Loop-back</span>
+    </div>
+  </section>
+
+  <footer>
+    Orbit Capture v0.5.0 &middot; native Kotlin / Jetpack Compose / CameraX &middot; companion to Orbit Studio.
+    Diagrams reflect the shipping source; see <code>docs/DEVICE_ROBUSTNESS.md</code>, <code>docs/MEMORY_ARCHITECTURE.md</code>,
+    <code>docs/ANDROID_APP_PLAN.md</code>, and <code>docs/PHONE_CAPTURE_SPEC.md</code> for the written detail behind each view.
+  </footer>
+
+</div>
+<script>
+  (function () {
+    var btn = document.getElementById('themeToggle');
+    var label = document.getElementById('themeLabel');
+    var root = document.documentElement;
+    function current() {
+      var set = root.getAttribute('data-theme');
+      if (set) return set;
+      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+    function apply(t) { root.setAttribute('data-theme', t); label.textContent = t === 'dark' ? 'Light' : 'Dark'; }
+    apply(current());
+    btn.addEventListener('click', function () { apply(current() === 'dark' ? 'light' : 'dark'); });
+  })();
+</script>
+</body>
+</html>

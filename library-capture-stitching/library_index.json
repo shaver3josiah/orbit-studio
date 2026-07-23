@@ -1,0 +1,1339 @@
+{
+  "topic": "Capturing photos and stitching them into a 3D reconstruction — the Orbit Capture way",
+  "level": 2,
+  "created": "2026-07-16T13:59:55.900093+00:00",
+  "shelves": [
+    {
+      "shelf": 1,
+      "title": "Taking the Pictures: Capture Craft for Reconstruction",
+      "tier": "applied",
+      "volumes": [
+        {
+          "id": "S01-B000",
+          "title": "Where Reconstruction Quality Is Decided: A Map of Shelf 01's Capture Craft",
+          "type": "primer",
+          "tags": [],
+          "path": "Library/Shelf-01/books/S01-B000.md",
+          "present": true,
+          "cross_refs": []
+        },
+        {
+          "id": "S01-B001",
+          "title": "What Makes a Photoset Reconstructable",
+          "type": "essay",
+          "tags": [],
+          "path": "Library/Shelf-01/books/S01-B001.md",
+          "present": true,
+          "cross_refs": [
+            "S01-B002",
+            "S01-B003",
+            "S01-B009"
+          ]
+        },
+        {
+          "id": "S01-B002",
+          "title": "The Parallax Requirement: Why Pure Rotation Kills a Splat",
+          "type": "essay",
+          "tags": [],
+          "path": "Library/Shelf-01/books/S01-B002.md",
+          "present": true,
+          "cross_refs": [
+            "S01-B001",
+            "S01-B004",
+            "S01-B048"
+          ]
+        },
+        {
+          "id": "S01-B003",
+          "title": "Overlap as the Currency of Structure-from-Motion",
+          "type": "essay",
+          "tags": [],
+          "path": "Library/Shelf-01/books/S01-B003.md",
+          "present": true,
+          "cross_refs": [
+            "S01-B013",
+            "S01-B024",
+            "S01-B001"
+          ]
+        },
+        {
+          "id": "S01-B004",
+          "title": "Standoff Distance and the Geometry of a Room",
+          "type": "essay",
+          "tags": [],
+          "path": "Library/Shelf-01/books/S01-B004.md",
+          "present": true,
+          "cross_refs": [
+            "S01-B002",
+            "S01-B028",
+            "S01-B011"
+          ]
+        },
+        {
+          "id": "S01-B005",
+          "title": "One Person, One Building: The Solo Operator Constraint",
+          "type": "essay",
+          "tags": [],
+          "path": "Library/Shelf-01/books/S01-B005.md",
+          "present": true,
+          "cross_refs": [
+            "S01-B006",
+            "S01-B011",
+            "S01-B014"
+          ]
+        },
+        {
+          "id": "S01-B006",
+          "title": "From Building to Bundle: The Shape of the Orbit Capture Pipeline",
+          "type": "essay",
+          "tags": [],
+          "path": "Library/Shelf-01/books/S01-B006.md",
+          "present": true,
+          "cross_refs": [
+            "S01-B005",
+            "S01-B010",
+            "S01-B039"
+          ]
+        },
+        {
+          "id": "S01-B007",
+          "title": "Exposure Consistency as a First-Class Requirement",
+          "type": "essay",
+          "tags": [],
+          "path": "Library/Shelf-01/books/S01-B007.md",
+          "present": true,
+          "cross_refs": [
+            "S01-B016",
+            "S01-B015",
+            "S01-B019"
+          ]
+        },
+        {
+          "id": "S01-B008",
+          "title": "Reading a Room Before You Shoot It",
+          "type": "essay",
+          "tags": [],
+          "path": "Library/Shelf-01/books/S01-B008.md",
+          "present": true,
+          "cross_refs": [
+            "S01-B011",
+            "S01-B026",
+            "S01-B029"
+          ]
+        },
+        {
+          "id": "S01-B009",
+          "title": "What Can Go Wrong: A Field Taxonomy of Bad Captures",
+          "type": "essay",
+          "tags": [],
+          "path": "Library/Shelf-01/books/S01-B009.md",
+          "present": true,
+          "cross_refs": [
+            "S01-B001",
+            "S01-B022",
+            "S01-B026"
+          ]
+        },
+        {
+          "id": "S01-B010",
+          "title": "The Bundle Contract: What Downstream Expects From You",
+          "type": "essay",
+          "tags": [],
+          "path": "Library/Shelf-01/books/S01-B010.md",
+          "present": true,
+          "cross_refs": [
+            "S01-B006",
+            "S01-B039",
+            "S01-B042"
+          ]
+        },
+        {
+          "id": "S01-B011",
+          "title": "Routing a Room-by-Room Walk Without Backtracking",
+          "type": "essay",
+          "tags": [],
+          "path": "Library/Shelf-01/books/S01-B011.md",
+          "present": true,
+          "cross_refs": [
+            "S01-B005",
+            "S01-B012",
+            "S01-B004"
+          ]
+        },
+        {
+          "id": "S01-B012",
+          "title": "Doorways, Thresholds, and Keeping Continuity Between Rooms",
+          "type": "essay",
+          "tags": [],
+          "path": "Library/Shelf-01/books/S01-B012.md",
+          "present": true,
+          "cross_refs": [
+            "S01-B011",
+            "S01-B043",
+            "S01-B029"
+          ]
+        },
+        {
+          "id": "S01-B013",
+          "title": "The 70-80% Overlap Target in Practice: Counting Steps, Not Percentages",
+          "type": "essay",
+          "tags": [],
+          "path": "Library/Shelf-01/books/S01-B013.md",
+          "present": true,
+          "cross_refs": [
+            "S01-B003",
+            "S01-B024",
+            "S01-B014"
+          ]
+        },
+        {
+          "id": "S01-B014",
+          "title": "Working the 1-3 Minute Room: Pacing a Capture Session",
+          "type": "essay",
+          "tags": [],
+          "path": "Library/Shelf-01/books/S01-B014.md",
+          "present": true,
+          "cross_refs": [
+            "S01-B013",
+            "S01-B005",
+            "S01-B025"
+          ]
+        },
+        {
+          "id": "S01-B015",
+          "title": "Metering Off a Mid-Tone Wall and Locking It",
+          "type": "essay",
+          "tags": [],
+          "path": "Library/Shelf-01/books/S01-B015.md",
+          "present": true,
+          "cross_refs": [
+            "S01-B016",
+            "S01-B007",
+            "S01-B019"
+          ]
+        },
+        {
+          "id": "S01-B016",
+          "title": "AE Lock: What It Freezes and What It Doesn't",
+          "type": "essay",
+          "tags": [],
+          "path": "Library/Shelf-01/books/S01-B016.md",
+          "present": true,
+          "cross_refs": [
+            "S01-B015",
+            "S01-B017",
+            "S01-B031"
+          ]
+        },
+        {
+          "id": "S01-B017",
+          "title": "The Unlock-Set-EV-Relock Dance",
+          "type": "essay",
+          "tags": [],
+          "path": "Library/Shelf-01/books/S01-B017.md",
+          "present": true,
+          "cross_refs": [
+            "S01-B016",
+            "S01-B018",
+            "S01-B032"
+          ]
+        },
+        {
+          "id": "S01-B018",
+          "title": "EV Compensation for Windows, Skylights, and Dark Corners",
+          "type": "essay",
+          "tags": [],
+          "path": "Library/Shelf-01/books/S01-B018.md",
+          "present": true,
+          "cross_refs": [
+            "S01-B017",
+            "S01-B019",
+            "S01-B029"
+          ]
+        },
+        {
+          "id": "S01-B019",
+          "title": "Clipping and Banding: Reading a Histogram in the Field",
+          "type": "essay",
+          "tags": [],
+          "path": "Library/Shelf-01/books/S01-B019.md",
+          "present": true,
+          "cross_refs": [
+            "S01-B015",
+            "S01-B018",
+            "S01-B022"
+          ]
+        },
+        {
+          "id": "S01-B020",
+          "title": "AWB Lock vs. a True Fixed-Kelvin White Balance",
+          "type": "essay",
+          "tags": [],
+          "path": "Library/Shelf-01/books/S01-B020.md",
+          "present": true,
+          "cross_refs": [
+            "S01-B021",
+            "S01-B016",
+            "S01-B033"
+          ]
+        },
+        {
+          "id": "S01-B021",
+          "title": "Carrying One White Balance Across Differently-Lit Rooms",
+          "type": "essay",
+          "tags": [],
+          "path": "Library/Shelf-01/books/S01-B021.md",
+          "present": true,
+          "cross_refs": [
+            "S01-B020",
+            "S01-B029",
+            "S02-B017"
+          ]
+        },
+        {
+          "id": "S01-B022",
+          "title": "Recognizing Motion Blur Before You Leave the Room",
+          "type": "essay",
+          "tags": [],
+          "path": "Library/Shelf-01/books/S01-B022.md",
+          "present": true,
+          "cross_refs": [
+            "S01-B023",
+            "S01-B009",
+            "S01-B041"
+          ]
+        },
+        {
+          "id": "S01-B023",
+          "title": "Estimating Capture Blur Risk with a Laplacian-Variance Score",
+          "type": "code",
+          "tags": [],
+          "path": "Library/Shelf-01/books/S01-B023.md",
+          "present": true,
+          "cross_refs": [
+            "S01-B022",
+            "S01-B035",
+            "S01-B036"
+          ]
+        },
+        {
+          "id": "S01-B024",
+          "title": "A Field Overlap Estimator: Comparing Consecutive Frames",
+          "type": "code",
+          "tags": [],
+          "path": "Library/Shelf-01/books/S01-B024.md",
+          "present": true,
+          "cross_refs": [
+            "S01-B003",
+            "S01-B013",
+            "S01-B025"
+          ]
+        },
+        {
+          "id": "S01-B025",
+          "title": "Live Coverage Tracking: Am I Done With This Room?",
+          "type": "code",
+          "tags": [],
+          "path": "Library/Shelf-01/books/S01-B025.md",
+          "present": true,
+          "cross_refs": [
+            "S01-B024",
+            "S01-B014",
+            "S01-B044"
+          ]
+        },
+        {
+          "id": "S01-B026",
+          "title": "Texture-Poor Walls and Why Blank Surfaces Fail to Register",
+          "type": "essay",
+          "tags": [],
+          "path": "Library/Shelf-01/books/S01-B026.md",
+          "present": true,
+          "cross_refs": [
+            "S01-B008",
+            "S01-B009",
+            "S02-B043"
+          ]
+        },
+        {
+          "id": "S01-B027",
+          "title": "Reflective and Transparent Surfaces: Windows, Mirrors, Glass Doors",
+          "type": "essay",
+          "tags": [],
+          "path": "Library/Shelf-01/books/S01-B027.md",
+          "present": true,
+          "cross_refs": [
+            "S01-B026",
+            "S01-B004",
+            "S01-B028"
+          ]
+        },
+        {
+          "id": "S01-B028",
+          "title": "Stairwells, Hallways, and Other Awkward Standoff Geometries",
+          "type": "essay",
+          "tags": [],
+          "path": "Library/Shelf-01/books/S01-B028.md",
+          "present": true,
+          "cross_refs": [
+            "S01-B004",
+            "S01-B027",
+            "S01-B044"
+          ]
+        },
+        {
+          "id": "S01-B029",
+          "title": "Mixed Lighting Zones: Transition Strategy Between Rooms",
+          "type": "essay",
+          "tags": [],
+          "path": "Library/Shelf-01/books/S01-B029.md",
+          "present": true,
+          "cross_refs": [
+            "S01-B021",
+            "S01-B018",
+            "S01-B012"
+          ]
+        },
+        {
+          "id": "S01-B030",
+          "title": "Camera2 Capture Session Basics for a Locked-Exposure App",
+          "type": "code",
+          "tags": [],
+          "path": "Library/Shelf-01/books/S01-B030.md",
+          "present": true,
+          "cross_refs": [
+            "S01-B006",
+            "S01-B031",
+            "S01-B037"
+          ]
+        },
+        {
+          "id": "S01-B031",
+          "title": "Implementing AE Lock and a Fixed Metering Region in Camera2",
+          "type": "code",
+          "tags": [],
+          "path": "Library/Shelf-01/books/S01-B031.md",
+          "present": true,
+          "cross_refs": [
+            "S01-B016",
+            "S01-B030",
+            "S01-B032"
+          ]
+        },
+        {
+          "id": "S01-B032",
+          "title": "Coding the Unlock-Set-EV-Relock Sequence in Kotlin",
+          "type": "code",
+          "tags": [],
+          "path": "Library/Shelf-01/books/S01-B032.md",
+          "present": true,
+          "cross_refs": [
+            "S01-B017",
+            "S01-B031",
+            "S01-B034"
+          ]
+        },
+        {
+          "id": "S01-B033",
+          "title": "Reading and Applying AWB Lock State via Camera2",
+          "type": "code",
+          "tags": [],
+          "path": "Library/Shelf-01/books/S01-B033.md",
+          "present": true,
+          "cross_refs": [
+            "S01-B020",
+            "S01-B031",
+            "S01-B034"
+          ]
+        },
+        {
+          "id": "S01-B034",
+          "title": "Capturing Frame Metadata: ISO, Shutter, EV, Timestamp",
+          "type": "code",
+          "tags": [],
+          "path": "Library/Shelf-01/books/S01-B034.md",
+          "present": true,
+          "cross_refs": [
+            "S01-B032",
+            "S01-B033",
+            "S01-B038"
+          ]
+        },
+        {
+          "id": "S01-B035",
+          "title": "On-Device Laplacian-Variance Blur Scoring in Kotlin",
+          "type": "code",
+          "tags": [],
+          "path": "Library/Shelf-01/books/S01-B035.md",
+          "present": true,
+          "cross_refs": [
+            "S01-B023",
+            "S01-B036",
+            "S01-B049"
+          ]
+        },
+        {
+          "id": "S01-B036",
+          "title": "Flagging and Triggering a Reshoot Mid-Session",
+          "type": "code",
+          "tags": [],
+          "path": "Library/Shelf-01/books/S01-B036.md",
+          "present": true,
+          "cross_refs": [
+            "S01-B035",
+            "S01-B041",
+            "S01-B050"
+          ]
+        },
+        {
+          "id": "S01-B037",
+          "title": "Building the Room-by-Room Session State Machine",
+          "type": "code",
+          "tags": [],
+          "path": "Library/Shelf-01/books/S01-B037.md",
+          "present": true,
+          "cross_refs": [
+            "S01-B030",
+            "S01-B025",
+            "S01-B038"
+          ]
+        },
+        {
+          "id": "S01-B038",
+          "title": "Writing Per-Room Crops to Disk with Consistent Naming",
+          "type": "code",
+          "tags": [],
+          "path": "Library/Shelf-01/books/S01-B038.md",
+          "present": true,
+          "cross_refs": [
+            "S01-B037",
+            "S01-B034",
+            "S01-B039"
+          ]
+        },
+        {
+          "id": "S01-B039",
+          "title": "Assembling and Packing the Bundle: manifest.json and ZIP_STORED Crops",
+          "type": "code",
+          "tags": [],
+          "path": "Library/Shelf-01/books/S01-B039.md",
+          "present": true,
+          "cross_refs": [
+            "S01-B010",
+            "S01-B038",
+            "S01-B042"
+          ]
+        },
+        {
+          "id": "S01-B040",
+          "title": "The Cost of a Missed Room: Why Reshoots Are Cheaper On-Site",
+          "type": "essay",
+          "tags": [],
+          "path": "Library/Shelf-01/books/S01-B040.md",
+          "present": true,
+          "cross_refs": [
+            "S01-B041",
+            "S01-B014",
+            "S01-B045"
+          ]
+        },
+        {
+          "id": "S01-B041",
+          "title": "Deciding On-Site Whether a Room Needs a Reshoot",
+          "type": "essay",
+          "tags": [],
+          "path": "Library/Shelf-01/books/S01-B041.md",
+          "present": true,
+          "cross_refs": [
+            "S01-B040",
+            "S01-B036",
+            "S01-B022"
+          ]
+        },
+        {
+          "id": "S01-B042",
+          "title": "Handoff Discipline: What the Operator Owes the Pipeline",
+          "type": "essay",
+          "tags": [],
+          "path": "Library/Shelf-01/books/S01-B042.md",
+          "present": true,
+          "cross_refs": [
+            "S01-B039",
+            "S01-B010",
+            "S01-B045"
+          ]
+        },
+        {
+          "id": "S01-B043",
+          "title": "Loop Closure in the Field: Returning to Where You Started",
+          "type": "essay",
+          "tags": [],
+          "path": "Library/Shelf-01/books/S01-B043.md",
+          "present": true,
+          "cross_refs": [
+            "S01-B012",
+            "S01-B046",
+            "S01-B042"
+          ]
+        },
+        {
+          "id": "S01-B044",
+          "title": "Vertical Coverage: Ceilings, Floors, and the Frames People Skip",
+          "type": "essay",
+          "tags": [],
+          "path": "Library/Shelf-01/books/S01-B044.md",
+          "present": true,
+          "cross_refs": [
+            "S01-B025",
+            "S01-B028",
+            "S01-B009"
+          ]
+        },
+        {
+          "id": "S01-B045",
+          "title": "Troubleshooting a Session That Feels Wrong Before You Leave",
+          "type": "essay",
+          "tags": [],
+          "path": "Library/Shelf-01/books/S01-B045.md",
+          "present": true,
+          "cross_refs": [
+            "S01-B040",
+            "S01-B042",
+            "S01-B041"
+          ]
+        },
+        {
+          "id": "S01-B046",
+          "title": "Multi-Room Buildings with Repeating Geometry: Avoiding False Loop Closures",
+          "type": "essay",
+          "tags": [],
+          "path": "Library/Shelf-01/books/S01-B046.md",
+          "present": true,
+          "cross_refs": [
+            "S01-B043",
+            "S01-B011",
+            "S01-B048"
+          ]
+        },
+        {
+          "id": "S01-B047",
+          "title": "Low-Light Rooms Without Supplemental Lighting",
+          "type": "essay",
+          "tags": [],
+          "path": "Library/Shelf-01/books/S01-B047.md",
+          "present": true,
+          "cross_refs": [
+            "S01-B018",
+            "S01-B029",
+            "S01-B019"
+          ]
+        },
+        {
+          "id": "S01-B048",
+          "title": "Adaptive Overlap: When to Shoot Tighter Than 70-80%",
+          "type": "essay",
+          "tags": [],
+          "path": "Library/Shelf-01/books/S01-B048.md",
+          "present": true,
+          "cross_refs": [
+            "S01-B003",
+            "S01-B026",
+            "S01-B046"
+          ]
+        },
+        {
+          "id": "S01-B049",
+          "title": "Building a Pre-Upload Capture Health Check on Device",
+          "type": "code",
+          "tags": [],
+          "path": "Library/Shelf-01/books/S01-B049.md",
+          "present": true,
+          "cross_refs": [
+            "S01-B035",
+            "S01-B025",
+            "S01-B039"
+          ]
+        },
+        {
+          "id": "S01-B050",
+          "title": "Automating Reshoot Triggers from Blur and Overlap Scores Together",
+          "type": "code",
+          "tags": [],
+          "path": "Library/Shelf-01/books/S01-B050.md",
+          "present": true,
+          "cross_refs": [
+            "S01-B036",
+            "S01-B024",
+            "S01-B049"
+          ]
+        }
+      ]
+    },
+    {
+      "shelf": 2,
+      "title": "Stitching It Together: From Frames to a 3D Scene",
+      "tier": "code",
+      "volumes": [
+        {
+          "id": "S02-B000",
+          "title": "The Reconstruction Shelf: From a Bundle of Crops to a Walkable Splat",
+          "type": "primer",
+          "tags": [],
+          "path": "Library/Shelf-02/books/S02-B000.md",
+          "present": true,
+          "cross_refs": []
+        },
+        {
+          "id": "S02-B001",
+          "title": "From Photos to a Walkable Scene: The Reconstruction Pipeline at a Glance",
+          "type": "essay",
+          "tags": [],
+          "path": "Library/Shelf-02/books/S02-B001.md",
+          "present": true,
+          "cross_refs": [
+            "S02-B002",
+            "S02-B005",
+            "S02-B008"
+          ]
+        },
+        {
+          "id": "S02-B002",
+          "title": "Structure from Motion in Plain Terms: What COLMAP Actually Solves",
+          "type": "essay",
+          "tags": [],
+          "path": "Library/Shelf-02/books/S02-B002.md",
+          "present": true,
+          "cross_refs": [
+            "S02-B003",
+            "S02-B004",
+            "S02-B001"
+          ]
+        },
+        {
+          "id": "S02-B003",
+          "title": "Feature Matching: How Software Finds the Same Corner Twice",
+          "type": "essay",
+          "tags": [],
+          "path": "Library/Shelf-02/books/S02-B003.md",
+          "present": true,
+          "cross_refs": [
+            "S02-B002",
+            "S02-B012",
+            "S02-B020"
+          ]
+        },
+        {
+          "id": "S02-B004",
+          "title": "Bundle Adjustment: Refining Pose and Points Together",
+          "type": "essay",
+          "tags": [],
+          "path": "Library/Shelf-02/books/S02-B004.md",
+          "present": true,
+          "cross_refs": [
+            "S02-B002",
+            "S02-B031",
+            "S02-B022"
+          ]
+        },
+        {
+          "id": "S02-B005",
+          "title": "What a Gaussian Splat Is and Why It Needs a Baseline",
+          "type": "essay",
+          "tags": [],
+          "path": "Library/Shelf-02/books/S02-B005.md",
+          "present": true,
+          "cross_refs": [
+            "S02-B001",
+            "S02-B034",
+            "S02-B032"
+          ]
+        },
+        {
+          "id": "S02-B006",
+          "title": "Equirectangular Projection: Mapping a Sphere onto a 2:1 Rectangle",
+          "type": "essay",
+          "tags": [],
+          "path": "Library/Shelf-02/books/S02-B006.md",
+          "present": true,
+          "cross_refs": [
+            "S02-B007",
+            "S02-B019",
+            "S02-B018"
+          ]
+        },
+        {
+          "id": "S02-B007",
+          "title": "Dual-Fisheye Capture and Why the Insta360 X4 Air Needs a Stitch Step",
+          "type": "essay",
+          "tags": [],
+          "path": "Library/Shelf-02/books/S02-B007.md",
+          "present": true,
+          "cross_refs": [
+            "S02-B006",
+            "S02-B018",
+            "S02-B027"
+          ]
+        },
+        {
+          "id": "S02-B008",
+          "title": "Reading the Bundle: Opening manifest.json and crops/*.jpg in Python",
+          "type": "code",
+          "tags": [],
+          "path": "Library/Shelf-02/books/S02-B008.md",
+          "present": true,
+          "cross_refs": [
+            "S02-B001",
+            "S02-B009",
+            "S02-B026"
+          ]
+        },
+        {
+          "id": "S02-B009",
+          "title": "Setting Up a COLMAP + gsplat Environment in Python 3.11",
+          "type": "code",
+          "tags": [],
+          "path": "Library/Shelf-02/books/S02-B009.md",
+          "present": true,
+          "cross_refs": [
+            "S02-B008",
+            "S02-B010",
+            "S02-B033"
+          ]
+        },
+        {
+          "id": "S02-B010",
+          "title": "A First Pass: Feeding a Bundle Straight Through COLMAP",
+          "type": "code",
+          "tags": [],
+          "path": "Library/Shelf-02/books/S02-B010.md",
+          "present": true,
+          "cross_refs": [
+            "S02-B009",
+            "S02-B020",
+            "S02-B011"
+          ]
+        },
+        {
+          "id": "S02-B011",
+          "title": "Reading a Registration Health Score: <60% Warning, ~95% Healthy",
+          "type": "essay",
+          "tags": [],
+          "path": "Library/Shelf-02/books/S02-B011.md",
+          "present": true,
+          "cross_refs": [
+            "S02-B010",
+            "S02-B012",
+            "S02-B025"
+          ]
+        },
+        {
+          "id": "S02-B012",
+          "title": "Why Some Rooms Register and Others Don't",
+          "type": "essay",
+          "tags": [],
+          "path": "Library/Shelf-02/books/S02-B012.md",
+          "present": true,
+          "cross_refs": [
+            "S02-B003",
+            "S02-B011",
+            "S02-B043"
+          ]
+        },
+        {
+          "id": "S02-B013",
+          "title": "Diagnosing a Failed COLMAP Run from Its Sparse Output",
+          "type": "essay",
+          "tags": [],
+          "path": "Library/Shelf-02/books/S02-B013.md",
+          "present": true,
+          "cross_refs": [
+            "S02-B012",
+            "S02-B031",
+            "S02-B023"
+          ]
+        },
+        {
+          "id": "S02-B014",
+          "title": "Loop Closure and Why COLMAP Needs to Recognize Return Visits",
+          "type": "essay",
+          "tags": [],
+          "path": "Library/Shelf-02/books/S02-B014.md",
+          "present": true,
+          "cross_refs": [
+            "S02-B013",
+            "S02-B030",
+            "S02-B046"
+          ]
+        },
+        {
+          "id": "S02-B015",
+          "title": "The Rotation-Only Trap: Diagnosing a Degenerate Baseline",
+          "type": "essay",
+          "tags": [],
+          "path": "Library/Shelf-02/books/S02-B015.md",
+          "present": true,
+          "cross_refs": [
+            "S02-B005",
+            "S02-B034",
+            "S02-B035"
+          ]
+        },
+        {
+          "id": "S02-B016",
+          "title": "Exposure Drift's Downstream Cost: What Feature Matching Sees",
+          "type": "essay",
+          "tags": [],
+          "path": "Library/Shelf-02/books/S02-B016.md",
+          "present": true,
+          "cross_refs": [
+            "S02-B003",
+            "S02-B012",
+            "S02-B017"
+          ]
+        },
+        {
+          "id": "S02-B017",
+          "title": "White Balance Drift and False Color Matches Across Rooms",
+          "type": "essay",
+          "tags": [],
+          "path": "Library/Shelf-02/books/S02-B017.md",
+          "present": true,
+          "cross_refs": [
+            "S02-B016",
+            "S02-B003",
+            "S02-B013"
+          ]
+        },
+        {
+          "id": "S02-B018",
+          "title": "Stitching Dual-Fisheye to Equirectangular with Insta360 Tools",
+          "type": "code",
+          "tags": [],
+          "path": "Library/Shelf-02/books/S02-B018.md",
+          "present": true,
+          "cross_refs": [
+            "S02-B007",
+            "S02-B019",
+            "S02-B027"
+          ]
+        },
+        {
+          "id": "S02-B019",
+          "title": "Validating an Equirectangular Export: 2:1 Ratio and Width > 3840px",
+          "type": "code",
+          "tags": [],
+          "path": "Library/Shelf-02/books/S02-B019.md",
+          "present": true,
+          "cross_refs": [
+            "S02-B018",
+            "S02-B006",
+            "S02-B026"
+          ]
+        },
+        {
+          "id": "S02-B020",
+          "title": "Running COLMAP Feature Extraction and Matching from a Script",
+          "type": "code",
+          "tags": [],
+          "path": "Library/Shelf-02/books/S02-B020.md",
+          "present": true,
+          "cross_refs": [
+            "S02-B010",
+            "S02-B021",
+            "S02-B022"
+          ]
+        },
+        {
+          "id": "S02-B021",
+          "title": "Choosing COLMAP Matcher Settings for Indoor Room Sequences",
+          "type": "essay",
+          "tags": [],
+          "path": "Library/Shelf-02/books/S02-B021.md",
+          "present": true,
+          "cross_refs": [
+            "S02-B020",
+            "S02-B014",
+            "S02-B030"
+          ]
+        },
+        {
+          "id": "S02-B022",
+          "title": "Running Incremental Mapping and Reading the Reconstruction Stats",
+          "type": "code",
+          "tags": [],
+          "path": "Library/Shelf-02/books/S02-B022.md",
+          "present": true,
+          "cross_refs": [
+            "S02-B020",
+            "S02-B004",
+            "S02-B023"
+          ]
+        },
+        {
+          "id": "S02-B023",
+          "title": "Scripting a Registration Health Report from COLMAP Output",
+          "type": "code",
+          "tags": [],
+          "path": "Library/Shelf-02/books/S02-B023.md",
+          "present": true,
+          "cross_refs": [
+            "S02-B022",
+            "S02-B011",
+            "S02-B039"
+          ]
+        },
+        {
+          "id": "S02-B024",
+          "title": "Reading a Pose Visualization: What a Good Sparse Model Looks Like",
+          "type": "essay",
+          "tags": [],
+          "path": "Library/Shelf-02/books/S02-B024.md",
+          "present": true,
+          "cross_refs": [
+            "S02-B015",
+            "S02-B013",
+            "S02-B032"
+          ]
+        },
+        {
+          "id": "S02-B025",
+          "title": "When to Trust a Low Registration Score and Reshoot Instead",
+          "type": "essay",
+          "tags": [],
+          "path": "Library/Shelf-02/books/S02-B025.md",
+          "present": true,
+          "cross_refs": [
+            "S02-B011",
+            "S01-B041",
+            "S02-B044"
+          ]
+        },
+        {
+          "id": "S02-B026",
+          "title": "Building the Bundle Ingestion Module: manifest.json to a COLMAP Project",
+          "type": "code",
+          "tags": [],
+          "path": "Library/Shelf-02/books/S02-B026.md",
+          "present": true,
+          "cross_refs": [
+            "S02-B008",
+            "S02-B019",
+            "S02-B028"
+          ]
+        },
+        {
+          "id": "S02-B027",
+          "title": "Automating the Dual-Fisheye-to-Equirect Stitch Step in the Pipeline",
+          "type": "code",
+          "tags": [],
+          "path": "Library/Shelf-02/books/S02-B027.md",
+          "present": true,
+          "cross_refs": [
+            "S02-B018",
+            "S02-B026",
+            "S02-B040"
+          ]
+        },
+        {
+          "id": "S02-B028",
+          "title": "Parameterizing COLMAP Runs Per Rig Type from manifest.json",
+          "type": "code",
+          "tags": [],
+          "path": "Library/Shelf-02/books/S02-B028.md",
+          "present": true,
+          "cross_refs": [
+            "S02-B026",
+            "S02-B029",
+            "S02-B021"
+          ]
+        },
+        {
+          "id": "S02-B029",
+          "title": "Extracting Camera Intrinsics and Rig Metadata from the Bundle",
+          "type": "code",
+          "tags": [],
+          "path": "Library/Shelf-02/books/S02-B029.md",
+          "present": true,
+          "cross_refs": [
+            "S02-B028",
+            "S02-B008",
+            "S02-B032"
+          ]
+        },
+        {
+          "id": "S02-B030",
+          "title": "Writing a Loop-Closure-Aware Matching Pass for Room Sequences",
+          "type": "code",
+          "tags": [],
+          "path": "Library/Shelf-02/books/S02-B030.md",
+          "present": true,
+          "cross_refs": [
+            "S02-B014",
+            "S02-B021",
+            "S02-B046"
+          ]
+        },
+        {
+          "id": "S02-B031",
+          "title": "Interpreting Bundle Adjustment Residuals as a Health Signal",
+          "type": "essay",
+          "tags": [],
+          "path": "Library/Shelf-02/books/S02-B031.md",
+          "present": true,
+          "cross_refs": [
+            "S02-B004",
+            "S02-B013",
+            "S02-B022"
+          ]
+        },
+        {
+          "id": "S02-B032",
+          "title": "Exporting COLMAP Poses and Point Clouds for gsplat Training",
+          "type": "code",
+          "tags": [],
+          "path": "Library/Shelf-02/books/S02-B032.md",
+          "present": true,
+          "cross_refs": [
+            "S02-B005",
+            "S02-B029",
+            "S02-B033"
+          ]
+        },
+        {
+          "id": "S02-B033",
+          "title": "Setting Up a gsplat Training Run from a COLMAP Sparse Model",
+          "type": "code",
+          "tags": [],
+          "path": "Library/Shelf-02/books/S02-B033.md",
+          "present": true,
+          "cross_refs": [
+            "S02-B032",
+            "S02-B009",
+            "S02-B036"
+          ]
+        },
+        {
+          "id": "S02-B034",
+          "title": "Baseline Requirements for gsplat: Why Pure Rotation Fails Training",
+          "type": "essay",
+          "tags": [],
+          "path": "Library/Shelf-02/books/S02-B034.md",
+          "present": true,
+          "cross_refs": [
+            "S02-B005",
+            "S02-B015",
+            "S02-B035"
+          ]
+        },
+        {
+          "id": "S02-B035",
+          "title": "Filtering Frames with Insufficient Parallax Before Training",
+          "type": "code",
+          "tags": [],
+          "path": "Library/Shelf-02/books/S02-B035.md",
+          "present": true,
+          "cross_refs": [
+            "S02-B034",
+            "S02-B015",
+            "S02-B033"
+          ]
+        },
+        {
+          "id": "S02-B036",
+          "title": "Monitoring gsplat Training Loss and Point Cloud Growth",
+          "type": "code",
+          "tags": [],
+          "path": "Library/Shelf-02/books/S02-B036.md",
+          "present": true,
+          "cross_refs": [
+            "S02-B033",
+            "S02-B037",
+            "S02-B038"
+          ]
+        },
+        {
+          "id": "S02-B037",
+          "title": "From Point Cloud to Splat: What Training Actually Optimizes",
+          "type": "essay",
+          "tags": [],
+          "path": "Library/Shelf-02/books/S02-B037.md",
+          "present": true,
+          "cross_refs": [
+            "S02-B005",
+            "S02-B036",
+            "S02-B038"
+          ]
+        },
+        {
+          "id": "S02-B038",
+          "title": "Exporting a Trained Splat for a Walkable Viewer",
+          "type": "code",
+          "tags": [],
+          "path": "Library/Shelf-02/books/S02-B038.md",
+          "present": true,
+          "cross_refs": [
+            "S02-B036",
+            "S02-B037",
+            "S02-B040"
+          ]
+        },
+        {
+          "id": "S02-B039",
+          "title": "Registration Diagnostics as a Feedback Loop to the Field Operator",
+          "type": "essay",
+          "tags": [],
+          "path": "Library/Shelf-02/books/S02-B039.md",
+          "present": true,
+          "cross_refs": [
+            "S02-B023",
+            "S02-B025",
+            "S02-B045"
+          ]
+        },
+        {
+          "id": "S02-B040",
+          "title": "Writing an End-to-End Bundle-to-Splat Orchestration Script",
+          "type": "code",
+          "tags": [],
+          "path": "Library/Shelf-02/books/S02-B040.md",
+          "present": true,
+          "cross_refs": [
+            "S02-B026",
+            "S02-B033",
+            "S02-B050"
+          ]
+        },
+        {
+          "id": "S02-B041",
+          "title": "Handling Multi-Session Buildings: Merging Separate Scans",
+          "type": "essay",
+          "tags": [],
+          "path": "Library/Shelf-02/books/S02-B041.md",
+          "present": true,
+          "cross_refs": [
+            "S02-B014",
+            "S02-B042",
+            "S02-B046"
+          ]
+        },
+        {
+          "id": "S02-B042",
+          "title": "Merging Overlapping Room Scans into One Coordinate Frame",
+          "type": "code",
+          "tags": [],
+          "path": "Library/Shelf-02/books/S02-B042.md",
+          "present": true,
+          "cross_refs": [
+            "S02-B041",
+            "S02-B032",
+            "S02-B040"
+          ]
+        },
+        {
+          "id": "S02-B043",
+          "title": "Common Failure Signatures: Texture-Poor Rooms in the Sparse Model",
+          "type": "essay",
+          "tags": [],
+          "path": "Library/Shelf-02/books/S02-B043.md",
+          "present": true,
+          "cross_refs": [
+            "S02-B012",
+            "S01-B026",
+            "S02-B044"
+          ]
+        },
+        {
+          "id": "S02-B044",
+          "title": "Automating a Reshoot Request from a Failed Registration",
+          "type": "code",
+          "tags": [],
+          "path": "Library/Shelf-02/books/S02-B044.md",
+          "present": true,
+          "cross_refs": [
+            "S02-B043",
+            "S02-B023",
+            "S02-B025"
+          ]
+        },
+        {
+          "id": "S02-B045",
+          "title": "The Manifest as a Contract: Keeping Capture and Reconstruction in Sync",
+          "type": "essay",
+          "tags": [],
+          "path": "Library/Shelf-02/books/S02-B045.md",
+          "present": true,
+          "cross_refs": [
+            "S02-B026",
+            "S02-B028",
+            "S02-B039"
+          ]
+        },
+        {
+          "id": "S02-B046",
+          "title": "Handling Repeating Geometry: Avoiding False Loop Closures in COLMAP",
+          "type": "code",
+          "tags": [],
+          "path": "Library/Shelf-02/books/S02-B046.md",
+          "present": true,
+          "cross_refs": [
+            "S02-B014",
+            "S02-B030",
+            "S02-B041"
+          ]
+        },
+        {
+          "id": "S02-B047",
+          "title": "Tuning gsplat for Low-Texture and Low-Light Interiors",
+          "type": "code",
+          "tags": [],
+          "path": "Library/Shelf-02/books/S02-B047.md",
+          "present": true,
+          "cross_refs": [
+            "S02-B037",
+            "S02-B043",
+            "S02-B036"
+          ]
+        },
+        {
+          "id": "S02-B048",
+          "title": "When to Fall Back to Manual Pose Priors from the Rig",
+          "type": "essay",
+          "tags": [],
+          "path": "Library/Shelf-02/books/S02-B048.md",
+          "present": true,
+          "cross_refs": [
+            "S02-B029",
+            "S02-B015",
+            "S02-B043"
+          ]
+        },
+        {
+          "id": "S02-B049",
+          "title": "Building a Continuous Registration Health Dashboard Across Scans",
+          "type": "code",
+          "tags": [],
+          "path": "Library/Shelf-02/books/S02-B049.md",
+          "present": true,
+          "cross_refs": [
+            "S02-B023",
+            "S02-B039",
+            "S02-B050"
+          ]
+        },
+        {
+          "id": "S02-B050",
+          "title": "Hardening the Pipeline: Retrying, Logging, and Failing Loud",
+          "type": "code",
+          "tags": [],
+          "path": "Library/Shelf-02/books/S02-B050.md",
+          "present": true,
+          "cross_refs": [
+            "S02-B040",
+            "S02-B049",
+            "S02-B044"
+          ]
+        }
+      ]
+    }
+  ]
+}

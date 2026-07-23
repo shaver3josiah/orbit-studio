@@ -1,0 +1,8 @@
+projects/
+tours/
+tools/
+__pycache__/
+*.pyc
+.DS_Store
+node_modules/
+results/

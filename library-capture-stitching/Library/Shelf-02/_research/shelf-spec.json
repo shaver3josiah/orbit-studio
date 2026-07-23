@@ -1,0 +1,628 @@
+{
+  "shelf": 2,
+  "title": "Stitching It Together: From Frames to a 3D Scene",
+  "throughline": "Turning captured frames into a reconstruction: equirectangular/360 stitching from dual-fisheye, feature matching, COLMAP structure-from-motion pose recovery, bundle adjustment, Gaussian-splat (gsplat) training, loop closure, registration diagnostics, and the bundle/manifest data contract.",
+  "tier": "code",
+  "rationale": "A well-captured bundle still needs a deterministic path \u2014 stitch, match, pose, train \u2014 turning frames into a scene, and that path's diagnostics are what tell the field side whether the capture actually worked.",
+  "research_seeds": [
+    "COLMAP automatic_reconstructor command line documentation \u2014 COLMAP official docs",
+    "COLMAP feature_extractor and matcher options for sequential indoor imagery \u2014 COLMAP official docs",
+    "3D Gaussian Splatting for Real-Time Radiance Field Rendering \u2014 Kerbl et al. 2023 paper",
+    "gsplat training pipeline and API \u2014 gsplat / Nerfstudio project documentation",
+    "equirectangular projection format and 2:1 aspect ratio spec \u2014 panoramic/360 imaging standards",
+    "Insta360 dual-fisheye stitching SDK and equirectangular export \u2014 Insta360 developer documentation",
+    "bundle adjustment in structure from motion explained \u2014 Hartley & Zisserman, Multiple View Geometry",
+    "COLMAP sparse reconstruction registration statistics and output format \u2014 COLMAP official docs",
+    "loop closure detection in structure-from-motion pipelines \u2014 SfM/SLAM research literature",
+    "COLMAP model_converter and camera pose visualization (PLY/COLMAP GUI) \u2014 COLMAP official docs",
+    "Python zipfile and JSON manifest schema design for data bundles \u2014 Python standard library documentation",
+    "NeRF and Gaussian splatting baseline/parallax requirements, degenerate rotation-only capture \u2014 3DGS/NeRF papers",
+    "COLMAP incremental mapping vs. global SfM pipeline comparison \u2014 COLMAP official docs",
+    "panorama stitching quality validation: width, height, and aspect ratio checks \u2014 imaging QA references"
+  ],
+  "books": [
+    {
+      "book": 1,
+      "title": "From Photos to a Walkable Scene: The Reconstruction Pipeline at a Glance",
+      "scope": "Previews the full reconstruction path: stitch or ingest frames, recover pose with COLMAP, train a Gaussian splat, ship a walkable scene.",
+      "type": "essay",
+      "difficulty": "foundational",
+      "cross_refs": [
+        "Structure from Motion in Plain Terms: What COLMAP Actually Solves",
+        "What a Gaussian Splat Is and Why It Needs a Baseline",
+        "Reading the Bundle: Opening manifest.json and crops/*.jpg in Python"
+      ]
+    },
+    {
+      "book": 2,
+      "title": "Structure from Motion in Plain Terms: What COLMAP Actually Solves",
+      "scope": "Explains SfM as the joint recovery of camera poses and a sparse point cloud from overlapping images, in plain, non-academic terms.",
+      "type": "essay",
+      "difficulty": "foundational",
+      "cross_refs": [
+        "Feature Matching: How Software Finds the Same Corner Twice",
+        "Bundle Adjustment: Refining Pose and Points Together",
+        "From Photos to a Walkable Scene: The Reconstruction Pipeline at a Glance"
+      ]
+    },
+    {
+      "book": 3,
+      "title": "Feature Matching: How Software Finds the Same Corner Twice",
+      "scope": "Explains how feature detection and matching finds the same physical point across two photos, and why texture-poor surfaces defeat it.",
+      "type": "essay",
+      "difficulty": "foundational",
+      "cross_refs": [
+        "Structure from Motion in Plain Terms: What COLMAP Actually Solves",
+        "Why Some Rooms Register and Others Don't",
+        "Running COLMAP Feature Extraction and Matching from a Script"
+      ]
+    },
+    {
+      "book": 4,
+      "title": "Bundle Adjustment: Refining Pose and Points Together",
+      "scope": "Explains bundle adjustment as the joint optimization that reconciles all camera poses and 3D points into one consistent, low-error model.",
+      "type": "essay",
+      "difficulty": "foundational",
+      "cross_refs": [
+        "Structure from Motion in Plain Terms: What COLMAP Actually Solves",
+        "Interpreting Bundle Adjustment Residuals as a Health Signal",
+        "Running Incremental Mapping and Reading the Reconstruction Stats"
+      ]
+    },
+    {
+      "book": 5,
+      "title": "What a Gaussian Splat Is and Why It Needs a Baseline",
+      "scope": "Introduces Gaussian splats as the renderable scene representation gsplat trains, and why it needs real translation, not just rotation, to work.",
+      "type": "essay",
+      "difficulty": "foundational",
+      "cross_refs": [
+        "From Photos to a Walkable Scene: The Reconstruction Pipeline at a Glance",
+        "Baseline Requirements for gsplat: Why Pure Rotation Fails Training",
+        "Exporting COLMAP Poses and Point Clouds for gsplat Training"
+      ]
+    },
+    {
+      "book": 6,
+      "title": "Equirectangular Projection: Mapping a Sphere onto a 2:1 Rectangle",
+      "scope": "Explains the equirectangular projection format \u2014 a full sphere unwrapped into a 2:1 rectangle \u2014 that the Insta360 lane exports into.",
+      "type": "essay",
+      "difficulty": "foundational",
+      "cross_refs": [
+        "Dual-Fisheye Capture and Why the Insta360 X4 Air Needs a Stitch Step",
+        "Validating an Equirectangular Export: 2:1 Ratio and Width > 3840px",
+        "Stitching Dual-Fisheye to Equirectangular with Insta360 Tools"
+      ]
+    },
+    {
+      "book": 7,
+      "title": "Dual-Fisheye Capture and Why the Insta360 X4 Air Needs a Stitch Step",
+      "scope": "Explains why the X4 Air captures two overlapping fisheye images that must be stitched into one equirectangular frame before any use.",
+      "type": "essay",
+      "difficulty": "foundational",
+      "cross_refs": [
+        "Equirectangular Projection: Mapping a Sphere onto a 2:1 Rectangle",
+        "Stitching Dual-Fisheye to Equirectangular with Insta360 Tools",
+        "Automating the Dual-Fisheye-to-Equirect Stitch Step in the Pipeline"
+      ]
+    },
+    {
+      "book": 8,
+      "title": "Reading the Bundle: Opening manifest.json and crops/*.jpg in Python",
+      "scope": "Writes the first Python script that opens a bundle.zip, parses manifest.json (app, project, crops, rig), and lists the crops inside.",
+      "type": "code",
+      "difficulty": "foundational",
+      "cross_refs": [
+        "From Photos to a Walkable Scene: The Reconstruction Pipeline at a Glance",
+        "Setting Up a COLMAP + gsplat Environment in Python 3.11",
+        "Building the Bundle Ingestion Module: manifest.json to a COLMAP Project"
+      ]
+    },
+    {
+      "book": 9,
+      "title": "Setting Up a COLMAP + gsplat Environment in Python 3.11",
+      "scope": "Installs and sanity-checks a COLMAP and gsplat toolchain in Python 3.11, the environment every later code book in this shelf assumes.",
+      "type": "code",
+      "difficulty": "foundational",
+      "cross_refs": [
+        "Reading the Bundle: Opening manifest.json and crops/*.jpg in Python",
+        "A First Pass: Feeding a Bundle Straight Through COLMAP",
+        "Setting Up a gsplat Training Run from a COLMAP Sparse Model"
+      ]
+    },
+    {
+      "book": 10,
+      "title": "A First Pass: Feeding a Bundle Straight Through COLMAP",
+      "scope": "Runs an unmodified bundle's crops through COLMAP's automatic reconstructor end to end, as a baseline before any tuning.",
+      "type": "code",
+      "difficulty": "foundational",
+      "cross_refs": [
+        "Setting Up a COLMAP + gsplat Environment in Python 3.11",
+        "Running COLMAP Feature Extraction and Matching from a Script",
+        "Reading a Registration Health Score: <60% Warning, ~95% Healthy"
+      ]
+    },
+    {
+      "book": 11,
+      "title": "Reading a Registration Health Score: <60% Warning, ~95% Healthy",
+      "scope": "Defines the registration health score \u2014 under 60% a warning, around 95% healthy \u2014 and what it actually measures about a reconstruction.",
+      "type": "essay",
+      "difficulty": "applied",
+      "cross_refs": [
+        "A First Pass: Feeding a Bundle Straight Through COLMAP",
+        "Why Some Rooms Register and Others Don't",
+        "When to Trust a Low Registration Score and Reshoot Instead"
+      ]
+    },
+    {
+      "book": 12,
+      "title": "Why Some Rooms Register and Others Don't",
+      "scope": "Surveys the common reasons one room's images register cleanly while another's don't \u2014 texture, overlap, exposure, motion.",
+      "type": "essay",
+      "difficulty": "applied",
+      "cross_refs": [
+        "Feature Matching: How Software Finds the Same Corner Twice",
+        "Reading a Registration Health Score: <60% Warning, ~95% Healthy",
+        "Common Failure Signatures: Texture-Poor Rooms in the Sparse Model"
+      ]
+    },
+    {
+      "book": 13,
+      "title": "Diagnosing a Failed COLMAP Run from Its Sparse Output",
+      "scope": "Teaches reading COLMAP's sparse model output \u2014 registered image count, track length, reprojection error \u2014 to locate what failed and where.",
+      "type": "essay",
+      "difficulty": "applied",
+      "cross_refs": [
+        "Why Some Rooms Register and Others Don't",
+        "Interpreting Bundle Adjustment Residuals as a Health Signal",
+        "Scripting a Registration Health Report from COLMAP Output"
+      ]
+    },
+    {
+      "book": 14,
+      "title": "Loop Closure and Why COLMAP Needs to Recognize Return Visits",
+      "scope": "Explains loop closure from the reconstruction side: why recognizing a return to an earlier vantage point corrects accumulated drift.",
+      "type": "essay",
+      "difficulty": "applied",
+      "cross_refs": [
+        "Diagnosing a Failed COLMAP Run from Its Sparse Output",
+        "Writing a Loop-Closure-Aware Matching Pass for Room Sequences",
+        "Handling Repeating Geometry: Avoiding False Loop Closures in COLMAP"
+      ]
+    },
+    {
+      "book": 15,
+      "title": "The Rotation-Only Trap: Diagnosing a Degenerate Baseline",
+      "scope": "Shows how to recognize, from COLMAP's own pose output, that a sequence has no real translation and will not support gsplat training.",
+      "type": "essay",
+      "difficulty": "applied",
+      "cross_refs": [
+        "What a Gaussian Splat Is and Why It Needs a Baseline",
+        "Baseline Requirements for gsplat: Why Pure Rotation Fails Training",
+        "Filtering Frames with Insufficient Parallax Before Training"
+      ]
+    },
+    {
+      "book": 16,
+      "title": "Exposure Drift's Downstream Cost: What Feature Matching Sees",
+      "scope": "Traces how inconsistent exposure between frames shows up as failed or weak feature matches, quantifying the field-side discipline's payoff.",
+      "type": "essay",
+      "difficulty": "applied",
+      "cross_refs": [
+        "Feature Matching: How Software Finds the Same Corner Twice",
+        "Why Some Rooms Register and Others Don't",
+        "White Balance Drift and False Color Matches Across Rooms"
+      ]
+    },
+    {
+      "book": 17,
+      "title": "White Balance Drift and False Color Matches Across Rooms",
+      "scope": "Explains how a drifting white balance between rooms produces spurious or missed color-dependent feature matches at their boundary.",
+      "type": "essay",
+      "difficulty": "applied",
+      "cross_refs": [
+        "Exposure Drift's Downstream Cost: What Feature Matching Sees",
+        "Feature Matching: How Software Finds the Same Corner Twice",
+        "Diagnosing a Failed COLMAP Run from Its Sparse Output"
+      ]
+    },
+    {
+      "book": 18,
+      "title": "Stitching Dual-Fisheye to Equirectangular with Insta360 Tools",
+      "scope": "Scripts the dual-fisheye-to-equirectangular stitch for X4 Air footage using Insta360's stitching tools ahead of upload.",
+      "type": "code",
+      "difficulty": "applied",
+      "cross_refs": [
+        "Dual-Fisheye Capture and Why the Insta360 X4 Air Needs a Stitch Step",
+        "Validating an Equirectangular Export: 2:1 Ratio and Width > 3840px",
+        "Automating the Dual-Fisheye-to-Equirect Stitch Step in the Pipeline"
+      ]
+    },
+    {
+      "book": 19,
+      "title": "Validating an Equirectangular Export: 2:1 Ratio and Width > 3840px",
+      "scope": "Writes a validation check confirming a stitched export is true 2:1 and above the 3840px width floor before it enters the pipeline.",
+      "type": "code",
+      "difficulty": "applied",
+      "cross_refs": [
+        "Stitching Dual-Fisheye to Equirectangular with Insta360 Tools",
+        "Equirectangular Projection: Mapping a Sphere onto a 2:1 Rectangle",
+        "Building the Bundle Ingestion Module: manifest.json to a COLMAP Project"
+      ]
+    },
+    {
+      "book": 20,
+      "title": "Running COLMAP Feature Extraction and Matching from a Script",
+      "scope": "Scripts COLMAP's feature_extractor and matcher stages directly, replacing the automatic reconstructor with controllable steps.",
+      "type": "code",
+      "difficulty": "applied",
+      "cross_refs": [
+        "A First Pass: Feeding a Bundle Straight Through COLMAP",
+        "Choosing COLMAP Matcher Settings for Indoor Room Sequences",
+        "Running Incremental Mapping and Reading the Reconstruction Stats"
+      ]
+    },
+    {
+      "book": 21,
+      "title": "Choosing COLMAP Matcher Settings for Indoor Room Sequences",
+      "scope": "Discusses matcher choice (sequential vs. exhaustive vs. vocab tree) and settings suited to a room-by-room indoor capture order.",
+      "type": "essay",
+      "difficulty": "applied",
+      "cross_refs": [
+        "Running COLMAP Feature Extraction and Matching from a Script",
+        "Loop Closure and Why COLMAP Needs to Recognize Return Visits",
+        "Writing a Loop-Closure-Aware Matching Pass for Room Sequences"
+      ]
+    },
+    {
+      "book": 22,
+      "title": "Running Incremental Mapping and Reading the Reconstruction Stats",
+      "scope": "Runs COLMAP's incremental mapper and parses its per-image registration stats into a readable summary of what reconstructed.",
+      "type": "code",
+      "difficulty": "applied",
+      "cross_refs": [
+        "Running COLMAP Feature Extraction and Matching from a Script",
+        "Bundle Adjustment: Refining Pose and Points Together",
+        "Scripting a Registration Health Report from COLMAP Output"
+      ]
+    },
+    {
+      "book": 23,
+      "title": "Scripting a Registration Health Report from COLMAP Output",
+      "scope": "Turns COLMAP's raw registration numbers into the health score (<60% warning, ~95% healthy) as an automated report per scan.",
+      "type": "code",
+      "difficulty": "applied",
+      "cross_refs": [
+        "Running Incremental Mapping and Reading the Reconstruction Stats",
+        "Reading a Registration Health Score: <60% Warning, ~95% Healthy",
+        "Registration Diagnostics as a Feedback Loop to the Field Operator"
+      ]
+    },
+    {
+      "book": 24,
+      "title": "Reading a Pose Visualization: What a Good Sparse Model Looks Like",
+      "scope": "Shows what a healthy sparse model's camera-pose trajectory and point cloud look like visually, versus a broken or degenerate one.",
+      "type": "essay",
+      "difficulty": "applied",
+      "cross_refs": [
+        "The Rotation-Only Trap: Diagnosing a Degenerate Baseline",
+        "Diagnosing a Failed COLMAP Run from Its Sparse Output",
+        "Exporting COLMAP Poses and Point Clouds for gsplat Training"
+      ]
+    },
+    {
+      "book": 25,
+      "title": "When to Trust a Low Registration Score and Reshoot Instead",
+      "scope": "Gives the decision rule for when a low health score means adjust pipeline parameters versus when it means send the operator back.",
+      "type": "essay",
+      "difficulty": "applied",
+      "cross_refs": [
+        "Reading a Registration Health Score: <60% Warning, ~95% Healthy",
+        "Deciding On-Site Whether a Room Needs a Reshoot",
+        "Automating a Reshoot Request from a Failed Registration"
+      ]
+    },
+    {
+      "book": 26,
+      "title": "Building the Bundle Ingestion Module: manifest.json to a COLMAP Project",
+      "scope": "Codes the module that turns a validated bundle's manifest.json and crops into a properly-structured COLMAP project directory.",
+      "type": "code",
+      "difficulty": "implementation",
+      "cross_refs": [
+        "Reading the Bundle: Opening manifest.json and crops/*.jpg in Python",
+        "Validating an Equirectangular Export: 2:1 Ratio and Width > 3840px",
+        "Parameterizing COLMAP Runs Per Rig Type from manifest.json"
+      ]
+    },
+    {
+      "book": 27,
+      "title": "Automating the Dual-Fisheye-to-Equirect Stitch Step in the Pipeline",
+      "scope": "Wraps the Insta360 stitch step into the automated pipeline so equirect export happens before ingestion without a manual hop.",
+      "type": "code",
+      "difficulty": "implementation",
+      "cross_refs": [
+        "Stitching Dual-Fisheye to Equirectangular with Insta360 Tools",
+        "Building the Bundle Ingestion Module: manifest.json to a COLMAP Project",
+        "Writing an End-to-End Bundle-to-Splat Orchestration Script"
+      ]
+    },
+    {
+      "book": 28,
+      "title": "Parameterizing COLMAP Runs Per Rig Type from manifest.json",
+      "scope": "Reads the rig field from manifest.json to select the right COLMAP camera model and matcher settings per capture rig automatically.",
+      "type": "code",
+      "difficulty": "implementation",
+      "cross_refs": [
+        "Building the Bundle Ingestion Module: manifest.json to a COLMAP Project",
+        "Extracting Camera Intrinsics and Rig Metadata from the Bundle",
+        "Choosing COLMAP Matcher Settings for Indoor Room Sequences"
+      ]
+    },
+    {
+      "book": 29,
+      "title": "Extracting Camera Intrinsics and Rig Metadata from the Bundle",
+      "scope": "Pulls camera intrinsics and rig metadata out of the bundle to seed COLMAP with known camera parameters instead of estimating them blind.",
+      "type": "code",
+      "difficulty": "implementation",
+      "cross_refs": [
+        "Parameterizing COLMAP Runs Per Rig Type from manifest.json",
+        "Reading the Bundle: Opening manifest.json and crops/*.jpg in Python",
+        "Exporting COLMAP Poses and Point Clouds for gsplat Training"
+      ]
+    },
+    {
+      "book": 30,
+      "title": "Writing a Loop-Closure-Aware Matching Pass for Room Sequences",
+      "scope": "Adds an explicit matching pass that checks late-sequence frames against early ones to catch loop closures a sequential matcher would miss.",
+      "type": "code",
+      "difficulty": "implementation",
+      "cross_refs": [
+        "Loop Closure and Why COLMAP Needs to Recognize Return Visits",
+        "Choosing COLMAP Matcher Settings for Indoor Room Sequences",
+        "Handling Repeating Geometry: Avoiding False Loop Closures in COLMAP"
+      ]
+    },
+    {
+      "book": 31,
+      "title": "Interpreting Bundle Adjustment Residuals as a Health Signal",
+      "scope": "Reads post-bundle-adjustment reprojection residuals as an early health signal, ahead of the full registration score.",
+      "type": "essay",
+      "difficulty": "implementation",
+      "cross_refs": [
+        "Bundle Adjustment: Refining Pose and Points Together",
+        "Diagnosing a Failed COLMAP Run from Its Sparse Output",
+        "Running Incremental Mapping and Reading the Reconstruction Stats"
+      ]
+    },
+    {
+      "book": 32,
+      "title": "Exporting COLMAP Poses and Point Clouds for gsplat Training",
+      "scope": "Converts a COLMAP sparse model's poses and points into the input format gsplat's training script expects.",
+      "type": "code",
+      "difficulty": "implementation",
+      "cross_refs": [
+        "What a Gaussian Splat Is and Why It Needs a Baseline",
+        "Extracting Camera Intrinsics and Rig Metadata from the Bundle",
+        "Setting Up a gsplat Training Run from a COLMAP Sparse Model"
+      ]
+    },
+    {
+      "book": 33,
+      "title": "Setting Up a gsplat Training Run from a COLMAP Sparse Model",
+      "scope": "Configures and launches a gsplat training run from an exported COLMAP sparse model, room by room or as a merged scene.",
+      "type": "code",
+      "difficulty": "implementation",
+      "cross_refs": [
+        "Exporting COLMAP Poses and Point Clouds for gsplat Training",
+        "Setting Up a COLMAP + gsplat Environment in Python 3.11",
+        "Monitoring gsplat Training Loss and Point Cloud Growth"
+      ]
+    },
+    {
+      "book": 34,
+      "title": "Baseline Requirements for gsplat: Why Pure Rotation Fails Training",
+      "scope": "Explains concretely what happens when gsplat is handed a rotation-only sequence \u2014 collapsed depth, degenerate splats, failed training.",
+      "type": "essay",
+      "difficulty": "implementation",
+      "cross_refs": [
+        "What a Gaussian Splat Is and Why It Needs a Baseline",
+        "The Rotation-Only Trap: Diagnosing a Degenerate Baseline",
+        "Filtering Frames with Insufficient Parallax Before Training"
+      ]
+    },
+    {
+      "book": 35,
+      "title": "Filtering Frames with Insufficient Parallax Before Training",
+      "scope": "Scripts a pre-training filter that drops or flags frames whose parallax against their neighbors falls below a usable threshold.",
+      "type": "code",
+      "difficulty": "implementation",
+      "cross_refs": [
+        "Baseline Requirements for gsplat: Why Pure Rotation Fails Training",
+        "The Rotation-Only Trap: Diagnosing a Degenerate Baseline",
+        "Setting Up a gsplat Training Run from a COLMAP Sparse Model"
+      ]
+    },
+    {
+      "book": 36,
+      "title": "Monitoring gsplat Training Loss and Point Cloud Growth",
+      "scope": "Adds logging and simple plots for gsplat's training loss and splat count over time, to catch a stalled or diverging run early.",
+      "type": "code",
+      "difficulty": "implementation",
+      "cross_refs": [
+        "Setting Up a gsplat Training Run from a COLMAP Sparse Model",
+        "From Point Cloud to Splat: What Training Actually Optimizes",
+        "Exporting a Trained Splat for a Walkable Viewer"
+      ]
+    },
+    {
+      "book": 37,
+      "title": "From Point Cloud to Splat: What Training Actually Optimizes",
+      "scope": "Explains what gsplat's optimizer is actually adjusting \u2014 splat position, covariance, opacity, color \u2014 as training loss decreases.",
+      "type": "essay",
+      "difficulty": "implementation",
+      "cross_refs": [
+        "What a Gaussian Splat Is and Why It Needs a Baseline",
+        "Monitoring gsplat Training Loss and Point Cloud Growth",
+        "Exporting a Trained Splat for a Walkable Viewer"
+      ]
+    },
+    {
+      "book": 38,
+      "title": "Exporting a Trained Splat for a Walkable Viewer",
+      "scope": "Exports a trained gsplat scene into a format a walkable viewer can load, closing the loop from captured frames to explorable scene.",
+      "type": "code",
+      "difficulty": "implementation",
+      "cross_refs": [
+        "Monitoring gsplat Training Loss and Point Cloud Growth",
+        "From Point Cloud to Splat: What Training Actually Optimizes",
+        "Writing an End-to-End Bundle-to-Splat Orchestration Script"
+      ]
+    },
+    {
+      "book": 39,
+      "title": "Registration Diagnostics as a Feedback Loop to the Field Operator",
+      "scope": "Argues registration health scores should route back to the operator, not just sit in a log, so field technique improves over time.",
+      "type": "essay",
+      "difficulty": "implementation",
+      "cross_refs": [
+        "Scripting a Registration Health Report from COLMAP Output",
+        "When to Trust a Low Registration Score and Reshoot Instead",
+        "The Manifest as a Contract: Keeping Capture and Reconstruction in Sync"
+      ]
+    },
+    {
+      "book": 40,
+      "title": "Writing an End-to-End Bundle-to-Splat Orchestration Script",
+      "scope": "Chains ingestion, COLMAP, and gsplat training into one orchestration script that takes a bundle.zip in and a splat out.",
+      "type": "code",
+      "difficulty": "implementation",
+      "cross_refs": [
+        "Building the Bundle Ingestion Module: manifest.json to a COLMAP Project",
+        "Setting Up a gsplat Training Run from a COLMAP Sparse Model",
+        "Hardening the Pipeline: Retrying, Logging, and Failing Loud"
+      ]
+    },
+    {
+      "book": 41,
+      "title": "Handling Multi-Session Buildings: Merging Separate Scans",
+      "scope": "Covers buildings scanned across multiple separate sessions and the coordinate-frame problem of stitching those scans into one model.",
+      "type": "essay",
+      "difficulty": "implementation",
+      "cross_refs": [
+        "Loop Closure and Why COLMAP Needs to Recognize Return Visits",
+        "Merging Overlapping Room Scans into One Coordinate Frame",
+        "Handling Repeating Geometry: Avoiding False Loop Closures in COLMAP"
+      ]
+    },
+    {
+      "book": 42,
+      "title": "Merging Overlapping Room Scans into One Coordinate Frame",
+      "scope": "Codes the alignment step that registers two separately-reconstructed room scans into one shared coordinate frame.",
+      "type": "code",
+      "difficulty": "implementation",
+      "cross_refs": [
+        "Handling Multi-Session Buildings: Merging Separate Scans",
+        "Exporting COLMAP Poses and Point Clouds for gsplat Training",
+        "Writing an End-to-End Bundle-to-Splat Orchestration Script"
+      ]
+    },
+    {
+      "book": 43,
+      "title": "Common Failure Signatures: Texture-Poor Rooms in the Sparse Model",
+      "scope": "Catalogs how a texture-poor room shows up in the sparse model specifically \u2014 thin point clusters, broken tracks \u2014 versus other failures.",
+      "type": "essay",
+      "difficulty": "implementation",
+      "cross_refs": [
+        "Why Some Rooms Register and Others Don't",
+        "Texture-Poor Walls and Why Blank Surfaces Fail to Register",
+        "Automating a Reshoot Request from a Failed Registration"
+      ]
+    },
+    {
+      "book": 44,
+      "title": "Automating a Reshoot Request from a Failed Registration",
+      "scope": "Scripts an automatic reshoot request, naming the failed room, when a scan's registration health falls under the warning threshold.",
+      "type": "code",
+      "difficulty": "implementation",
+      "cross_refs": [
+        "Common Failure Signatures: Texture-Poor Rooms in the Sparse Model",
+        "Scripting a Registration Health Report from COLMAP Output",
+        "When to Trust a Low Registration Score and Reshoot Instead"
+      ]
+    },
+    {
+      "book": 45,
+      "title": "The Manifest as a Contract: Keeping Capture and Reconstruction in Sync",
+      "scope": "Argues the manifest.json schema is the real interface between the capture and reconstruction sides, and must change on both together.",
+      "type": "essay",
+      "difficulty": "implementation",
+      "cross_refs": [
+        "Building the Bundle Ingestion Module: manifest.json to a COLMAP Project",
+        "Parameterizing COLMAP Runs Per Rig Type from manifest.json",
+        "Registration Diagnostics as a Feedback Loop to the Field Operator"
+      ]
+    },
+    {
+      "book": 46,
+      "title": "Handling Repeating Geometry: Avoiding False Loop Closures in COLMAP",
+      "scope": "Adds disambiguation logic so COLMAP doesn't falsely close a loop between two visually identical but physically distinct rooms.",
+      "type": "code",
+      "difficulty": "advanced",
+      "cross_refs": [
+        "Loop Closure and Why COLMAP Needs to Recognize Return Visits",
+        "Writing a Loop-Closure-Aware Matching Pass for Room Sequences",
+        "Handling Multi-Session Buildings: Merging Separate Scans"
+      ]
+    },
+    {
+      "book": 47,
+      "title": "Tuning gsplat for Low-Texture and Low-Light Interiors",
+      "scope": "Adjusts gsplat's densification and opacity settings for the sparse, noisy point clouds that low-texture, low-light interiors produce.",
+      "type": "code",
+      "difficulty": "advanced",
+      "cross_refs": [
+        "From Point Cloud to Splat: What Training Actually Optimizes",
+        "Common Failure Signatures: Texture-Poor Rooms in the Sparse Model",
+        "Monitoring gsplat Training Loss and Point Cloud Growth"
+      ]
+    },
+    {
+      "book": 48,
+      "title": "When to Fall Back to Manual Pose Priors from the Rig",
+      "scope": "Covers the last-resort case: feeding COLMAP known rig pose priors when automatic pose recovery can't converge on its own.",
+      "type": "essay",
+      "difficulty": "advanced",
+      "cross_refs": [
+        "Extracting Camera Intrinsics and Rig Metadata from the Bundle",
+        "The Rotation-Only Trap: Diagnosing a Degenerate Baseline",
+        "Common Failure Signatures: Texture-Poor Rooms in the Sparse Model"
+      ]
+    },
+    {
+      "book": 49,
+      "title": "Building a Continuous Registration Health Dashboard Across Scans",
+      "scope": "Aggregates per-scan registration health scores into a dashboard that tracks whether field technique is improving across many buildings.",
+      "type": "code",
+      "difficulty": "advanced",
+      "cross_refs": [
+        "Scripting a Registration Health Report from COLMAP Output",
+        "Registration Diagnostics as a Feedback Loop to the Field Operator",
+        "Hardening the Pipeline: Retrying, Logging, and Failing Loud"
+      ]
+    },
+    {
+      "book": 50,
+      "title": "Hardening the Pipeline: Retrying, Logging, and Failing Loud",
+      "scope": "Adds retry logic, structured logging, and loud failures to the orchestration script so a bad stitch or a stalled training run surfaces fast.",
+      "type": "code",
+      "difficulty": "advanced",
+      "cross_refs": [
+        "Writing an End-to-End Bundle-to-Splat Orchestration Script",
+        "Building a Continuous Registration Health Dashboard Across Scans",
+        "Automating a Reshoot Request from a Failed Registration"
+      ]
+    }
+  ],
+  "topic": "Capturing photos and stitching them into a 3D reconstruction \u2014 the Orbit Capture way",
+  "audience": "a solo operator + the engineer building their capture tool \u2014 practical, technically literate, not academic.",
+  "code_language": "Python 3.11+ (COLMAP/gsplat pipeline and photogrammetry code books), with Kotlin + Camera2 for on-device capture code books"
+}
