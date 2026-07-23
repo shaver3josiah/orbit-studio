@@ -442,8 +442,17 @@ def probe_media(ffprobe_path: Path, path: Path) -> Optional[dict]:
 
 
 def cors_headers(handler: "Handler") -> None:
-    if handler.path.startswith("/api"):
-        handler.send_header("Access-Control-Allow-Origin", "*")
+    # Echo only local origins instead of "*": the API has destructive routes
+    # (DELETE), so arbitrary websites must not pass a CORS preflight against it.
+    # Non-browser clients (phone app, curl, Colab scripts) send no Origin header
+    # and are unaffected — CORS is a browser-only gate.
+    if not handler.path.startswith("/api"):
+        return
+    origin = handler.headers.get("Origin", "")
+    host = urllib.parse.urlsplit(origin).hostname or ""
+    if host in ("127.0.0.1", "localhost", "::1"):
+        handler.send_header("Access-Control-Allow-Origin", origin)
+        handler.send_header("Vary", "Origin")
 
 
 def send_json(handler: "Handler", status: int, payload) -> None:
@@ -842,6 +851,9 @@ def handle_crop_file(handler: "Handler", project_id: str, name: str) -> None:
     send_file(handler, project_dir(project_id) / "crops" / safe_name, "image/jpeg")
 
 
+# ponytail: covers Kuula's 16384x8192 JPG ceiling with headroom; raise if real captures hit it
+MAX_TOUR_UPLOAD_BYTES = 64 * 1024 * 1024
+
 TOUR_FILE_TYPES = {
     ".jpg": "image/jpeg",
     ".jpeg": "image/jpeg",
@@ -912,6 +924,11 @@ def handle_tour_file_upload(handler: "Handler", tour_id: str) -> None:
     content_type = handler.headers.get("Content-Type", "")
     if "multipart/form-data" not in content_type:
         send_error(handler, 400, "bad_request", "expected multipart/form-data")
+        return
+    length = int(handler.headers.get("Content-Length", 0) or 0)
+    if length > MAX_TOUR_UPLOAD_BYTES:
+        send_error(handler, 413, "too_large", f"upload exceeds {MAX_TOUR_UPLOAD_BYTES // (1024 * 1024)}MB limit")
+        handler.close_connection = True  # body was never read; keep-alive would misparse it
         return
     _, params = parse_content_type(content_type)
     fields = parse_multipart(read_body(handler), params.get("boundary", ""))
@@ -1016,7 +1033,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_OPTIONS(self) -> None:
         self.send_response(204)
-        self.send_header("Access-Control-Allow-Origin", "*")
+        cors_headers(self)
         self.send_header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.send_header("Content-Length", "0")

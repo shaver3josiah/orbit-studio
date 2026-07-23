@@ -5,6 +5,7 @@ Downloaded from jsDelivr, 2026-07-23. All MIT licensed.
 | File | Package | Version |
 |---|---|---|
 | three.module.js | three | 0.184.0 |
+| three.core.js | three (split-bundle half, imported by three.module.js as ./three.core.js) | 0.184.0 |
 | psv-core.module.js / .css | @photo-sphere-viewer/core | 5.14.3 |
 | psv-markers.module.js / .css | @photo-sphere-viewer/markers-plugin | 5.14.3 |
 | psv-virtual-tour.module.js / .css | @photo-sphere-viewer/virtual-tour-plugin | 5.14.3 |

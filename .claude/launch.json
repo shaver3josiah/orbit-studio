@@ -6,6 +6,12 @@
       "runtimeExecutable": "python",
       "runtimeArgs": ["-m", "http.server", "7361"],
       "port": 7361
+    },
+    {
+      "name": "orbit-server",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["server.py"],
+      "port": 7360
     }
   ]
 }

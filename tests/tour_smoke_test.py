@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import http.client
 import json
 import os
 import sys
@@ -100,6 +101,9 @@ def main() -> int:
     status, listed = http_json("GET", "/api/tours")
     check(any(t["id"] == tid for t in listed["tours"]), "tour appears in list")
 
+    status, fetched = http_json("GET", f"/api/tours/{tid}")
+    check(status == 200 and fetched["id"] == tid and fetched["scenes"] == [], "get tour returns doc")
+
     status, up1 = http_upload(f"/api/tours/{tid}/files", "pano.jpg", b"\xff\xd8fakejpg")
     check(status == 200 and up1["file"].endswith(".jpg"), "upload pano file")
     status, up2 = http_upload(f"/api/tours/{tid}/files", "orphan.jpg", b"\xff\xd8orphan")
@@ -121,6 +125,17 @@ def main() -> int:
 
     status, _ = http_json_allow_error("GET", "/api/tours/..")
     check(status == 404, "path traversal id rejected")
+    status, _ = http_json_allow_error("GET", "/api/tours/BadID")
+    check(status == 404, "id failing TOUR_ID_RE rejected")
+
+    conn = http.client.HTTPConnection("127.0.0.1", PORT, timeout=30)
+    conn.putrequest("POST", f"/api/tours/{tid}/files")
+    conn.putheader("Content-Type", "multipart/form-data; boundary=x")
+    conn.putheader("Content-Length", str(999_000_000))
+    conn.endheaders()
+    resp = conn.getresponse()
+    check(resp.status == 413, "oversize upload rejected by Content-Length")
+    conn.close()
 
     status, _ = http_json("DELETE", f"/api/tours/{tid}")
     check(status == 200, "delete tour")
