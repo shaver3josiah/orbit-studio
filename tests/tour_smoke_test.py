@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import http.client
+import io
 import json
 import os
 import sys
+import zipfile
 import tempfile
 import threading
+import time
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -118,10 +121,40 @@ def main() -> int:
     check(status == 200 and saved["updated"] > saved["created"], "save tour doc")
 
     check(http_status(f"/api/tours/{tid}/files/{up1['file']}") == 200, "referenced file survives save")
-    check(http_status(f"/api/tours/{tid}/files/{up2['file']}") == 404, "orphan file pruned on save")
+    check(http_status(f"/api/tours/{tid}/files/{up2['file']}") == 200, "fresh orphan survives save (prune grace window)")
+
+    orphan_path = TEMP_HOME / "tours" / tid / "files" / up2["file"]
+    old = time.time() - 600
+    os.utime(orphan_path, (old, old))
+    status, _ = http_json("POST", f"/api/tours/{tid}", doc)
+    check(status == 200, "second save accepted")
+    check(http_status(f"/api/tours/{tid}/files/{up2['file']}") == 404, "aged orphan pruned on save")
+    check(http_status(f"/api/tours/{tid}/files/{up1['file']}") == 200, "referenced file still survives")
 
     status, _ = http_json_allow_error("POST", f"/api/tours/{tid}", {"scenes": "nope"})
     check(status == 400, "reject doc without scenes list")
+
+    status, copy = http_json("POST", f"/api/tours/{tid}/duplicate")
+    check(status == 200 and copy["id"] != tid and copy["name"].endswith("copy"), "duplicate tour")
+    check(copy["scenes"] == saved["scenes"], "duplicate keeps scenes")
+    check(http_status(f"/api/tours/{copy['id']}/files/{up1['file']}") == 200, "duplicate copies media files")
+    http_json("DELETE", f"/api/tours/{copy['id']}")
+
+    with urllib.request.urlopen(BASE + f"/api/tours/{tid}/export.zip", timeout=60) as resp:
+        zip_bytes = resp.read()
+    with zipfile.ZipFile(io.BytesIO(zip_bytes)) as z:
+        names = z.namelist()
+        index = z.read("index.html").decode("utf-8")
+    check("index.html" in names and "README.txt" in names, "export has index + readme")
+    check(f"files/{up1['file']}" in names, "export bundles media")
+    check(any(n.startswith("vendor/") and n.endswith(".js") for n in names), "export bundles vendor js")
+    check(
+        "/tour/vendor/" not in index
+        and 'href="./vendor/psv-core.css"' in index
+        and '"./vendor/three.module.js"' in index,
+        "export rewrites vendor paths to spec-valid relative urls",
+    )
+    check("window.ORBIT_STATIC_TOUR" in index and up1["file"] in index, "export inlines tour doc")
 
     status, _ = http_json_allow_error("GET", "/api/tours/..")
     check(status == 404, "path traversal id rejected")

@@ -80,7 +80,7 @@
     background: var(--canvas);
   }
   .tour-card .meta { color: var(--text-2); font-size: 13px; }
-  .tour-card .row { display: flex; gap: 8px; margin-top: 14px; }
+  .tour-card .row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
   .empty-card {
     grid-column: 1 / -1; text-align: center; padding: 56px 24px;
     border: 1px dashed var(--hairline-strong); border-radius: var(--r-md); color: var(--text-2);
@@ -153,7 +153,18 @@
   .scene-row.active { border-color: var(--accent); background: rgba(10, 132, 255, 0.10); }
   .scene-row img { width: 56px; height: 28px; object-fit: cover; border-radius: 4px; flex: none; }
   .scene-row .sn { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
-  .scene-row .start-tag { font-size: 10px; color: var(--accent); border: 1px solid var(--accent); border-radius: 4px; padding: 1px 5px; flex: none; }
+  .start-btn {
+    font-size: 10px; letter-spacing: 0.04em; border-radius: 4px; padding: 1px 5px; flex: none;
+    background: none; border: 1px solid var(--hairline-strong); color: var(--text-3); cursor: pointer;
+  }
+  .start-btn:hover { color: var(--accent); border-color: var(--accent); }
+  .start-btn.on { color: var(--accent); border-color: var(--accent); cursor: default; }
+  .start-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .icon-btn.armed { color: #fff; background: var(--danger); }
+  .sn-input {
+    flex: 1; min-width: 0; background: var(--canvas); color: var(--text);
+    border: 1px solid var(--accent); border-radius: 6px; padding: 2px 6px; font: inherit; font-size: 14px;
+  }
   .icon-btn {
     background: none; border: none; color: var(--text-3); padding: 2px 4px;
     border-radius: 6px; font-size: 14px; line-height: 1; flex: none;
@@ -173,6 +184,17 @@
     border-radius: 8px; padding: 5px 8px; font: inherit; font-size: 13px; max-width: 150px;
   }
   .field .file-line { display: flex; align-items: center; gap: 6px; }
+  .share-row { margin: 12px 0 0; }
+  .share-row label { display: block; font-size: 12px; color: var(--text-2); margin-bottom: 4px; }
+  .share-row .copy { display: flex; gap: 6px; align-items: flex-start; }
+  .share-row input, .share-row textarea {
+    flex: 1; min-width: 0; background: var(--canvas); color: var(--text-2);
+    border: 1px solid var(--hairline); border-radius: 8px; padding: 6px 8px;
+    font-family: ui-monospace, Consolas, monospace; font-size: 11px; resize: vertical;
+  }
+  .share-row input:focus-visible, .share-row textarea:focus-visible { outline: 2px solid var(--accent); }
+  .share-row .btn { padding: 5px 10px; font-size: 12px; flex: none; }
+  a.btn { text-decoration: none; display: inline-block; }
   .main-pane { flex: 1; position: relative; display: flex; flex-direction: column; min-width: 0; }
   .toolbar {
     display: flex; gap: 8px; align-items: center; padding: 10px 14px;
@@ -261,8 +283,12 @@ async function api(method, path, body) {
   return data;
 }
 
+/* An exported tour is a static folder: no API, media sits in ./files/ */
+const STATIC_TOUR = window.ORBIT_STATIC_TOUR || null;
+
 function fileUrl(tourId, name) {
-  return `/api/tours/${tourId}/files/${name}`;
+  const safe = encodeURIComponent(name);
+  return STATIC_TOUR ? `files/${safe}` : `/api/tours/${tourId}/files/${safe}`;
 }
 
 function esc(s) {
@@ -287,6 +313,8 @@ const svgIcon = (paths, size = 40) =>
       <circle cx="20" cy="20" r="18" fill="rgba(11,11,14,0.75)" stroke="#F2F2F7" stroke-width="2"/>${paths}</svg>`);
 
 const ICON_INFO = svgIcon('<rect x="18.5" y="17" width="3" height="12" rx="1.5" fill="#F2F2F7"/><circle cx="20" cy="12" r="2.2" fill="#F2F2F7"/>');
+const ICON_URL = svgIcon('<path d="M15 25L25 15M25 15h-7M25 15v7" stroke="#F2F2F7" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>');
+const SAFE_URL = u => /^https?:\/\//i.test(u || '');
 
 const NAV_PLANET_SVG = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="6.5"/><ellipse cx="12" cy="12" rx="10.5" ry="3.6" transform="rotate(-18 12 12)"/></svg>';
 const NAV_AUDIO_ON_SVG = '<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16 8.5a5 5 0 0 1 0 7" stroke="currentColor" stroke-width="1.8" fill="none"/><path d="M18.5 6a8.5 8.5 0 0 1 0 12" stroke="currentColor" stroke-width="1.8" fill="none"/></svg>';
@@ -296,7 +324,9 @@ const NAV_AUDIO_OFF_SVG = '<svg viewBox="0 0 24 24" width="22" height="22" fill=
 
 const viewMatch = location.pathname.match(/^\/tour\/view\/([^/]+)/);
 const editId = new URLSearchParams(location.search).get('edit');
-if (viewMatch) {
+if (STATIC_TOUR) {
+  renderViewer(STATIC_TOUR.id);
+} else if (viewMatch) {
   renderViewer(viewMatch[1]);
 } else if (editId) {
   renderEditor(editId);
@@ -380,11 +410,25 @@ async function renderHome() {
         <div class="row">
           <button class="btn primary" data-act="open">Open</button>
           <button class="btn" data-act="edit">Edit</button>
+          <button class="btn" data-act="duplicate" title="Copy this tour and its photos">Duplicate</button>
           <button class="btn danger-text" data-act="delete">Delete</button>
         </div>
       </div>`);
     card.querySelector('[data-act=open]').addEventListener('click', () => location.href = `/tour/view/${t.id}`);
     card.querySelector('[data-act=edit]').addEventListener('click', () => location.href = `/tour?edit=${t.id}`);
+    const dupBtn = card.querySelector('[data-act=duplicate]');
+    dupBtn.addEventListener('click', async () => {
+      dupBtn.disabled = true;
+      try {
+        const copy = await api('POST', `/api/tours/${t.id}/duplicate`);
+        toast(`Created "${copy.name}"`);
+        renderHome();
+      } catch (err) {
+        toast(`Duplicate failed: ${err.message}`, true);
+        dupBtn.disabled = false;
+      }
+    });
+
     const delBtn = card.querySelector('[data-act=delete]');
     let armTimer = null;
     delBtn.addEventListener('click', async () => {
@@ -431,7 +475,17 @@ function sceneToNode(tour, scene) {
       position: { yaw: h.yaw * DEG, pitch: h.pitch * DEG },
       ...(h.label ? { name: esc(h.label) } : {}),
     })),
-    markers: hotspots.filter(h => h.type === 'info').map(h => {
+    markers: hotspots.filter(h => h.type === 'info' || h.type === 'url').map(h => {
+      if (h.type === 'url') {
+        return {
+          id: h.id,
+          position: { yaw: h.yaw * DEG, pitch: h.pitch * DEG },
+          image: h.icon ? fileUrl(tour.id, h.icon) : ICON_URL,
+          size: { width: 40, height: 40 },
+          tooltip: esc(h.label || h.url || 'Open link'),
+          data: SAFE_URL(h.url) ? { url: h.url } : {},
+        };
+      }
       const parts = [];
       if (h.image) parts.push(`<img src="${fileUrl(tour.id, h.image)}" alt="${esc(h.title || '')}" style="max-width:100%;border-radius:8px">`);
       if (h.text) parts.push(`<p style="white-space:pre-wrap">${esc(h.text)}</p>`);
@@ -454,16 +508,16 @@ async function renderViewer(tourId) {
 
   let tour;
   try {
-    const res = await fetch(`/api/tours/${tourId}`);
-    if (res.status === 404) {
+    const res = STATIC_TOUR ? null : await fetch(`/api/tours/${tourId}`);
+    if (res && res.status === 404) {
       app.innerHTML = `<div class="center-note">
         <div class="big">Tour not found</div>
         <div class="sub">It may have been deleted.</div>
         <a href="/tour">Back to your tours</a></div>`;
       return;
     }
-    if (!res.ok) throw new Error(`server replied ${res.status}`);
-    tour = await res.json();
+    if (res && !res.ok) throw new Error(`server replied ${res.status}`);
+    tour = STATIC_TOUR || await res.json();
   } catch (err) {
     app.innerHTML = `<div class="center-note">
       <div class="big">Could not load this tour</div>
@@ -477,8 +531,8 @@ async function renderViewer(tourId) {
   if (!(tour.scenes || []).length) {
     app.innerHTML = `<div class="center-note">
       <div class="big">${esc(tour.name)}</div>
-      <div class="sub">This tour has no scenes yet. Open the editor and add 360&deg; photos.</div>
-      <a href="/tour?edit=${esc(tour.id)}">Open editor</a></div>`;
+      <div class="sub">This tour has no scenes yet.${STATIC_TOUR ? '' : ' Open the editor and add 360&deg; photos.'}</div>
+      ${STATIC_TOUR ? '' : `<a href="/tour?edit=${esc(tour.id)}">Open editor</a>`}</div>`;
     return;
   }
 
@@ -576,6 +630,11 @@ async function renderViewer(tourId) {
   const virtualTour = viewer.getPlugin(VirtualTourPlugin);
   window.orbitTour = { viewer, virtualTour, tour }; // debug/editor handle
 
+  /* URL hotspots open in a new tab */
+  viewer.getPlugin(MarkersPlugin).addEventListener('select-marker', ({ marker }) => {
+    if (SAFE_URL(marker.data?.url)) open(marker.data.url, '_blank', 'noopener');
+  });
+
   /* little planet intro: unfold to normal view once loaded */
   let introPending = littlePlanet;
   if (littlePlanet) {
@@ -631,10 +690,10 @@ async function uploadFile(tourId, file) {
 async function preparePano(file) {
   const bmp = await createImageBitmap(file).catch(() => null);
   if (!bmp) throw new Error(`${file.name}: not a readable image`);
-  const ratio = bmp.width / bmp.height;
-  if (Math.abs(ratio - 2) > 0.04) {
+  const { width, height } = bmp;
+  if (Math.abs(width / height - 2) > 0.04) {
     bmp.close();
-    throw new Error(`${file.name}: not equirectangular (${bmp.width}x${bmp.height}, need width = 2x height). Export the 360 photo from the Insta360 app first.`);
+    throw new Error(`${file.name}: not equirectangular (${width}x${height}, need width = 2x height). Export the 360 photo from the Insta360 app first.`);
   }
   const canvas = document.createElement('canvas');
   canvas.width = 512; canvas.height = 256;
@@ -679,7 +738,7 @@ async function renderEditor(tourId) {
   }
   async function saveNow() {
     clearTimeout(saveTimer); saveTimer = null;
-    if (saveInFlight) { scheduleSave(); return; }
+    if (saveInFlight) { scheduleSave(); return false; }
     saveInFlight = true;
     setStatus('saving', 'Saving…');
     try {
@@ -687,10 +746,12 @@ async function renderEditor(tourId) {
       doc.updated = saved.updated;
       dirty = false;
       setStatus('', 'Saved');
+      return true;
     } catch (err) {
       setStatus('error', `Save failed: ${err.message} — retrying`);
       clearTimeout(saveTimer);
       saveTimer = setTimeout(saveNow, 3000);
+      return false;
     } finally {
       saveInFlight = false;
     }
@@ -730,7 +791,25 @@ async function renderEditor(tourId) {
           <div class="field"><label>Background audio</label><span class="file-line" id="audio-line"></span></div>
         </div>
         <div class="side-section">
+          <h3>Share</h3>
           <button class="btn" id="preview-btn">Preview tour</button>
+          <div class="share-row">
+            <label for="share-link">Link</label>
+            <div class="copy">
+              <input id="share-link" readonly value="${esc(location.origin)}/tour/view/${esc(doc.id)}">
+              <button class="btn" id="copy-link">Copy</button>
+            </div>
+          </div>
+          <div class="share-row">
+            <label for="embed-code">Embed on a website</label>
+            <div class="copy">
+              <textarea id="embed-code" readonly rows="4"></textarea>
+              <button class="btn" id="copy-embed">Copy</button>
+            </div>
+          </div>
+          <div class="share-row">
+            <a class="btn" id="export-btn" href="/api/tours/${esc(doc.id)}/export.zip" download>Download standalone site</a>
+          </div>
         </div>
       </div>
       <div class="main-pane" id="main-pane"></div>
@@ -746,8 +825,41 @@ async function renderEditor(tourId) {
   });
 
   document.getElementById('preview-btn').addEventListener('click', async () => {
-    if (dirty || saveTimer) await saveNow();
+    while (saveInFlight) await new Promise(r => setTimeout(r, 120));
+    let ok = true;
+    if (dirty || saveTimer) ok = await saveNow();
+    if (!ok) toast('Could not save — the preview shows the last saved version', true);
     open(`/tour/view/${doc.id}`, '_blank');
+  });
+
+  /* a drop that misses the drop zone must not navigate away from the editor */
+  window.addEventListener('dragover', e => e.preventDefault());
+  window.addEventListener('drop', e => e.preventDefault());
+
+  /* ----- share ----- */
+  const embedBox = document.getElementById('embed-code');
+  embedBox.value = `<iframe src="${location.origin}/tour/view/${doc.id}?embed=1"\n  width="640" height="400" style="border:0" allowfullscreen\n  allow="gyroscope; accelerometer; fullscreen; xr-spatial-tracking"></iframe>`;
+  const wireCopy = (btnId, srcId) => {
+    document.getElementById(btnId).addEventListener('click', async () => {
+      const field = document.getElementById(srcId);
+      try {
+        await navigator.clipboard.writeText(field.value);
+      } catch {
+        field.select(); /* clipboard blocked (insecure origin) — selection lets Ctrl+C work */
+        toast('Press Ctrl+C to copy', true);
+        return;
+      }
+      toast('Copied to clipboard');
+    });
+  };
+  wireCopy('copy-link', 'share-link');
+  wireCopy('copy-embed', 'embed-code');
+
+  document.getElementById('export-btn').addEventListener('click', async e => {
+    e.preventDefault();
+    while (saveInFlight) await new Promise(r => setTimeout(r, 120));
+    if (dirty || saveTimer) await saveNow();
+    location.href = `/api/tours/${doc.id}/export.zip`;
   });
 
   /* ----- uploads ----- */
@@ -805,22 +917,54 @@ async function renderEditor(tourId) {
     doc.scenes.forEach((s, i) => {
       const isStart = doc.settings.startScene === s.id;
       const row = el(`
-        <div class="scene-row${s.id === curSceneId ? ' active' : ''}" role="button" tabindex="0">
+        <div class="scene-row${s.id === curSceneId ? ' active' : ''}" role="button" tabindex="0"
+             aria-label="Scene ${esc(s.name)}">
           <img src="${fileUrl(doc.id, s.thumb || s.file)}" alt="">
-          <span class="sn">${esc(s.name)}</span>
-          ${isStart ? '<span class="start-tag">START</span>' : ''}
+          <span class="sn" title="Double-click to rename">${esc(s.name)}</span>
+          <button class="start-btn${isStart ? ' on' : ''}" data-a="start" aria-pressed="${isStart}"
+            title="${isStart ? 'This is the start scene' : 'Make start scene'}"
+            aria-label="${isStart ? `${esc(s.name)} is the start scene` : `Make ${esc(s.name)} the start scene`}">START</button>
           <button class="icon-btn" data-a="up" title="Move up" aria-label="Move ${esc(s.name)} up">&uarr;</button>
           <button class="icon-btn" data-a="down" title="Move down" aria-label="Move ${esc(s.name)} down">&darr;</button>
           <button class="icon-btn" data-a="del" title="Delete scene" aria-label="Delete ${esc(s.name)}">&times;</button>
         </div>`);
       row.addEventListener('click', e => {
-        if (e.target.closest('.icon-btn')) return;
+        if (e.target.closest('button, .sn-input')) return;
         selectScene(s.id);
       });
-      row.addEventListener('keydown', e => { if (e.key === 'Enter') selectScene(s.id); });
+      row.addEventListener('keydown', e => {
+        if ((e.key === 'Enter' || e.key === ' ') && e.target === row) { e.preventDefault(); selectScene(s.id); }
+      });
+      row.querySelector('[data-a=start]').addEventListener('click', () => {
+        if (doc.settings.startScene === s.id) return;
+        doc.settings.startScene = s.id;
+        scheduleSave();
+        renderSceneList();
+      });
+      const nameSpan = row.querySelector('.sn');
+      nameSpan.addEventListener('dblclick', () => {
+        const input = el(`<input class="sn-input" value="${esc(s.name)}" maxlength="80" aria-label="Rename scene">`);
+        nameSpan.replaceWith(input);
+        input.focus();
+        input.select();
+        let settled = false;
+        const commit = () => {
+          if (settled) return;
+          settled = true;
+          s.name = input.value.trim() || s.name;
+          scheduleSave();
+          renderSceneList();
+          refreshMarkers();
+        };
+        input.addEventListener('blur', commit);
+        input.addEventListener('keydown', e => {
+          if (e.key === 'Enter') { e.preventDefault(); commit(); }
+          if (e.key === 'Escape') { settled = true; renderSceneList(); }
+        });
+      });
       row.querySelector('[data-a=up]').addEventListener('click', () => moveScene(i, -1));
       row.querySelector('[data-a=down]').addEventListener('click', () => moveScene(i, 1));
-      row.querySelector('[data-a=del]').addEventListener('click', () => deleteScene(s.id));
+      row.querySelector('[data-a=del]').addEventListener('click', e => deleteScene(s.id, e.currentTarget));
       list.append(row);
     });
   }
@@ -834,14 +978,21 @@ async function renderEditor(tourId) {
   }
 
   let armedDeleteScene = null;
-  function deleteScene(sid) {
+  function deleteScene(sid, btn) {
     if (armedDeleteScene !== sid) {
       armedDeleteScene = sid;
-      toast('Click delete again to remove this scene');
-      setTimeout(() => { if (armedDeleteScene === sid) armedDeleteScene = null; }, 4000);
+      if (btn) { btn.classList.add('armed'); btn.textContent = 'Really?'; }
+      setTimeout(() => {
+        if (armedDeleteScene === sid) {
+          armedDeleteScene = null;
+          if (btn?.isConnected) { btn.classList.remove('armed'); btn.innerHTML = '&times;'; }
+        }
+      }, 4000);
       return;
     }
     armedDeleteScene = null;
+    closeHotspotPanel();
+    placing = null;
     doc.scenes = doc.scenes.filter(s => s.id !== sid);
     for (const s of doc.scenes) {
       s.hotspots = (s.hotspots || []).filter(h => h.type !== 'link' || h.target !== sid);
@@ -878,15 +1029,15 @@ async function renderEditor(tourId) {
   planetCb.addEventListener('change', () => { S.littlePlanetIntro = planetCb.checked; scheduleSave(); });
   logoLinkInput.addEventListener('change', () => { S.logoLink = logoLinkInput.value.trim(); scheduleSave(); });
 
-  function renderFileSetting(lineId, key, accept) {
+  function renderFileSetting(lineId, key, accept, label) {
     const line = document.getElementById(lineId);
     line.innerHTML = '';
     if (S[key]) {
-      const clear = el(`<button class="icon-btn" title="Remove" aria-label="Remove ${key}">&times;</button>`);
-      clear.addEventListener('click', () => { S[key] = null; scheduleSave(); renderFileSetting(lineId, key, accept); });
+      const clear = el(`<button class="icon-btn" title="Remove ${esc(label)}" aria-label="Remove ${esc(label)}">&times;</button>`);
+      clear.addEventListener('click', () => { S[key] = null; scheduleSave(); renderFileSetting(lineId, key, accept, label); });
       line.append(el(`<span style="font-size:12px;color:var(--text-2)">set</span>`), clear);
     } else {
-      const btn = el(`<button class="btn" style="padding:4px 10px;font-size:12px">Upload</button>`);
+      const btn = el(`<button class="btn" style="padding:4px 10px;font-size:12px" aria-label="Upload ${esc(label)}">Upload</button>`);
       const input = el(`<input type="file" accept="${accept}" hidden>`);
       btn.addEventListener('click', () => input.click());
       input.addEventListener('change', async () => {
@@ -894,14 +1045,14 @@ async function renderEditor(tourId) {
         try {
           S[key] = await uploadFile(doc.id, input.files[0]);
           scheduleSave();
-          renderFileSetting(lineId, key, accept);
+          renderFileSetting(lineId, key, accept, label);
         } catch (err) { toast(err.message, true); }
       });
       line.append(btn, input);
     }
   }
-  renderFileSetting('logo-line', 'logo', 'image/png,image/jpeg,image/webp');
-  renderFileSetting('audio-line', 'audio', 'audio/mpeg,audio/mp4,audio/ogg');
+  renderFileSetting('logo-line', 'logo', 'image/png,image/jpeg,image/webp', 'logo');
+  renderFileSetting('audio-line', 'audio', 'audio/mpeg,audio/mp4,audio/ogg', 'background audio');
 
   /* ----- main pane: PSV editor viewer ----- */
   function renderMain() {
@@ -919,12 +1070,14 @@ async function renderEditor(tourId) {
         <div class="toolbar">
           <button class="btn" id="add-link">+ Link hotspot</button>
           <button class="btn" id="add-info">+ Info hotspot</button>
+          <button class="btn" id="add-url">+ URL hotspot</button>
           <button class="btn" id="set-view">Set start view from here</button>
           <span class="hint" id="hint"></span>
         </div>
         <div id="edit-psv"></div>`;
       document.getElementById('add-link').addEventListener('click', () => startPlacing('link'));
       document.getElementById('add-info').addEventListener('click', () => startPlacing('info'));
+      document.getElementById('add-url').addEventListener('click', () => startPlacing('url'));
       document.getElementById('set-view').addEventListener('click', () => {
         const s = curScene();
         if (!s) return;
@@ -972,10 +1125,11 @@ async function renderEditor(tourId) {
     markers.setMarkers((s.hotspots || []).map(h => ({
       id: h.id,
       position: { yaw: (h.yaw || 0) * DEG, pitch: (h.pitch || 0) * DEG },
-      image: h.icon ? fileUrl(doc.id, h.icon) : (h.type === 'link' ? ICON_LINK : ICON_INFO),
+      image: h.icon ? fileUrl(doc.id, h.icon) : (h.type === 'link' ? ICON_LINK : h.type === 'url' ? ICON_URL : ICON_INFO),
       size: { width: 40, height: 40 },
       tooltip: esc(h.type === 'link'
         ? (h.label || doc.scenes.find(x => x.id === h.target)?.name || 'Link')
+        : h.type === 'url' ? (h.label || h.url || 'Link')
         : (h.title || 'Info')),
     })));
   }
@@ -989,7 +1143,7 @@ async function renderEditor(tourId) {
   function updateHint() {
     const hint = document.getElementById('hint');
     if (!hint) return;
-    if (placing === 'link' || placing === 'info') {
+    if (typeof placing === 'string') {
       hint.className = 'hint placing';
       hint.textContent = 'Click the panorama to place the hotspot (Esc cancels)';
     } else if (placing?.move) {
@@ -1001,7 +1155,9 @@ async function renderEditor(tourId) {
     }
   }
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape' && placing) { placing = null; updateHint(); }
+    if (e.key !== 'Escape') return;
+    if (placing) { placing = null; updateHint(); }
+    else closeHotspotPanel();
   });
 
   function onPlace(yaw, pitch) {
@@ -1020,7 +1176,9 @@ async function renderEditor(tourId) {
     updateHint();
     const h = type === 'link'
       ? { id: newId('h'), type: 'link', yaw, pitch, target: doc.scenes.find(x => x.id !== s.id)?.id || s.id, label: '' }
-      : { id: newId('h'), type: 'info', yaw, pitch, title: '', text: '' };
+      : type === 'url'
+        ? { id: newId('h'), type: 'url', yaw, pitch, url: '', label: '' }
+        : { id: newId('h'), type: 'info', yaw, pitch, title: '', text: '' };
     s.hotspots.push(h);
     scheduleSave();
     refreshMarkers();
@@ -1047,6 +1205,13 @@ async function renderEditor(tourId) {
           <select id="hs-target">${options || '<option value="">(no other scenes yet)</option>'}</select></div>
         <div class="frow"><label for="hs-label">Label (optional)</label>
           <input type="text" id="hs-label" value="${esc(h.label || '')}" maxlength="80"></div>`;
+    } else if (h.type === 'url') {
+      inner = `
+        <h4>URL hotspot</h4>
+        <div class="frow"><label for="hs-url">Opens (https://&hellip;)</label>
+          <input type="text" id="hs-url" value="${esc(h.url || '')}" maxlength="500" placeholder="https://example.com"></div>
+        <div class="frow"><label for="hs-label">Label (optional)</label>
+          <input type="text" id="hs-label" value="${esc(h.label || '')}" maxlength="80"></div>`;
     } else {
       inner = `
         <h4>Info hotspot</h4>
@@ -1070,13 +1235,17 @@ async function renderEditor(tourId) {
     if (h.type === 'link') {
       panel.querySelector('#hs-target').addEventListener('change', e => { h.target = e.target.value; scheduleSave(); refreshMarkers(); });
       panel.querySelector('#hs-label').addEventListener('input', e => { h.label = e.target.value; scheduleSave(); refreshMarkers(); });
+    } else if (h.type === 'url') {
+      panel.querySelector('#hs-url').addEventListener('input', e => { h.url = e.target.value.trim(); scheduleSave(); refreshMarkers(); });
+      panel.querySelector('#hs-label').addEventListener('input', e => { h.label = e.target.value; scheduleSave(); refreshMarkers(); });
     } else {
       panel.querySelector('#hs-title').addEventListener('input', e => { h.title = e.target.value; scheduleSave(); refreshMarkers(); });
       panel.querySelector('#hs-text').addEventListener('input', e => { h.text = e.target.value; scheduleSave(); });
-      wireFileRow(panel.querySelector('#hs-image-line'), h, 'image', 'image/jpeg,image/png,image/webp');
-      wireFileRow(panel.querySelector('#hs-audio-line'), h, 'audio', 'audio/mpeg,audio/mp4,audio/ogg');
+      wireFileRow(panel.querySelector('#hs-image-line'), h, 'image', 'image/jpeg,image/png,image/webp', 'image');
+      wireFileRow(panel.querySelector('#hs-audio-line'), h, 'audio', 'audio/mpeg,audio/mp4,audio/ogg', 'audio clip');
     }
-    wireFileRow(panel.querySelector('#hs-icon-line'), h, 'icon', 'image/png,image/jpeg,image/webp');
+    wireFileRow(panel.querySelector('#hs-icon-line'), h, 'icon', 'image/png,image/jpeg,image/webp', 'custom icon');
+    panel.querySelector('input, select, textarea, button')?.focus();
     panel.querySelector('#hs-move').addEventListener('click', () => { placing = { move: h.id }; updateHint(); });
     panel.querySelector('#hs-delete').addEventListener('click', () => {
       s.hotspots = s.hotspots.filter(x => x.id !== h.id);
@@ -1087,16 +1256,16 @@ async function renderEditor(tourId) {
     panel.querySelector('#hs-done').addEventListener('click', closeHotspotPanel);
   }
 
-  function wireFileRow(line, obj, key, accept) {
+  function wireFileRow(line, obj, key, accept, label = key) {
     if (!line) return;
     const render = () => {
       line.innerHTML = '';
       if (obj[key]) {
-        const clear = el(`<button class="icon-btn" title="Remove" aria-label="Remove ${key}">&times;</button>`);
+        const clear = el(`<button class="icon-btn" title="Remove ${esc(label)}" aria-label="Remove ${esc(label)}">&times;</button>`);
         clear.addEventListener('click', () => { obj[key] = null; scheduleSave(); refreshMarkers(); render(); });
         line.append(el(`<span style="font-size:12px;color:var(--text-2)">set</span>`), clear);
       } else {
-        const btn = el(`<button class="btn" style="padding:3px 10px;font-size:12px">Upload</button>`);
+        const btn = el(`<button class="btn" style="padding:3px 10px;font-size:12px" aria-label="Upload ${esc(label)}">Upload</button>`);
         const input = el(`<input type="file" accept="${accept}" hidden>`);
         btn.addEventListener('click', () => input.click());
         input.addEventListener('change', async () => {

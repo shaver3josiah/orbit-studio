@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import io
 import json
 import os
 import queue
@@ -10,6 +11,7 @@ import secrets
 import shutil
 import subprocess
 import threading
+import time
 import urllib.parse
 import zipfile
 from datetime import datetime, timezone
@@ -179,6 +181,12 @@ def new_tour(name: str) -> dict:
     return tour
 
 
+# A fresh upload sits unreferenced until the client's NEXT autosave references
+# it; a save that lands in that window must not delete it (confirmed data-loss
+# race). Grace window >> autosave debounce (800ms) + any retry backoff.
+PRUNE_GRACE_SECONDS = 300
+
+
 def prune_tour_files(tour: dict) -> None:
     """Delete uploaded files no longer referenced anywhere in the tour doc."""
     tdir = tour_dir(tour["id"])
@@ -188,9 +196,16 @@ def prune_tour_files(tour: dict) -> None:
     # ponytail: substring check against the JSON blob; safe because filenames
     # are server-generated hex tokens, revisit if filenames ever become user-chosen
     blob = json.dumps(tour)
+    now = time.time()
     for f in files_dir.iterdir():
-        if f.name not in blob:
-            f.unlink(missing_ok=True)
+        if f.name in blob:
+            continue
+        try:
+            if now - f.stat().st_mtime < PRUNE_GRACE_SECONDS:
+                continue
+        except OSError:
+            continue
+        f.unlink(missing_ok=True)
 
 
 class BusyError(Exception):
@@ -352,7 +367,10 @@ def execute_stage(pdir: Path, project: dict, stage: str, settings: dict, ctx: Ru
         if not media:
             raise RuntimeError("project has no media uploaded")
         source = pdir / "source" / media["filename"]
-        if media.get("type") == "image":
+        if media.get("type") == "imageset":
+            sources = [pdir / "source" / name for name in media.get("filenames", [])]
+            result = frames.run_multi_image(pdir, sources, ctx)
+        elif media.get("type") == "image":
             result = frames.run_single_image(pdir, source, ctx)
         else:
             ffmpeg_path = doctor.find_ffmpeg(REPO_ROOT)
@@ -391,11 +409,9 @@ def parse_content_type(header: str) -> tuple[str, dict[str, str]]:
     return main, params
 
 
-def parse_multipart(body: bytes, boundary: str) -> dict[str, dict]:
+def iter_multipart(body: bytes, boundary: str):
     delimiter = ("--" + boundary).encode("utf-8")
-    segments = body.split(delimiter)
-    fields: dict[str, dict] = {}
-    for segment in segments[1:-1]:
+    for segment in body.split(delimiter)[1:-1]:
         if segment.startswith(b"\r\n"):
             segment = segment[2:]
         if segment.endswith(b"\r\n"):
@@ -411,10 +427,22 @@ def parse_multipart(body: bytes, boundary: str) -> dict[str, dict]:
         if not disposition:
             continue
         _, params = parse_content_type(disposition.split(":", 1)[1])
-        name = params.get("name", "")
-        filename = params.get("filename")
+        yield params.get("name", ""), params.get("filename"), content
+
+
+def parse_multipart(body: bytes, boundary: str) -> dict[str, dict]:
+    fields: dict[str, dict] = {}
+    for name, filename, content in iter_multipart(body, boundary):
         fields[name] = {"filename": filename, "content": content}
     return fields
+
+
+def collect_file_parts(body: bytes, boundary: str) -> list[dict]:
+    return [
+        {"filename": Path(filename).name, "content": content}
+        for _, filename, content in iter_multipart(body, boundary)
+        if filename
+    ]
 
 
 def probe_media(ffprobe_path: Path, path: Path) -> Optional[dict]:
@@ -602,6 +630,66 @@ def handle_media_upload(handler: "Handler", project_id: str) -> None:
         send_error(handler, 400, "not_equirectangular", f"expected width == 2*height, got {width}x{height}")
         return
     project["media"] = info
+    save_project(project)
+    send_json(handler, 200, project)
+
+
+def handle_photoset_upload(handler: "Handler", project_id: str) -> None:
+    """Receive N equirectangular still photos (the 360-photo capture lane).
+    Each is validated as a 2:1 image, saved in order, and recorded as one
+    'imageset' media entry the frames stage explodes into per-photo frames."""
+    project = load_project(project_id)
+    if project is None:
+        send_error(handler, 404, "not_found", "project not found")
+        return
+    content_type = handler.headers.get("Content-Type", "")
+    if "multipart/form-data" not in content_type:
+        send_error(handler, 400, "bad_request", "expected multipart/form-data")
+        return
+    _, params = parse_content_type(content_type)
+    boundary = params.get("boundary", "")
+    files = collect_file_parts(read_body(handler), boundary)
+    if not files:
+        send_error(handler, 400, "bad_request", "no photos in upload")
+        return
+    query = urllib.parse.urlsplit(handler.path).query
+    force = urllib.parse.parse_qs(query).get("force", ["0"])[0] == "1"
+    ffprobe_path = doctor.find_ffprobe(REPO_ROOT)
+    if ffprobe_path is None:
+        send_error(handler, 500, "ffprobe_failed", "ffprobe not found")
+        return
+    source_dir = project_dir(project_id) / "source"
+    source_dir.mkdir(parents=True, exist_ok=True)
+    saved: list[str] = []
+    first_info = None
+    for index, part in enumerate(files, start=1):
+        stored = f"{index:03d}_{part['filename']}"
+        dest = source_dir / stored
+        dest.write_bytes(part["content"])
+        info = probe_media(ffprobe_path, dest)
+        if info is None:
+            send_error(handler, 500, "ffprobe_failed", f"could not read {part['filename']}")
+            return
+        if info.get("type") != "image":
+            send_error(handler, 400, "not_an_image", f"{part['filename']} is not a photo")
+            return
+        width, height = info["width"], info["height"]
+        if width and height and width != 2 * height and not force:
+            send_error(handler, 400, "not_equirectangular",
+                       f"{part['filename']} is {width}x{height}, expected width == 2*height")
+            return
+        saved.append(stored)
+        if first_info is None:
+            first_info = info
+    project["media"] = {
+        "type": "imageset",
+        "filename": saved[0],
+        "filenames": saved,
+        "count": len(saved),
+        "width": first_info["width"],
+        "height": first_info["height"],
+        "duration": 0,
+    }
     save_project(project)
     send_json(handler, 200, project)
 
@@ -947,6 +1035,70 @@ def handle_tour_file_upload(handler: "Handler", tour_id: str) -> None:
     send_json(handler, 200, {"file": name, "url": f"/api/tours/{tour_id}/files/{name}"})
 
 
+def handle_tour_duplicate(handler: "Handler", tour_id: str) -> None:
+    tour = load_tour(tour_id)
+    if tour is None:
+        send_error(handler, 404, "not_found", "tour not found")
+        return
+    fresh = new_tour(f"{tour['name']} copy")
+    src_files = tour_dir(tour_id) / "files"
+    if src_files.exists():
+        shutil.copytree(src_files, tour_dir(fresh["id"]) / "files")
+    dup = dict(tour)
+    dup.update(id=fresh["id"], name=fresh["name"], created=fresh["created"], updated=fresh["updated"])
+    save_tour(dup)
+    send_json(handler, 200, dup)
+
+
+EXPORT_README = """This folder is a self-contained Orbit Tour website.
+
+Host it on any static file host (GitHub Pages, Netlify, S3/R2, nginx...)
+and open index.html from there. Opening index.html straight from disk will
+NOT work: browsers block ES modules on file:// pages. For a quick local
+look, run any static server in this folder, e.g.:
+
+    python -m http.server 8000
+
+then visit http://localhost:8000
+"""
+
+
+def handle_tour_export(handler: "Handler", tour_id: str) -> None:
+    """Zip a tour into a static site: viewer html + vendored libs + media."""
+    tour = load_tour(tour_id)
+    if tour is None:
+        send_error(handler, 404, "not_found", "tour not found")
+        return
+    html = (REPO_ROOT / "tour" / "index.html").read_text(encoding="utf-8")
+    # import-map addresses must be absolute or start with / ./ ../ — bare
+    # "vendor/x.js" is rejected by the spec, so rewrite to "./vendor/x.js"
+    html = html.replace("/tour/vendor/", "./vendor/")
+    html = html.replace(
+        "<body>",
+        f"<body>\n<script>window.ORBIT_STATIC_TOUR = {json.dumps(tour)};</script>",
+        1,
+    )
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("index.html", html)
+        z.writestr("README.txt", EXPORT_README)
+        for f in sorted((REPO_ROOT / "tour" / "vendor").iterdir()):
+            if f.suffix in (".js", ".css"):
+                z.write(f, f"vendor/{f.name}")
+        files_dir = tour_dir(tour_id) / "files"
+        if files_dir.exists():
+            for f in sorted(files_dir.iterdir()):
+                z.write(f, f"files/{f.name}")
+    data = buf.getvalue()
+    handler.send_response(200)
+    handler.send_header("Content-Type", "application/zip")
+    handler.send_header("Content-Disposition", f'attachment; filename="{tour_id}.zip"')
+    handler.send_header("Content-Length", str(len(data)))
+    cors_headers(handler)
+    handler.end_headers()
+    handler.wfile.write(data)
+
+
 def handle_tour_file_get(handler: "Handler", tour_id: str, name: str) -> None:
     tdir = tour_dir(tour_id)
     safe_name = Path(name).name
@@ -981,6 +1133,7 @@ GET_ROUTES: list[tuple[re.Pattern, object]] = [
     (re.compile(r"^/tour/vendor/([^/]+)$"), lambda h, m: handle_repo_file(h, "tour/vendor", m.group(1))),
     (re.compile(r"^/api/tours$"), lambda h, m: handle_tours_list(h)),
     (re.compile(r"^/api/tours/([^/]+)/files/([^/]+)$"), lambda h, m: handle_tour_file_get(h, m.group(1), m.group(2))),
+    (re.compile(r"^/api/tours/([^/]+)/export\.zip$"), lambda h, m: handle_tour_export(h, m.group(1))),
     (re.compile(r"^/api/tours/([^/]+)$"), lambda h, m: handle_tour_get(h, m.group(1))),
 ]
 
@@ -988,9 +1141,11 @@ POST_ROUTES: list[tuple[re.Pattern, object]] = [
     (re.compile(r"^/api/projects$"), lambda h, m: handle_projects_create(h)),
     (re.compile(r"^/api/tours$"), lambda h, m: handle_tours_create(h)),
     (re.compile(r"^/api/tours/([^/]+)/files$"), lambda h, m: handle_tour_file_upload(h, m.group(1))),
+    (re.compile(r"^/api/tours/([^/]+)/duplicate$"), lambda h, m: handle_tour_duplicate(h, m.group(1))),
     (re.compile(r"^/api/tours/([^/]+)$"), lambda h, m: handle_tour_save(h, m.group(1))),
     (re.compile(r"^/api/ingest/bundle$"), lambda h, m: handle_ingest_bundle(h)),
     (re.compile(r"^/api/projects/([^/]+)/media$"), lambda h, m: handle_media_upload(h, m.group(1))),
+    (re.compile(r"^/api/projects/([^/]+)/photoset$"), lambda h, m: handle_photoset_upload(h, m.group(1))),
     (re.compile(r"^/api/projects/([^/]+)/run$"), lambda h, m: handle_run(h, m.group(1))),
     (re.compile(r"^/api/projects/([^/]+)/cancel$"), lambda h, m: handle_cancel(h, m.group(1))),
     (re.compile(r"^/api/projects/([^/]+)/result$"), lambda h, m: handle_result_upload(h, m.group(1))),
