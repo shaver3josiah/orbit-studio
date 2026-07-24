@@ -89,9 +89,11 @@ libraries are lockstepped — bump them together or not at all.
 | GET | `/api/tours/<id>/export.zip` | standalone static site |
 
 Uploads are capped at 64 MB and limited to jpg/png/webp/mp3/m4a/ogg. Files
-stop being served once nothing in the tour references them, with a five
-minute grace window so a fresh upload is never collected before the editor
-has saved a reference to it.
+stop being served once nothing in the tour references them, but only after a
+day of going unreferenced — long enough that a just-uploaded photo is never
+collected before the editor saves a reference to it, and that undoing a scene
+deletion always finds its photo still there. Deleting a tour removes its
+files immediately.
 
 ## Checks
 

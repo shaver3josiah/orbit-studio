@@ -124,7 +124,7 @@ def main() -> int:
     check(http_status(f"/api/tours/{tid}/files/{up2['file']}") == 200, "fresh orphan survives save (prune grace window)")
 
     orphan_path = TEMP_HOME / "tours" / tid / "files" / up2["file"]
-    old = time.time() - 600
+    old = time.time() - (orbit_server.PRUNE_GRACE_SECONDS + 60)
     os.utime(orphan_path, (old, old))
     status, _ = http_json("POST", f"/api/tours/{tid}", doc)
     check(status == 200, "second save accepted")

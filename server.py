@@ -181,10 +181,12 @@ def new_tour(name: str) -> dict:
     return tour
 
 
-# A fresh upload sits unreferenced until the client's NEXT autosave references
-# it; a save that lands in that window must not delete it (confirmed data-loss
-# race). Grace window >> autosave debounce (800ms) + any retry backoff.
-PRUNE_GRACE_SECONDS = 300
+# Two things must not be collected: an upload that has not been referenced by a
+# save yet (confirmed data-loss race), and media belonging to a scene the editor
+# can still bring back with undo. The undo stack lives in memory, so it never
+# outlives the page; a day covers any single editing session with room to spare,
+# and orphans still get collected on the first save after that.
+PRUNE_GRACE_SECONDS = 24 * 60 * 60
 
 
 def prune_tour_files(tour: dict) -> None:
