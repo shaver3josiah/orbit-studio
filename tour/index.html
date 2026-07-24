@@ -221,6 +221,9 @@
   }
   .hs-panel textarea { min-height: 64px; resize: vertical; }
   .hs-panel .row { display: flex; gap: 8px; margin-top: 12px; }
+  .hs-panel input.invalid { border-color: var(--danger); }
+  .field-note { font-size: 11px; color: var(--danger); min-height: 13px; }
+  .icon-btn:disabled { opacity: 0.28; cursor: default; background: none; color: var(--text-3); }
 
   /* PSV overrides to match the house style */
   .psv-navbar { background: rgba(11, 11, 14, 0.72); backdrop-filter: blur(8px); }
@@ -797,14 +800,14 @@ async function renderEditor(tourId) {
             <label for="share-link">Link</label>
             <div class="copy">
               <input id="share-link" readonly value="${esc(location.origin)}/tour/view/${esc(doc.id)}">
-              <button class="btn" id="copy-link">Copy</button>
+              <button class="btn" id="copy-link" aria-label="Copy tour link">Copy</button>
             </div>
           </div>
           <div class="share-row">
             <label for="embed-code">Embed on a website</label>
             <div class="copy">
               <textarea id="embed-code" readonly rows="4"></textarea>
-              <button class="btn" id="copy-embed">Copy</button>
+              <button class="btn" id="copy-embed" aria-label="Copy embed code">Copy</button>
             </div>
           </div>
           <div class="share-row">
@@ -953,6 +956,7 @@ async function renderEditor(tourId) {
           settled = true;
           s.name = input.value.trim() || s.name;
           scheduleSave();
+          closeHotspotPanel(); /* an open link panel would show the stale name */
           renderSceneList();
           refreshMarkers();
         };
@@ -962,9 +966,33 @@ async function renderEditor(tourId) {
           if (e.key === 'Escape') { settled = true; renderSceneList(); }
         });
       });
-      row.querySelector('[data-a=up]').addEventListener('click', () => moveScene(i, -1));
-      row.querySelector('[data-a=down]').addEventListener('click', () => moveScene(i, 1));
-      row.querySelector('[data-a=del]').addEventListener('click', e => deleteScene(s.id, e.currentTarget));
+      const up = row.querySelector('[data-a=up]');
+      const down = row.querySelector('[data-a=down]');
+      up.disabled = i === 0;
+      down.disabled = i === doc.scenes.length - 1;
+      up.addEventListener('click', () => moveScene(i, -1));
+      down.addEventListener('click', () => moveScene(i, 1));
+
+      /* arm state lives on the button itself, so arming one row never
+         leaves another row falsely armed */
+      const delBtn = row.querySelector('[data-a=del]');
+      let delTimer = null;
+      delBtn.addEventListener('click', () => {
+        if (!delBtn.classList.contains('armed')) {
+          delBtn.classList.add('armed');
+          delBtn.textContent = 'Really?';
+          delBtn.setAttribute('aria-label', `Confirm deleting ${s.name}`);
+          delTimer = setTimeout(() => {
+            if (!delBtn.isConnected) return;
+            delBtn.classList.remove('armed');
+            delBtn.innerHTML = '&times;';
+            delBtn.setAttribute('aria-label', `Delete ${s.name}`);
+          }, 4000);
+          return;
+        }
+        clearTimeout(delTimer);
+        deleteScene(s.id);
+      });
       list.append(row);
     });
   }
@@ -977,20 +1005,7 @@ async function renderEditor(tourId) {
     renderSceneList();
   }
 
-  let armedDeleteScene = null;
-  function deleteScene(sid, btn) {
-    if (armedDeleteScene !== sid) {
-      armedDeleteScene = sid;
-      if (btn) { btn.classList.add('armed'); btn.textContent = 'Really?'; }
-      setTimeout(() => {
-        if (armedDeleteScene === sid) {
-          armedDeleteScene = null;
-          if (btn?.isConnected) { btn.classList.remove('armed'); btn.innerHTML = '&times;'; }
-        }
-      }, 4000);
-      return;
-    }
-    armedDeleteScene = null;
+  function deleteScene(sid) {
     closeHotspotPanel();
     placing = null;
     doc.scenes = doc.scenes.filter(s => s.id !== sid);
@@ -1104,7 +1119,8 @@ async function renderEditor(tourId) {
         openHotspotPanel(marker.id);
       });
       editorViewer.addEventListener('ready', refreshMarkers, { once: true });
-      window.orbitEditor = { viewer: editorViewer, doc: () => doc }; // debug handle
+      // debug handle: openHotspot lets tests reach the panel without pointer hit-testing
+      window.orbitEditor = { viewer: editorViewer, doc: () => doc, openHotspot: openHotspotPanel };
     } else {
       if (!curScene()) curSceneId = doc.scenes[0].id;
       showCurrentScene();
@@ -1209,7 +1225,9 @@ async function renderEditor(tourId) {
       inner = `
         <h4>URL hotspot</h4>
         <div class="frow"><label for="hs-url">Opens (https://&hellip;)</label>
-          <input type="text" id="hs-url" value="${esc(h.url || '')}" maxlength="500" placeholder="https://example.com"></div>
+          <input type="text" id="hs-url" value="${esc(h.url || '')}" maxlength="500" placeholder="https://example.com"
+                 aria-describedby="hs-url-note">
+          <span class="field-note" id="hs-url-note"></span></div>
         <div class="frow"><label for="hs-label">Label (optional)</label>
           <input type="text" id="hs-label" value="${esc(h.label || '')}" maxlength="80"></div>`;
     } else {
@@ -1236,7 +1254,15 @@ async function renderEditor(tourId) {
       panel.querySelector('#hs-target').addEventListener('change', e => { h.target = e.target.value; scheduleSave(); refreshMarkers(); });
       panel.querySelector('#hs-label').addEventListener('input', e => { h.label = e.target.value; scheduleSave(); refreshMarkers(); });
     } else if (h.type === 'url') {
-      panel.querySelector('#hs-url').addEventListener('input', e => { h.url = e.target.value.trim(); scheduleSave(); refreshMarkers(); });
+      const urlInput = panel.querySelector('#hs-url');
+      const urlNote = panel.querySelector('#hs-url-note');
+      const checkUrl = () => {
+        const bad = h.url && !SAFE_URL(h.url);
+        urlInput.classList.toggle('invalid', !!bad);
+        urlNote.textContent = bad ? 'Must start with https:// — this link will not open.' : '';
+      };
+      urlInput.addEventListener('input', e => { h.url = e.target.value.trim(); checkUrl(); scheduleSave(); refreshMarkers(); });
+      checkUrl();
       panel.querySelector('#hs-label').addEventListener('input', e => { h.label = e.target.value; scheduleSave(); refreshMarkers(); });
     } else {
       panel.querySelector('#hs-title').addEventListener('input', e => { h.title = e.target.value; scheduleSave(); refreshMarkers(); });

@@ -156,6 +156,11 @@ def main() -> int:
     )
     check("window.ORBIT_STATIC_TOUR" in index and up1["file"] in index, "export inlines tour doc")
 
+    status, _ = http_json_allow_error("POST", "/api/tours/no-such-tour-000/duplicate", {})
+    check(status == 404, "duplicate of missing tour is 404")
+    check(http_status("/api/tours/no-such-tour-000/export.zip") == 404, "export of missing tour is 404")
+    check(http_status("/api/tours/BadID/export.zip") == 404, "export rejects malformed id")
+
     status, _ = http_json_allow_error("GET", "/api/tours/..")
     check(status == 404, "path traversal id rejected")
     status, _ = http_json_allow_error("GET", "/api/tours/BadID")

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import argparse
 import base64
-import io
 import json
 import os
 import queue
@@ -10,6 +9,7 @@ import re
 import secrets
 import shutil
 import subprocess
+import tempfile
 import threading
 import time
 import urllib.parse
@@ -510,7 +510,14 @@ def send_file(handler: "Handler", path: Path, content_type: str) -> None:
     if not path.exists() or not path.is_file():
         send_error(handler, 404, "not_found", f"{path.name} not found")
         return
-    send_bytes(handler, 200, path.read_bytes(), content_type)
+    # streamed, not read whole: panoramas and splat artifacts run to tens of MB
+    handler.send_response(200)
+    handler.send_header("Content-Type", content_type)
+    handler.send_header("Content-Length", str(path.stat().st_size))
+    cors_headers(handler)
+    handler.end_headers()
+    with path.open("rb") as source:
+        shutil.copyfileobj(source, handler.wfile, 64 * 1024)
 
 
 def read_body(handler: "Handler") -> bytes:
@@ -1078,25 +1085,31 @@ def handle_tour_export(handler: "Handler", tour_id: str) -> None:
         f"<body>\n<script>window.ORBIT_STATIC_TOUR = {json.dumps(tour)};</script>",
         1,
     )
-    buf = io.BytesIO()
-    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
-        z.writestr("index.html", html)
-        z.writestr("README.txt", EXPORT_README)
-        for f in sorted((REPO_ROOT / "tour" / "vendor").iterdir()):
-            if f.suffix in (".js", ".css"):
-                z.write(f, f"vendor/{f.name}")
-        files_dir = tour_dir(tour_id) / "files"
-        if files_dir.exists():
-            for f in sorted(files_dir.iterdir()):
-                z.write(f, f"files/{f.name}")
-    data = buf.getvalue()
-    handler.send_response(200)
-    handler.send_header("Content-Type", "application/zip")
-    handler.send_header("Content-Disposition", f'attachment; filename="{tour_id}.zip"')
-    handler.send_header("Content-Length", str(len(data)))
-    cors_headers(handler)
-    handler.end_headers()
-    handler.wfile.write(data)
+    # built on disk, not in memory: a tour of 40 panoramas is gigabytes
+    fd, tmp_name = tempfile.mkstemp(suffix=".zip", prefix="orbit-export-")
+    os.close(fd)
+    tmp_path = Path(tmp_name)
+    try:
+        with zipfile.ZipFile(tmp_path, "w", zipfile.ZIP_DEFLATED) as z:
+            z.writestr("index.html", html)
+            z.writestr("README.txt", EXPORT_README)
+            for f in sorted((REPO_ROOT / "tour" / "vendor").iterdir()):
+                if f.suffix in (".js", ".css"):
+                    z.write(f, f"vendor/{f.name}")
+            files_dir = tour_dir(tour_id) / "files"
+            if files_dir.exists():
+                for f in sorted(files_dir.iterdir()):
+                    z.write(f, f"files/{f.name}")
+        handler.send_response(200)
+        handler.send_header("Content-Type", "application/zip")
+        handler.send_header("Content-Disposition", f'attachment; filename="{tour_id}.zip"')
+        handler.send_header("Content-Length", str(tmp_path.stat().st_size))
+        cors_headers(handler)
+        handler.end_headers()
+        with tmp_path.open("rb") as source:
+            shutil.copyfileobj(source, handler.wfile, 64 * 1024)
+    finally:
+        tmp_path.unlink(missing_ok=True)
 
 
 def handle_tour_file_get(handler: "Handler", tour_id: str, name: str) -> None:

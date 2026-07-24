@@ -2,6 +2,11 @@
 
 Walk through your world. Your Insta360 X4 Air footage becomes an explorable 3D scene you can fly a camera through and export as video.
 
+Two things live here, sharing one local server:
+
+- **Orbit Studio** — video to Gaussian splat, flown through in the browser. Everything below covers this.
+- **Orbit Tour** — 360° photos to a linked virtual tour with hotspots, embeds, and a standalone export. A self-hosted replacement for Kuula.co Pro. Run `start.bat`, then open <http://localhost:7360/tour>. See [docs/TOUR.md](docs/TOUR.md).
+
 ## Quickstart
 
 1. Right-click `setup.ps1` and choose Run with PowerShell. This one-time step checks Python, installs two small libraries, and fetches ffmpeg if you do not have it.
@@ -49,6 +54,7 @@ The pipeline itself leans on the strongest open tools available for each stage i
 | Brush | Apache-2.0 or MIT, confirm in the repo | Optional alternate trainer and viewer |
 | ffmpeg | LGPL or GPL depending on build | Video frame extraction |
 | antimatter15 splat format | MIT | The `.splat` format Orbit Studio imports |
+| Photo Sphere Viewer 5.14.3 | MIT | 360° panorama rendering and tour plugins under Orbit Tour |
 
 Experimental lanes, off by default:
 
