@@ -28,7 +28,7 @@ This file is session memory. Read it first in any new chat before touching the p
 - **Storage**: `tours/<tour-id>/tour.json` + `files/` (gitignored, it is user content). Angles are stored in DEGREES in tour.json and converted to radians at the PSV boundary. Media filenames are server-generated hex tokens; the client never controls a filename on disk.
 - **Prune grace window**: `prune_tour_files` deletes unreferenced media on save, but skips anything younger than `PRUNE_GRACE_SECONDS` (300). Without that window a debounced autosave firing between an upload and the save that references it silently destroyed the just-uploaded pano — confirmed live, then fixed and covered from both sides in the smoke test.
 - **CORS**: the API now echoes only localhost-family origins instead of `*`, because the tours API has DELETE routes. Non-browser clients (the phone app, curl) send no Origin and are unaffected.
-- **Tests**: `python tests/tour_smoke_test.py` (27 checks). `python tests/seed_demo_tour.py` generates a 3-scene demo tour with hotspots for eyeballing the viewer without a camera.
+- **Tests**: `python tests/tour_smoke_test.py` (30 checks). `python tests/seed_demo_tour.py` generates a 3-scene demo tour with hotspots for eyeballing the viewer without a camera.
 - **Build method**: each step was gated by an impeccable-agent report card requiring 93%+ before moving on (Step 1 foundation 93%, Step 2 viewer 94%).
 
 ## Open questions

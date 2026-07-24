@@ -99,9 +99,9 @@ has saved a reference to it.
 python tests/tour_smoke_test.py
 ```
 
-27 checks across the tour API: CRUD, upload validation, the prune grace
-window, path-traversal rejection, oversize rejection, duplicate, and the
-export bundle's contents.
+30 checks across the tour API: CRUD, upload validation, the prune grace
+window, path-traversal and malformed-id rejection, oversize rejection,
+duplicate, and the export bundle's contents.
 
 `python tests/seed_demo_tour.py` builds a demo tour with three generated
 panoramas and a hotspot ring, useful for looking at the viewer without a
