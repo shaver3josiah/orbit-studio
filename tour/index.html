@@ -482,6 +482,8 @@ function sceneToNode(tour, scene) {
       nodeId: h.target,
       position: { yaw: h.yaw * DEG, pitch: h.pitch * DEG },
       ...(h.label ? { name: esc(h.label) } : {}),
+      /* the editor offers a custom icon on links too — PSV takes it per-link */
+      ...(h.icon ? { arrowStyle: { image: fileUrl(tour.id, h.icon) } } : {}),
     })),
     markers: hotspots.filter(h => h.type === 'info' || h.type === 'url').map(h => {
       if (h.type === 'url') {
