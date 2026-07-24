@@ -742,9 +742,11 @@ async function renderEditor(tourId) {
      PREVIOUS state there catches all of them from one place instead of
      sprinkling snapshot() calls through every handler. */
   const UNDO_LIMIT = 40;
+  const UNDO_COALESCE_MS = 700;
   const undoStack = [];
   const stateStr = () => JSON.stringify({ name: doc.name, settings: doc.settings, scenes: doc.scenes });
   let lastState = stateStr();
+  let lastPushAt = -Infinity;
 
   function undo() {
     const prev = undoStack.pop();
@@ -780,8 +782,16 @@ async function renderEditor(tourId) {
   function scheduleSave() {
     const now = stateStr();
     if (now !== lastState) {
-      undoStack.push(lastState);
-      if (undoStack.length > UNDO_LIMIT) undoStack.shift();
+      /* typing fires this per keystroke: within the coalesce window keep the
+         snapshot already on the stack (the state before the burst began), so
+         one Undo reverts the whole edit and typing cannot evict structural
+         history from the 40-slot stack */
+      const at = performance.now();
+      if (at - lastPushAt > UNDO_COALESCE_MS) {
+        undoStack.push(lastState);
+        if (undoStack.length > UNDO_LIMIT) undoStack.shift();
+        lastPushAt = at;
+      }
       lastState = now;
       updateUndoButton();
     }
@@ -1153,7 +1163,11 @@ async function renderEditor(tourId) {
       pane.innerHTML = `<div class="editor-empty">
         <div style="font-size:18px;font-weight:600;color:var(--text)">Add your first 360&deg; photo</div>
         <div>Drop an equirectangular JPG into the panel on the left.<br>Then place hotspots to connect scenes.</div>
+        <button class="btn" id="undo-btn" title="Undo (Ctrl+Z)" disabled>Undo</button>
       </div>`;
+      // deleting the last scene removes the toolbar — the moment undo is needed most
+      document.getElementById('undo-btn').addEventListener('click', undo);
+      updateUndoButton();
       return;
     }
     if (!editorViewer) {
@@ -1171,6 +1185,7 @@ async function renderEditor(tourId) {
       document.getElementById('add-info').addEventListener('click', () => startPlacing('info'));
       document.getElementById('add-url').addEventListener('click', () => startPlacing('url'));
       document.getElementById('undo-btn').addEventListener('click', undo);
+      updateUndoButton();
       document.getElementById('set-view').addEventListener('click', () => {
         const s = curScene();
         if (!s) return;
