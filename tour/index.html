@@ -1,0 +1,1122 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Orbit Tour</title>
+<link rel="stylesheet" href="/tour/vendor/psv-core.css">
+<link rel="stylesheet" href="/tour/vendor/psv-markers.css">
+<link rel="stylesheet" href="/tour/vendor/psv-virtual-tour.css">
+<link rel="stylesheet" href="/tour/vendor/psv-gallery.css">
+<style>
+  :root {
+    --canvas: #0B0B0E;
+    --surface: #1C1C22;
+    --hairline: rgba(255, 255, 255, 0.12);
+    --hairline-strong: rgba(255, 255, 255, 0.20);
+    --text: #F2F2F7;
+    --text-2: rgba(255, 255, 255, 0.60);
+    --text-3: rgba(255, 255, 255, 0.38);
+    --accent: #0A84FF;
+    --danger: #FF453A;
+    --success: #30D158;
+    --r-sm: 12px;
+    --r-md: 16px;
+    --r-lg: 24px;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--canvas);
+    color: var(--text);
+    font: 15px/1.5 -apple-system, "Segoe UI", Roboto, system-ui, sans-serif;
+  }
+  button { font: inherit; cursor: pointer; }
+  .num { font-variant-numeric: tabular-nums; font-family: ui-monospace, Consolas, monospace; }
+
+  /* ---------- home ---------- */
+  .home { max-width: 960px; margin: 0 auto; padding: 40px 24px 80px; }
+  .home-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 8px; }
+  .home-head h1 { font-size: 28px; font-weight: 700; margin: 0; }
+  .home-sub { color: var(--text-2); margin: 0 0 28px; }
+  .btn {
+    background: var(--surface); color: var(--text);
+    border: 1px solid var(--hairline); border-radius: var(--r-sm);
+    padding: 8px 16px; transition: transform 150ms ease-out, background 150ms ease-out;
+  }
+  .btn:hover { background: #26262e; }
+  .btn:active { transform: scale(0.98); }
+  .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .btn:disabled { opacity: 0.4; cursor: default; }
+  .btn.primary { background: var(--accent); border-color: transparent; color: #fff; }
+  .btn.primary:hover { background: #2a94ff; }
+  .btn.danger-text { color: var(--danger); }
+  .btn.danger-solid { background: var(--danger); border-color: transparent; color: #fff; }
+  .create-row { display: none; gap: 8px; margin-bottom: 20px; }
+  .create-row.open { display: flex; }
+  .text-input {
+    flex: 1; max-width: 360px; background: var(--surface); color: var(--text);
+    border: 1px solid var(--hairline-strong); border-radius: var(--r-sm);
+    padding: 8px 14px; font: inherit;
+  }
+  .text-input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .toast {
+    position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%);
+    background: var(--surface); border: 1px solid var(--hairline-strong);
+    border-radius: 999px; padding: 10px 20px; z-index: 100; font-size: 14px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  }
+  .toast.error { border-color: var(--danger); color: var(--danger); }
+  .tour-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+  .tour-card {
+    background: var(--surface); border: 1px solid var(--hairline);
+    border-radius: var(--r-md); padding: 20px; display: flex; flex-direction: column; gap: 6px;
+  }
+  .tour-card h2 { margin: 0; font-size: 17px; font-weight: 600; overflow-wrap: anywhere; }
+  .tour-card .cover {
+    width: calc(100% + 40px); margin: -20px -20px 8px; height: 120px;
+    object-fit: cover; border-radius: var(--r-md) var(--r-md) 0 0; display: block;
+    background: var(--canvas);
+  }
+  .tour-card .meta { color: var(--text-2); font-size: 13px; }
+  .tour-card .row { display: flex; gap: 8px; margin-top: 14px; }
+  .empty-card {
+    grid-column: 1 / -1; text-align: center; padding: 56px 24px;
+    border: 1px dashed var(--hairline-strong); border-radius: var(--r-md); color: var(--text-2);
+  }
+  .state-note { color: var(--text-2); padding: 24px 0; }
+  .state-note.error { color: var(--danger); }
+
+  /* ---------- viewer ---------- */
+  .stage { position: fixed; inset: 0; }
+  #psv { width: 100%; height: 100%; }
+  .tour-title {
+    position: absolute; top: 16px; left: 16px; z-index: 20;
+    background: rgba(11, 11, 14, 0.72); backdrop-filter: blur(8px);
+    border: 1px solid var(--hairline); border-radius: var(--r-sm);
+    padding: 8px 14px; font-size: 14px; font-weight: 600; max-width: min(60vw, 480px);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .tour-logo {
+    position: absolute; left: 16px; bottom: 56px; z-index: 20; display: block;
+  }
+  .tour-logo img { max-height: 56px; max-width: 160px; display: block; }
+  .center-note {
+    position: fixed; inset: 0; display: flex; flex-direction: column; gap: 12px;
+    align-items: center; justify-content: center; text-align: center; padding: 24px;
+  }
+  .center-note .big { font-size: 20px; font-weight: 600; }
+  .center-note .sub { color: var(--text-2); }
+  .center-note a { color: var(--accent); }
+  .spin {
+    width: 28px; height: 28px; border-radius: 50%;
+    border: 3px solid var(--hairline-strong); border-top-color: var(--accent);
+    animation: spin 800ms linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) {
+    .spin { animation-duration: 2s; }
+    .btn { transition: none; }
+  }
+
+  /* ---------- editor ---------- */
+  .editor { display: flex; height: 100vh; }
+  .side {
+    width: 320px; flex: none; background: var(--surface);
+    border-right: 1px solid var(--hairline); display: flex; flex-direction: column;
+    overflow-y: auto;
+  }
+  .side-head { padding: 16px; border-bottom: 1px solid var(--hairline); }
+  .side-head .back { color: var(--text-2); text-decoration: none; font-size: 13px; }
+  .side-head .back:hover { color: var(--text); }
+  .name-input {
+    width: 100%; margin-top: 8px; background: transparent; color: var(--text);
+    border: 1px solid transparent; border-radius: 8px; padding: 6px 8px;
+    font-size: 17px; font-weight: 600;
+  }
+  .name-input:hover { border-color: var(--hairline); }
+  .name-input:focus-visible { outline: none; border-color: var(--accent); background: var(--canvas); }
+  .save-status { font-size: 12px; color: var(--text-3); margin-top: 4px; min-height: 16px; }
+  .save-status.saving { color: var(--text-2); }
+  .save-status.error { color: var(--danger); }
+  .side-section { padding: 14px 16px; border-bottom: 1px solid var(--hairline); }
+  .side-section h3 {
+    margin: 0 0 10px; font-size: 11px; font-weight: 600; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--text-3);
+  }
+  .scene-row {
+    display: flex; align-items: center; gap: 10px; padding: 6px; border-radius: 8px;
+    cursor: pointer; border: 1px solid transparent;
+  }
+  .scene-row:hover { background: rgba(255, 255, 255, 0.04); }
+  .scene-row.active { border-color: var(--accent); background: rgba(10, 132, 255, 0.10); }
+  .scene-row img { width: 56px; height: 28px; object-fit: cover; border-radius: 4px; flex: none; }
+  .scene-row .sn { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
+  .scene-row .start-tag { font-size: 10px; color: var(--accent); border: 1px solid var(--accent); border-radius: 4px; padding: 1px 5px; flex: none; }
+  .icon-btn {
+    background: none; border: none; color: var(--text-3); padding: 2px 4px;
+    border-radius: 6px; font-size: 14px; line-height: 1; flex: none;
+  }
+  .icon-btn:hover { color: var(--text); background: rgba(255, 255, 255, 0.08); }
+  .icon-btn:focus-visible { outline: 2px solid var(--accent); }
+  .drop-zone {
+    margin-top: 10px; border: 1px dashed var(--hairline-strong); border-radius: var(--r-sm);
+    padding: 18px 12px; text-align: center; color: var(--text-2); font-size: 13px; cursor: pointer;
+  }
+  .drop-zone.drag { border-color: var(--accent); color: var(--accent); background: rgba(10, 132, 255, 0.08); }
+  .field { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 10px 0; font-size: 14px; }
+  .field label { color: var(--text-2); }
+  .field input[type="checkbox"] { accent-color: var(--accent); width: 16px; height: 16px; }
+  .field input[type="number"], .field input[type="url"], .field select {
+    background: var(--canvas); color: var(--text); border: 1px solid var(--hairline);
+    border-radius: 8px; padding: 5px 8px; font: inherit; font-size: 13px; max-width: 150px;
+  }
+  .field .file-line { display: flex; align-items: center; gap: 6px; }
+  .main-pane { flex: 1; position: relative; display: flex; flex-direction: column; min-width: 0; }
+  .toolbar {
+    display: flex; gap: 8px; align-items: center; padding: 10px 14px;
+    background: var(--surface); border-bottom: 1px solid var(--hairline); flex-wrap: wrap;
+  }
+  .toolbar .hint { color: var(--text-2); font-size: 13px; margin-left: auto; }
+  .toolbar .hint.placing { color: var(--accent); }
+  #edit-psv { flex: 1; min-height: 0; }
+  .editor-empty {
+    flex: 1; display: flex; flex-direction: column; gap: 10px;
+    align-items: center; justify-content: center; color: var(--text-2); text-align: center; padding: 24px;
+  }
+  .hs-panel {
+    position: absolute; top: 60px; right: 14px; z-index: 30; width: 300px;
+    background: var(--surface); border: 1px solid var(--hairline-strong);
+    border-radius: var(--r-md); padding: 16px; box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+  }
+  .hs-panel h4 { margin: 0 0 10px; font-size: 14px; }
+  .hs-panel .frow { margin: 8px 0; display: flex; flex-direction: column; gap: 4px; }
+  .hs-panel .frow label { font-size: 12px; color: var(--text-2); }
+  .hs-panel input[type="text"], .hs-panel textarea, .hs-panel select {
+    background: var(--canvas); color: var(--text); border: 1px solid var(--hairline);
+    border-radius: 8px; padding: 6px 8px; font: inherit; font-size: 13px; width: 100%;
+  }
+  .hs-panel textarea { min-height: 64px; resize: vertical; }
+  .hs-panel .row { display: flex; gap: 8px; margin-top: 12px; }
+
+  /* PSV overrides to match the house style */
+  .psv-navbar { background: rgba(11, 11, 14, 0.72); backdrop-filter: blur(8px); }
+  .psv-panel { background: rgba(18, 18, 22, 0.96); color: var(--text); }
+  .psv-panel-content h2 { margin-top: 0; }
+</style>
+<script type="importmap">
+{
+  "imports": {
+    "three": "/tour/vendor/three.module.js",
+    "@photo-sphere-viewer/core": "/tour/vendor/psv-core.module.js",
+    "@photo-sphere-viewer/markers-plugin": "/tour/vendor/psv-markers.module.js",
+    "@photo-sphere-viewer/virtual-tour-plugin": "/tour/vendor/psv-virtual-tour.module.js",
+    "@photo-sphere-viewer/gallery-plugin": "/tour/vendor/psv-gallery.module.js",
+    "@photo-sphere-viewer/autorotate-plugin": "/tour/vendor/psv-autorotate.module.js",
+    "@photo-sphere-viewer/gyroscope-plugin": "/tour/vendor/psv-gyroscope.module.js",
+    "@photo-sphere-viewer/stereo-plugin": "/tour/vendor/psv-stereo.module.js"
+  }
+}
+</script>
+</head>
+<body>
+<div id="app"></div>
+<script type="module">
+import { Viewer } from '@photo-sphere-viewer/core';
+import { MarkersPlugin } from '@photo-sphere-viewer/markers-plugin';
+import { VirtualTourPlugin } from '@photo-sphere-viewer/virtual-tour-plugin';
+import { GalleryPlugin } from '@photo-sphere-viewer/gallery-plugin';
+import { AutorotatePlugin } from '@photo-sphere-viewer/autorotate-plugin';
+import { GyroscopePlugin } from '@photo-sphere-viewer/gyroscope-plugin';
+import { StereoPlugin } from '@photo-sphere-viewer/stereo-plugin';
+
+const app = document.getElementById('app');
+const DEG = Math.PI / 180;
+const REDUCED_MOTION = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+let toastEl = null;
+let toastTimer = null;
+function toast(msg, isError = false) {
+  clearTimeout(toastTimer);
+  toastEl?.remove();
+  toastEl = el(`<div class="toast${isError ? ' error' : ''}" role="status"></div>`);
+  document.body.append(toastEl);
+  /* set text a beat after insertion so screen readers announce the live region */
+  setTimeout(() => { if (toastEl) toastEl.textContent = msg; }, 20);
+  toastTimer = setTimeout(() => { toastEl?.remove(); toastEl = null; }, 3200);
+}
+
+/* ---------- tiny helpers ---------- */
+
+async function api(method, path, body) {
+  const opts = { method, headers: {} };
+  if (body !== undefined) {
+    opts.headers['Content-Type'] = 'application/json';
+    opts.body = JSON.stringify(body);
+  }
+  const res = await fetch(path, opts);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.detail || data.error || `${res.status}`);
+  return data;
+}
+
+function fileUrl(tourId, name) {
+  return `/api/tours/${tourId}/files/${name}`;
+}
+
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  }[c]));
+}
+
+function el(html) {
+  const t = document.createElement('template');
+  t.innerHTML = html.trim();
+  return t.content.firstElementChild;
+}
+
+const fmtDate = iso => iso ? new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '';
+
+/* ---------- inline icons (no emoji, per house rules) ---------- */
+
+const svgIcon = (paths, size = 40) =>
+  'data:image/svg+xml;utf8,' + encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 40 40">
+      <circle cx="20" cy="20" r="18" fill="rgba(11,11,14,0.75)" stroke="#F2F2F7" stroke-width="2"/>${paths}</svg>`);
+
+const ICON_INFO = svgIcon('<rect x="18.5" y="17" width="3" height="12" rx="1.5" fill="#F2F2F7"/><circle cx="20" cy="12" r="2.2" fill="#F2F2F7"/>');
+
+const NAV_PLANET_SVG = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="6.5"/><ellipse cx="12" cy="12" rx="10.5" ry="3.6" transform="rotate(-18 12 12)"/></svg>';
+const NAV_AUDIO_ON_SVG = '<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16 8.5a5 5 0 0 1 0 7" stroke="currentColor" stroke-width="1.8" fill="none"/><path d="M18.5 6a8.5 8.5 0 0 1 0 12" stroke="currentColor" stroke-width="1.8" fill="none"/></svg>';
+const NAV_AUDIO_OFF_SVG = '<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16 9l6 6M22 9l-6 6" stroke="currentColor" stroke-width="1.8" fill="none"/></svg>';
+
+/* ---------- router ---------- */
+
+const viewMatch = location.pathname.match(/^\/tour\/view\/([^/]+)/);
+const editId = new URLSearchParams(location.search).get('edit');
+if (viewMatch) {
+  renderViewer(viewMatch[1]);
+} else if (editId) {
+  renderEditor(editId);
+} else {
+  renderHome();
+}
+
+/* ---------- home ---------- */
+
+async function renderHome() {
+  document.title = 'Orbit Tour';
+  app.innerHTML = `
+    <div class="home">
+      <div class="home-head">
+        <h1>Orbit Tour</h1>
+        <button class="btn primary" id="new-tour">New tour</button>
+      </div>
+      <p class="home-sub">Self-hosted 360&deg; virtual tours. Your panoramas never leave this machine.</p>
+      <form class="create-row" id="create-row">
+        <input class="text-input" id="create-name" placeholder="Tour name" maxlength="80" autocomplete="off">
+        <button class="btn primary" type="submit">Create</button>
+        <button class="btn" type="button" id="create-cancel">Cancel</button>
+      </form>
+      <div id="tour-list" class="state-note">Loading tours&hellip;</div>
+    </div>`;
+
+  const createRow = document.getElementById('create-row');
+  const createName = document.getElementById('create-name');
+  document.getElementById('new-tour').addEventListener('click', () => {
+    createRow.classList.add('open');
+    createName.focus();
+  });
+  document.getElementById('create-cancel').addEventListener('click', () => {
+    createRow.classList.remove('open');
+    createName.value = '';
+  });
+  createName.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { createRow.classList.remove('open'); createName.value = ''; }
+  });
+  createRow.addEventListener('submit', async e => {
+    e.preventDefault();
+    const submitBtn = createRow.querySelector('[type=submit]');
+    if (submitBtn.disabled) return;
+    submitBtn.disabled = true;
+    try {
+      const tour = await api('POST', '/api/tours', { name: createName.value.trim() || 'untitled tour' });
+      location.href = `/tour?edit=${tour.id}`;
+    } catch (err) {
+      toast(`Could not create tour: ${err.message}`, true);
+      submitBtn.disabled = false;
+    }
+  });
+
+  const list = document.getElementById('tour-list');
+  let tours;
+  try {
+    ({ tours } = await api('GET', '/api/tours'));
+  } catch (err) {
+    list.className = 'state-note error';
+    list.textContent = `Could not load tours: ${err.message}. Is server.py running?`;
+    return;
+  }
+
+  list.className = 'tour-grid';
+  list.innerHTML = '';
+  if (!tours.length) {
+    list.append(el(`<div class="empty-card">No tours yet.<br>Create one, then drop in 360&deg; photos exported from the Insta360 app.</div>`));
+    return;
+  }
+  for (const t of tours) {
+    const scenes = (t.scenes || []).length;
+    const first = (t.scenes || [])[0];
+    const cover = first
+      ? `<img class="cover" src="${fileUrl(t.id, first.thumb || first.file)}" alt="" loading="lazy">`
+      : '';
+    const card = el(`
+      <div class="tour-card">
+        ${cover}
+        <h2>${esc(t.name)}</h2>
+        <div class="meta"><span class="num">${scenes}</span> scene${scenes === 1 ? '' : 's'} &middot; updated ${fmtDate(t.updated)}</div>
+        <div class="row">
+          <button class="btn primary" data-act="open">Open</button>
+          <button class="btn" data-act="edit">Edit</button>
+          <button class="btn danger-text" data-act="delete">Delete</button>
+        </div>
+      </div>`);
+    card.querySelector('[data-act=open]').addEventListener('click', () => location.href = `/tour/view/${t.id}`);
+    card.querySelector('[data-act=edit]').addEventListener('click', () => location.href = `/tour?edit=${t.id}`);
+    const delBtn = card.querySelector('[data-act=delete]');
+    let armTimer = null;
+    delBtn.addEventListener('click', async () => {
+      if (!delBtn.classList.contains('danger-solid')) {
+        /* two-step confirm: first click arms, second within 4s deletes */
+        delBtn.classList.replace('danger-text', 'danger-solid');
+        delBtn.textContent = 'Really delete?';
+        armTimer = setTimeout(() => {
+          delBtn.classList.replace('danger-solid', 'danger-text');
+          delBtn.textContent = 'Delete';
+        }, 4000);
+        return;
+      }
+      clearTimeout(armTimer);
+      try {
+        await api('DELETE', `/api/tours/${t.id}`);
+        card.remove();
+        toast(`Deleted "${t.name}"`);
+        if (!list.querySelector('.tour-card')) renderHome();
+      } catch (err) {
+        toast(`Delete failed: ${err.message}`, true);
+        delBtn.classList.replace('danger-solid', 'danger-text');
+        delBtn.textContent = 'Delete';
+      }
+    });
+    list.append(card);
+  }
+}
+
+/* ---------- viewer ---------- */
+
+function sceneToNode(tour, scene) {
+  const hotspots = scene.hotspots || [];
+  return {
+    id: scene.id,
+    panorama: fileUrl(tour.id, scene.file),
+    thumbnail: fileUrl(tour.id, scene.thumb || scene.file),
+    name: esc(scene.name), /* gallery + arrow tooltips inject this via innerHTML */
+    caption: `${esc(tour.name)} &mdash; ${esc(scene.name)}`,
+    links: hotspots
+      .filter(h => h.type === 'link' && tour.scenes.some(s => s.id === h.target)) /* dangling links must not brick the tour */
+      .map(h => ({
+      nodeId: h.target,
+      position: { yaw: h.yaw * DEG, pitch: h.pitch * DEG },
+      ...(h.label ? { name: esc(h.label) } : {}),
+    })),
+    markers: hotspots.filter(h => h.type === 'info').map(h => {
+      const parts = [];
+      if (h.image) parts.push(`<img src="${fileUrl(tour.id, h.image)}" alt="${esc(h.title || '')}" style="max-width:100%;border-radius:8px">`);
+      if (h.text) parts.push(`<p style="white-space:pre-wrap">${esc(h.text)}</p>`);
+      if (h.audio) parts.push(`<audio controls src="${fileUrl(tour.id, h.audio)}" style="width:100%"></audio>`);
+      return {
+        id: h.id,
+        position: { yaw: h.yaw * DEG, pitch: h.pitch * DEG },
+        image: h.icon ? fileUrl(tour.id, h.icon) : ICON_INFO,
+        size: { width: 40, height: 40 },
+        tooltip: esc(h.title || 'Info'),
+        ...(parts.length ? { content: `<h2>${esc(h.title || '')}</h2>${parts.join('')}` } : {}),
+      };
+    }),
+  };
+}
+
+async function renderViewer(tourId) {
+  const embed = new URLSearchParams(location.search).has('embed');
+  app.innerHTML = `<div class="center-note"><div class="spin"></div><div class="sub">Loading tour&hellip;</div></div>`;
+
+  let tour;
+  try {
+    const res = await fetch(`/api/tours/${tourId}`);
+    if (res.status === 404) {
+      app.innerHTML = `<div class="center-note">
+        <div class="big">Tour not found</div>
+        <div class="sub">It may have been deleted.</div>
+        <a href="/tour">Back to your tours</a></div>`;
+      return;
+    }
+    if (!res.ok) throw new Error(`server replied ${res.status}`);
+    tour = await res.json();
+  } catch (err) {
+    app.innerHTML = `<div class="center-note">
+      <div class="big">Could not load this tour</div>
+      <div class="sub">${esc(err.message)}. Is server.py running?</div>
+      <button class="btn" id="retry-btn">Try again</button></div>`;
+    document.getElementById('retry-btn').addEventListener('click', () => location.reload());
+    return;
+  }
+  document.title = `${tour.name} — Orbit Tour`;
+
+  if (!(tour.scenes || []).length) {
+    app.innerHTML = `<div class="center-note">
+      <div class="big">${esc(tour.name)}</div>
+      <div class="sub">This tour has no scenes yet. Open the editor and add 360&deg; photos.</div>
+      <a href="/tour?edit=${esc(tour.id)}">Open editor</a></div>`;
+    return;
+  }
+
+  const settings = tour.settings || {};
+  app.innerHTML = `<div class="stage"><div id="psv"></div></div>`;
+  const stage = app.firstElementChild;
+
+  if (!embed) {
+    stage.append(el(`<div class="tour-title">${esc(tour.name)}</div>`));
+  }
+  if (settings.logo) {
+    const img = `<img src="${fileUrl(tour.id, settings.logo)}" alt="${esc(tour.name)}">`;
+    stage.append(el(settings.logoLink
+      ? `<a class="tour-logo" href="${esc(settings.logoLink)}" target="_blank" rel="noopener">${img}</a>`
+      : `<div class="tour-logo">${img}</div>`));
+  }
+
+  /* background audio (starts on first gesture — browsers block autoplay) */
+  let audioEl = null;
+  let audioWanted = Boolean(settings.audio);
+  if (settings.audio) {
+    audioEl = new Audio(fileUrl(tour.id, settings.audio));
+    audioEl.loop = true;
+    const startOnce = () => { if (audioWanted) audioEl.play().catch(() => {}); };
+    stage.addEventListener('pointerdown', startOnce, { once: true });
+  }
+
+  const nodes = tour.scenes.map(s => sceneToNode(tour, s));
+  const startNodeId = tour.scenes.some(s => s.id === settings.startScene)
+    ? settings.startScene
+    : tour.scenes[0].id;
+
+  /* reduced motion: no planet intro, no self-starting rotation — manual controls stay */
+  const littlePlanet = settings.littlePlanetIntro !== false && !REDUCED_MOTION;
+  const autorotate = settings.autorotate === true && !REDUCED_MOTION;
+
+  const navbar = [
+    'autorotate',
+    'zoom',
+    {
+      id: 'planet',
+      title: 'Little planet',
+      content: NAV_PLANET_SVG,
+      onClick(viewer) {
+        planetOn = !planetOn;
+        viewer.setOption('fisheye', planetOn ? 2 : false);
+      },
+    },
+  ];
+  if (audioEl) {
+    navbar.push({
+      id: 'audio',
+      title: 'Sound',
+      content: NAV_AUDIO_ON_SVG,
+      onClick(viewer) {
+        audioWanted = !audioWanted;
+        if (audioWanted) audioEl.play().catch(() => {}); else audioEl.pause();
+        /* .content is getter-only on AbstractButton — write the DOM directly */
+        viewer.navbar.getButton('audio').container.innerHTML = audioWanted ? NAV_AUDIO_ON_SVG : NAV_AUDIO_OFF_SVG;
+      },
+    });
+  }
+  navbar.push('gallery', 'caption', 'gyroscope', 'stereo', 'fullscreen');
+
+  let planetOn = littlePlanet;
+
+  const viewer = new Viewer({
+    container: document.getElementById('psv'),
+    loadingTxt: 'Loading panorama&hellip;',
+    touchmoveTwoFingers: embed,
+    mousewheelCtrlKey: embed,
+    keyboard: embed ? 'fullscreen' : 'always',
+    fisheye: littlePlanet ? 2 : false,
+    defaultYaw: ((tour.scenes.find(s => s.id === startNodeId)?.view?.yaw) || 0) * DEG,
+    defaultPitch: littlePlanet ? -90 * DEG : ((tour.scenes.find(s => s.id === startNodeId)?.view?.pitch) || 0) * DEG,
+    navbar,
+    plugins: [
+      MarkersPlugin,
+      [AutorotatePlugin, autorotate
+        ? { autostartDelay: 4000, autorotateSpeed: `${settings.autorotateSpeed || 0.7}rpm`, autostartOnIdle: true }
+        : { autostartDelay: null, autostartOnIdle: false, autorotateSpeed: '0.7rpm' }],
+      [GalleryPlugin, { visibleOnLoad: false, thumbnailSize: { width: 120, height: 60 } }],
+      GyroscopePlugin,
+      StereoPlugin,
+      [VirtualTourPlugin, {
+        positionMode: 'manual',
+        renderMode: '3d',
+        preload: true,
+        nodes,
+        startNodeId,
+      }],
+    ],
+  });
+
+  const virtualTour = viewer.getPlugin(VirtualTourPlugin);
+  window.orbitTour = { viewer, virtualTour, tour }; // debug/editor handle
+
+  /* little planet intro: unfold to normal view once loaded */
+  let introPending = littlePlanet;
+  if (littlePlanet) {
+    const unfold = () => {
+      if (!introPending) return;
+      introPending = false;
+      const start = performance.now();
+      const D = 1400;
+      const scene0 = tour.scenes.find(s => s.id === startNodeId);
+      const targetPitch = (scene0?.view?.pitch ?? 0) * DEG;
+      const startPitch = viewer.getPosition().pitch;
+      const tick = now => {
+        const t = Math.min(1, (now - start) / D);
+        const e = 1 - Math.pow(1 - t, 3); /* ease-out cubic */
+        viewer.setOption('fisheye', 2 * (1 - e) || false);
+        viewer.rotate({ yaw: viewer.getPosition().yaw, pitch: startPitch + (targetPitch - startPitch) * e });
+        if (t < 1) { requestAnimationFrame(tick); } else {
+          planetOn = false;
+          if (scene0?.view?.zoom != null) viewer.zoom(scene0.view.zoom);
+        }
+      };
+      requestAnimationFrame(tick);
+    };
+    viewer.addEventListener('ready', () => setTimeout(unfold, 1100), { once: true });
+    viewer.container.addEventListener('pointerdown', unfold, { once: true });
+  }
+
+  /* face each scene's stored initial view on entry (the intro owns the start pose) */
+  virtualTour.addEventListener('node-changed', ({ node }) => {
+    if (introPending && node.id === startNodeId) return;
+    const scene = tour.scenes.find(s => s.id === node.id);
+    if (scene?.view) {
+      viewer.rotate({ yaw: (scene.view.yaw || 0) * DEG, pitch: (scene.view.pitch || 0) * DEG });
+      if (scene.view.zoom != null) viewer.zoom(scene.view.zoom);
+    }
+  });
+}
+
+/* ---------- editor ---------- */
+
+const ICON_LINK = svgIcon('<path d="M14 20h10m0 0l-4.5-4.5M24 20l-4.5 4.5" stroke="#F2F2F7" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>');
+
+async function uploadFile(tourId, file) {
+  const form = new FormData();
+  form.append('file', file);
+  const res = await fetch(`/api/tours/${tourId}/files`, { method: 'POST', body: form });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.detail || data.error || `${res.status}`);
+  return data.file;
+}
+
+/* decode an image file; reject non-2:1 equirects; return {pano, thumb} blobs */
+async function preparePano(file) {
+  const bmp = await createImageBitmap(file).catch(() => null);
+  if (!bmp) throw new Error(`${file.name}: not a readable image`);
+  const ratio = bmp.width / bmp.height;
+  if (Math.abs(ratio - 2) > 0.04) {
+    bmp.close();
+    throw new Error(`${file.name}: not equirectangular (${bmp.width}x${bmp.height}, need width = 2x height). Export the 360 photo from the Insta360 app first.`);
+  }
+  const canvas = document.createElement('canvas');
+  canvas.width = 512; canvas.height = 256;
+  canvas.getContext('2d').drawImage(bmp, 0, 0, 512, 256);
+  bmp.close();
+  const thumb = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.75));
+  return { thumb };
+}
+
+async function renderEditor(tourId) {
+  app.innerHTML = `<div class="center-note"><div class="spin"></div><div class="sub">Loading editor&hellip;</div></div>`;
+  let doc;
+  try {
+    doc = await api('GET', `/api/tours/${tourId}`);
+  } catch {
+    app.innerHTML = `<div class="center-note">
+      <div class="big">Tour not found</div>
+      <a href="/tour">Back to your tours</a></div>`;
+    return;
+  }
+  document.title = `Editing ${doc.name} — Orbit Tour`;
+  doc.settings = doc.settings || {};
+
+  /* ----- state ----- */
+  let curSceneId = doc.scenes[0]?.id || null;
+  let placing = null;        // 'link' | 'info' | {move: hotspotId} | null
+  let saveTimer = null;
+  let saveInFlight = false;
+  let dirty = false;
+  let editorViewer = null;   // created lazily when a scene exists
+  let markers = null;
+
+  const curScene = () => doc.scenes.find(s => s.id === curSceneId) || null;
+  const newId = p => `${p}${Date.now().toString(36)}${Math.floor(Math.random() * 1e4).toString(36)}`;
+
+  /* ----- autosave ----- */
+  function scheduleSave() {
+    dirty = true;
+    setStatus('saving', 'Unsaved changes…');
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(saveNow, 800);
+  }
+  async function saveNow() {
+    clearTimeout(saveTimer); saveTimer = null;
+    if (saveInFlight) { scheduleSave(); return; }
+    saveInFlight = true;
+    setStatus('saving', 'Saving…');
+    try {
+      const saved = await api('POST', `/api/tours/${doc.id}`, doc);
+      doc.updated = saved.updated;
+      dirty = false;
+      setStatus('', 'Saved');
+    } catch (err) {
+      setStatus('error', `Save failed: ${err.message} — retrying`);
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(saveNow, 3000);
+    } finally {
+      saveInFlight = false;
+    }
+  }
+  window.addEventListener('beforeunload', e => {
+    if (dirty || saveTimer) { e.preventDefault(); e.returnValue = ''; }
+  });
+  function setStatus(cls, txt) {
+    const s = document.getElementById('save-status');
+    if (s) { s.className = `save-status ${cls}`; s.textContent = txt; }
+  }
+
+  /* ----- layout ----- */
+  app.innerHTML = `
+    <div class="editor">
+      <div class="side">
+        <div class="side-head">
+          <a class="back" href="/tour">&larr; All tours</a>
+          <input class="name-input" id="tour-name" value="${esc(doc.name)}" maxlength="80" aria-label="Tour name">
+          <div class="save-status" id="save-status">Saved</div>
+        </div>
+        <div class="side-section">
+          <h3>Scenes</h3>
+          <div id="scene-list"></div>
+          <div class="drop-zone" id="drop-zone" role="button" tabindex="0">
+            Drop 360&deg; photos here<br>or click to choose
+            <input type="file" id="file-input" accept="image/jpeg,image/png,image/webp" multiple hidden>
+          </div>
+        </div>
+        <div class="side-section">
+          <h3>Tour settings</h3>
+          <div class="field"><label for="set-autorotate">Autorotate</label><input type="checkbox" id="set-autorotate"></div>
+          <div class="field"><label for="set-speed">Speed (rpm)</label><input type="number" id="set-speed" min="0.1" max="3" step="0.1"></div>
+          <div class="field"><label for="set-planet">Little planet intro</label><input type="checkbox" id="set-planet"></div>
+          <div class="field"><label>Logo</label><span class="file-line" id="logo-line"></span></div>
+          <div class="field"><label for="set-logolink">Logo link</label><input type="url" id="set-logolink" placeholder="https://"></div>
+          <div class="field"><label>Background audio</label><span class="file-line" id="audio-line"></span></div>
+        </div>
+        <div class="side-section">
+          <button class="btn" id="preview-btn">Preview tour</button>
+        </div>
+      </div>
+      <div class="main-pane" id="main-pane"></div>
+    </div>`;
+
+  /* ----- tour name ----- */
+  const nameInput = document.getElementById('tour-name');
+  nameInput.addEventListener('change', () => {
+    doc.name = nameInput.value.trim() || 'untitled tour';
+    nameInput.value = doc.name;
+    document.title = `Editing ${doc.name} — Orbit Tour`;
+    scheduleSave();
+  });
+
+  document.getElementById('preview-btn').addEventListener('click', async () => {
+    if (dirty || saveTimer) await saveNow();
+    open(`/tour/view/${doc.id}`, '_blank');
+  });
+
+  /* ----- uploads ----- */
+  const dropZone = document.getElementById('drop-zone');
+  const fileInput = document.getElementById('file-input');
+  dropZone.addEventListener('click', () => fileInput.click());
+  dropZone.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInput.click(); } });
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag'));
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault(); dropZone.classList.remove('drag');
+    addScenes([...e.dataTransfer.files]);
+  });
+  fileInput.addEventListener('change', () => { addScenes([...fileInput.files]); fileInput.value = ''; });
+
+  async function addScenes(files) {
+    for (const file of files) {
+      dropZone.textContent = `Uploading ${file.name}…`;
+      try {
+        const { thumb } = await preparePano(file);
+        const panoName = await uploadFile(doc.id, file);
+        const thumbName = await uploadFile(doc.id, new File([thumb], 'thumb.jpg', { type: 'image/jpeg' }));
+        const scene = {
+          id: newId('s'),
+          name: file.name.replace(/\.[^.]+$/, ''),
+          file: panoName,
+          thumb: thumbName,
+          view: { yaw: 0, pitch: 0 },
+          hotspots: [],
+        };
+        doc.scenes.push(scene);
+        if (doc.scenes.length === 1) {
+          doc.settings.startScene = scene.id;
+          curSceneId = scene.id;
+        }
+        scheduleSave();
+        renderSceneList();
+        if (doc.scenes.length === 1) renderMain();
+      } catch (err) {
+        toast(err.message, true);
+      }
+    }
+    dropZone.innerHTML = 'Drop 360&deg; photos here<br>or click to choose';
+    dropZone.append(fileInput);
+  }
+
+  /* ----- scene list ----- */
+  function renderSceneList() {
+    const list = document.getElementById('scene-list');
+    list.innerHTML = '';
+    if (!doc.scenes.length) {
+      list.append(el(`<div class="state-note" style="padding:8px 0">No scenes yet.</div>`));
+      return;
+    }
+    doc.scenes.forEach((s, i) => {
+      const isStart = doc.settings.startScene === s.id;
+      const row = el(`
+        <div class="scene-row${s.id === curSceneId ? ' active' : ''}" role="button" tabindex="0">
+          <img src="${fileUrl(doc.id, s.thumb || s.file)}" alt="">
+          <span class="sn">${esc(s.name)}</span>
+          ${isStart ? '<span class="start-tag">START</span>' : ''}
+          <button class="icon-btn" data-a="up" title="Move up" aria-label="Move ${esc(s.name)} up">&uarr;</button>
+          <button class="icon-btn" data-a="down" title="Move down" aria-label="Move ${esc(s.name)} down">&darr;</button>
+          <button class="icon-btn" data-a="del" title="Delete scene" aria-label="Delete ${esc(s.name)}">&times;</button>
+        </div>`);
+      row.addEventListener('click', e => {
+        if (e.target.closest('.icon-btn')) return;
+        selectScene(s.id);
+      });
+      row.addEventListener('keydown', e => { if (e.key === 'Enter') selectScene(s.id); });
+      row.querySelector('[data-a=up]').addEventListener('click', () => moveScene(i, -1));
+      row.querySelector('[data-a=down]').addEventListener('click', () => moveScene(i, 1));
+      row.querySelector('[data-a=del]').addEventListener('click', () => deleteScene(s.id));
+      list.append(row);
+    });
+  }
+
+  function moveScene(i, delta) {
+    const j = i + delta;
+    if (j < 0 || j >= doc.scenes.length) return;
+    [doc.scenes[i], doc.scenes[j]] = [doc.scenes[j], doc.scenes[i]];
+    scheduleSave();
+    renderSceneList();
+  }
+
+  let armedDeleteScene = null;
+  function deleteScene(sid) {
+    if (armedDeleteScene !== sid) {
+      armedDeleteScene = sid;
+      toast('Click delete again to remove this scene');
+      setTimeout(() => { if (armedDeleteScene === sid) armedDeleteScene = null; }, 4000);
+      return;
+    }
+    armedDeleteScene = null;
+    doc.scenes = doc.scenes.filter(s => s.id !== sid);
+    for (const s of doc.scenes) {
+      s.hotspots = (s.hotspots || []).filter(h => h.type !== 'link' || h.target !== sid);
+    }
+    if (doc.settings.startScene === sid) doc.settings.startScene = doc.scenes[0]?.id;
+    if (curSceneId === sid) curSceneId = doc.scenes[0]?.id || null;
+    scheduleSave();
+    renderSceneList();
+    renderMain();
+  }
+
+  async function selectScene(sid) {
+    if (sid === curSceneId) return;
+    curSceneId = sid;
+    placing = null;
+    closeHotspotPanel();
+    renderSceneList();
+    await showCurrentScene();
+    updateHint();
+  }
+
+  /* ----- settings panel ----- */
+  const S = doc.settings;
+  const autorotateCb = document.getElementById('set-autorotate');
+  const speedInput = document.getElementById('set-speed');
+  const planetCb = document.getElementById('set-planet');
+  const logoLinkInput = document.getElementById('set-logolink');
+  autorotateCb.checked = S.autorotate === true;
+  speedInput.value = S.autorotateSpeed || 0.7;
+  planetCb.checked = S.littlePlanetIntro !== false;
+  logoLinkInput.value = S.logoLink || '';
+  autorotateCb.addEventListener('change', () => { S.autorotate = autorotateCb.checked; scheduleSave(); });
+  speedInput.addEventListener('change', () => { S.autorotateSpeed = Math.min(3, Math.max(0.1, Number(speedInput.value) || 0.7)); speedInput.value = S.autorotateSpeed; scheduleSave(); });
+  planetCb.addEventListener('change', () => { S.littlePlanetIntro = planetCb.checked; scheduleSave(); });
+  logoLinkInput.addEventListener('change', () => { S.logoLink = logoLinkInput.value.trim(); scheduleSave(); });
+
+  function renderFileSetting(lineId, key, accept) {
+    const line = document.getElementById(lineId);
+    line.innerHTML = '';
+    if (S[key]) {
+      const clear = el(`<button class="icon-btn" title="Remove" aria-label="Remove ${key}">&times;</button>`);
+      clear.addEventListener('click', () => { S[key] = null; scheduleSave(); renderFileSetting(lineId, key, accept); });
+      line.append(el(`<span style="font-size:12px;color:var(--text-2)">set</span>`), clear);
+    } else {
+      const btn = el(`<button class="btn" style="padding:4px 10px;font-size:12px">Upload</button>`);
+      const input = el(`<input type="file" accept="${accept}" hidden>`);
+      btn.addEventListener('click', () => input.click());
+      input.addEventListener('change', async () => {
+        if (!input.files[0]) return;
+        try {
+          S[key] = await uploadFile(doc.id, input.files[0]);
+          scheduleSave();
+          renderFileSetting(lineId, key, accept);
+        } catch (err) { toast(err.message, true); }
+      });
+      line.append(btn, input);
+    }
+  }
+  renderFileSetting('logo-line', 'logo', 'image/png,image/jpeg,image/webp');
+  renderFileSetting('audio-line', 'audio', 'audio/mpeg,audio/mp4,audio/ogg');
+
+  /* ----- main pane: PSV editor viewer ----- */
+  function renderMain() {
+    const pane = document.getElementById('main-pane');
+    if (!doc.scenes.length) {
+      editorViewer?.destroy(); editorViewer = null; markers = null;
+      pane.innerHTML = `<div class="editor-empty">
+        <div style="font-size:18px;font-weight:600;color:var(--text)">Add your first 360&deg; photo</div>
+        <div>Drop an equirectangular JPG into the panel on the left.<br>Then place hotspots to connect scenes.</div>
+      </div>`;
+      return;
+    }
+    if (!editorViewer) {
+      pane.innerHTML = `
+        <div class="toolbar">
+          <button class="btn" id="add-link">+ Link hotspot</button>
+          <button class="btn" id="add-info">+ Info hotspot</button>
+          <button class="btn" id="set-view">Set start view from here</button>
+          <span class="hint" id="hint"></span>
+        </div>
+        <div id="edit-psv"></div>`;
+      document.getElementById('add-link').addEventListener('click', () => startPlacing('link'));
+      document.getElementById('add-info').addEventListener('click', () => startPlacing('info'));
+      document.getElementById('set-view').addEventListener('click', () => {
+        const s = curScene();
+        if (!s) return;
+        const p = editorViewer.getPosition();
+        s.view = { yaw: +(p.yaw / DEG).toFixed(2), pitch: +(p.pitch / DEG).toFixed(2), zoom: Math.round(editorViewer.getZoomLevel()) };
+        toast('Start view saved for this scene');
+        scheduleSave();
+      });
+      editorViewer = new Viewer({
+        container: document.getElementById('edit-psv'),
+        panorama: fileUrl(doc.id, curScene().file),
+        loadingTxt: 'Loading scene…',
+        navbar: ['zoom', 'move', 'fullscreen'],
+        keyboard: 'always',
+        plugins: [MarkersPlugin],
+      });
+      markers = editorViewer.getPlugin(MarkersPlugin);
+      editorViewer.addEventListener('click', ({ data }) => {
+        if (!placing || data.rightclick) return;
+        onPlace(+(data.yaw / DEG).toFixed(2), +(data.pitch / DEG).toFixed(2));
+      });
+      markers.addEventListener('select-marker', ({ marker }) => {
+        if (placing) return;
+        openHotspotPanel(marker.id);
+      });
+      editorViewer.addEventListener('ready', refreshMarkers, { once: true });
+      window.orbitEditor = { viewer: editorViewer, doc: () => doc }; // debug handle
+    } else {
+      if (!curScene()) curSceneId = doc.scenes[0].id;
+      showCurrentScene();
+    }
+  }
+
+  async function showCurrentScene() {
+    const s = curScene();
+    if (!s || !editorViewer) { renderMain(); return; }
+    await editorViewer.setPanorama(fileUrl(doc.id, s.file), { transition: false, showLoader: true });
+    refreshMarkers();
+  }
+
+  function refreshMarkers() {
+    if (!markers) return;
+    const s = curScene();
+    if (!s) return;
+    markers.setMarkers((s.hotspots || []).map(h => ({
+      id: h.id,
+      position: { yaw: (h.yaw || 0) * DEG, pitch: (h.pitch || 0) * DEG },
+      image: h.icon ? fileUrl(doc.id, h.icon) : (h.type === 'link' ? ICON_LINK : ICON_INFO),
+      size: { width: 40, height: 40 },
+      tooltip: esc(h.type === 'link'
+        ? (h.label || doc.scenes.find(x => x.id === h.target)?.name || 'Link')
+        : (h.title || 'Info')),
+    })));
+  }
+
+  /* ----- hotspot placement + editing ----- */
+  function startPlacing(type) {
+    placing = type;
+    closeHotspotPanel();
+    updateHint();
+  }
+  function updateHint() {
+    const hint = document.getElementById('hint');
+    if (!hint) return;
+    if (placing === 'link' || placing === 'info') {
+      hint.className = 'hint placing';
+      hint.textContent = 'Click the panorama to place the hotspot (Esc cancels)';
+    } else if (placing?.move) {
+      hint.className = 'hint placing';
+      hint.textContent = 'Click the new position (Esc cancels)';
+    } else {
+      hint.className = 'hint';
+      hint.textContent = 'Click a hotspot to edit it';
+    }
+  }
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && placing) { placing = null; updateHint(); }
+  });
+
+  function onPlace(yaw, pitch) {
+    const s = curScene();
+    if (!s) return;
+    s.hotspots = s.hotspots || [];
+    if (placing?.move) {
+      const h = s.hotspots.find(x => x.id === placing.move);
+      if (h) { h.yaw = yaw; h.pitch = pitch; scheduleSave(); refreshMarkers(); }
+      placing = null;
+      updateHint();
+      return;
+    }
+    const type = placing;
+    placing = null;
+    updateHint();
+    const h = type === 'link'
+      ? { id: newId('h'), type: 'link', yaw, pitch, target: doc.scenes.find(x => x.id !== s.id)?.id || s.id, label: '' }
+      : { id: newId('h'), type: 'info', yaw, pitch, title: '', text: '' };
+    s.hotspots.push(h);
+    scheduleSave();
+    refreshMarkers();
+    openHotspotPanel(h.id);
+  }
+
+  function closeHotspotPanel() {
+    document.querySelector('.hs-panel')?.remove();
+  }
+
+  function openHotspotPanel(hid) {
+    closeHotspotPanel();
+    const s = curScene();
+    const h = s?.hotspots?.find(x => x.id === hid);
+    if (!h) return;
+    const pane = document.getElementById('main-pane');
+    let inner;
+    if (h.type === 'link') {
+      const options = doc.scenes.filter(x => x.id !== s.id).map(x =>
+        `<option value="${esc(x.id)}"${x.id === h.target ? ' selected' : ''}>${esc(x.name)}</option>`).join('');
+      inner = `
+        <h4>Link hotspot</h4>
+        <div class="frow"><label for="hs-target">Goes to</label>
+          <select id="hs-target">${options || '<option value="">(no other scenes yet)</option>'}</select></div>
+        <div class="frow"><label for="hs-label">Label (optional)</label>
+          <input type="text" id="hs-label" value="${esc(h.label || '')}" maxlength="80"></div>`;
+    } else {
+      inner = `
+        <h4>Info hotspot</h4>
+        <div class="frow"><label for="hs-title">Title</label>
+          <input type="text" id="hs-title" value="${esc(h.title || '')}" maxlength="120"></div>
+        <div class="frow"><label for="hs-text">Text</label>
+          <textarea id="hs-text" maxlength="4000">${esc(h.text || '')}</textarea></div>
+        <div class="frow"><label>Image (optional)</label><span id="hs-image-line"></span></div>
+        <div class="frow"><label>Audio clip (optional)</label><span id="hs-audio-line"></span></div>`;
+    }
+    inner += `
+      <div class="frow"><label>Custom icon (optional)</label><span id="hs-icon-line"></span></div>
+      <div class="row">
+        <button class="btn" id="hs-move">Move</button>
+        <button class="btn danger-text" id="hs-delete">Delete</button>
+        <button class="btn primary" id="hs-done" style="margin-left:auto">Done</button>
+      </div>`;
+    const panel = el(`<div class="hs-panel">${inner}</div>`);
+    pane.append(panel);
+
+    if (h.type === 'link') {
+      panel.querySelector('#hs-target').addEventListener('change', e => { h.target = e.target.value; scheduleSave(); refreshMarkers(); });
+      panel.querySelector('#hs-label').addEventListener('input', e => { h.label = e.target.value; scheduleSave(); refreshMarkers(); });
+    } else {
+      panel.querySelector('#hs-title').addEventListener('input', e => { h.title = e.target.value; scheduleSave(); refreshMarkers(); });
+      panel.querySelector('#hs-text').addEventListener('input', e => { h.text = e.target.value; scheduleSave(); });
+      wireFileRow(panel.querySelector('#hs-image-line'), h, 'image', 'image/jpeg,image/png,image/webp');
+      wireFileRow(panel.querySelector('#hs-audio-line'), h, 'audio', 'audio/mpeg,audio/mp4,audio/ogg');
+    }
+    wireFileRow(panel.querySelector('#hs-icon-line'), h, 'icon', 'image/png,image/jpeg,image/webp');
+    panel.querySelector('#hs-move').addEventListener('click', () => { placing = { move: h.id }; updateHint(); });
+    panel.querySelector('#hs-delete').addEventListener('click', () => {
+      s.hotspots = s.hotspots.filter(x => x.id !== h.id);
+      scheduleSave();
+      refreshMarkers();
+      closeHotspotPanel();
+    });
+    panel.querySelector('#hs-done').addEventListener('click', closeHotspotPanel);
+  }
+
+  function wireFileRow(line, obj, key, accept) {
+    if (!line) return;
+    const render = () => {
+      line.innerHTML = '';
+      if (obj[key]) {
+        const clear = el(`<button class="icon-btn" title="Remove" aria-label="Remove ${key}">&times;</button>`);
+        clear.addEventListener('click', () => { obj[key] = null; scheduleSave(); refreshMarkers(); render(); });
+        line.append(el(`<span style="font-size:12px;color:var(--text-2)">set</span>`), clear);
+      } else {
+        const btn = el(`<button class="btn" style="padding:3px 10px;font-size:12px">Upload</button>`);
+        const input = el(`<input type="file" accept="${accept}" hidden>`);
+        btn.addEventListener('click', () => input.click());
+        input.addEventListener('change', async () => {
+          if (!input.files[0]) return;
+          try {
+            obj[key] = await uploadFile(doc.id, input.files[0]);
+            scheduleSave(); refreshMarkers(); render();
+          } catch (err) { toast(err.message, true); }
+        });
+        line.append(btn, input);
+      }
+    };
+    render();
+  }
+
+  /* ----- boot ----- */
+  renderSceneList();
+  renderMain();
+  updateHint();
+}
+</script>
+</body>
+</html>
