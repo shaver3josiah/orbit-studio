@@ -102,6 +102,11 @@
     position: absolute; left: 16px; bottom: 56px; z-index: 20; display: block;
   }
   .tour-logo img { max-height: 56px; max-width: 160px; display: block; }
+  .load-error {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 30;
+    background: var(--surface); border: 1px solid var(--danger); color: var(--text);
+    border-radius: var(--r-sm); padding: 14px 20px; max-width: 80%; text-align: center;
+  }
   .center-note {
     position: fixed; inset: 0; display: flex; flex-direction: column; gap: 12px;
     align-items: center; justify-content: center; text-align: center; padding: 24px;
@@ -639,6 +644,19 @@ async function renderViewer(tourId) {
 
   const virtualTour = viewer.getPlugin(VirtualTourPlugin);
   window.orbitTour = { viewer, virtualTour, tour }; // debug/editor handle
+
+  /* a missing or unreadable panorama file should say so, not sit blank */
+  viewer.addEventListener('panorama-error', () => {
+    stage.querySelector('.load-error')?.remove();
+    /* on a first-load failure the node never lands, so fall back to the start scene */
+    let nodeId;
+    try { nodeId = virtualTour.getCurrentNode()?.id; } catch { nodeId = null; }
+    const scene = tour.scenes.find(s => s.id === (nodeId || startNodeId));
+    stage.append(el(`<div class="load-error" role="alert">
+      Could not load the photo for &ldquo;${esc(scene?.name || 'this scene')}&rdquo;.
+    </div>`));
+  });
+  virtualTour.addEventListener('node-changed', () => stage.querySelector('.load-error')?.remove());
 
   /* URL hotspots open in a new tab */
   viewer.getPlugin(MarkersPlugin).addEventListener('select-marker', ({ marker }) => {
@@ -1205,6 +1223,9 @@ async function renderEditor(tourId) {
         plugins: [MarkersPlugin],
       });
       markers = editorViewer.getPlugin(MarkersPlugin);
+      editorViewer.addEventListener('panorama-error', () => {
+        toast(`Could not load the photo for "${curScene()?.name || 'this scene'}"`, true);
+      });
       editorViewer.addEventListener('click', ({ data }) => {
         if (!placing || data.rightclick) return;
         onPlace(+(data.yaw / DEG).toFixed(2), +(data.pitch / DEG).toFixed(2));
