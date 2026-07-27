@@ -55,15 +55,23 @@ if ($existingFfmpeg) {
         $ffmpegDir = Join-Path $root "tools\ffmpeg"
         New-Item -ItemType Directory -Force -Path $ffmpegDir | Out-Null
         $zipPath = Join-Path $root "tools\ffmpeg.zip"
-        Invoke-WebRequest -Uri "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip" -OutFile $zipPath
-        Expand-Archive -Path $zipPath -DestinationPath $ffmpegDir -Force
-        Remove-Item $zipPath
-        $found = Get-ChildItem -Path $ffmpegDir -Recurse -Filter "ffmpeg.exe" | Select-Object -First 1
-        if ($found) {
-            $ffmpegBin = $found.DirectoryName
-            Write-Host "ffmpeg installed to $ffmpegBin" -ForegroundColor Green
-        } else {
-            Write-Host "ffmpeg download did not produce ffmpeg.exe. Video prep may fail later." -ForegroundColor Red
+        # Non-fatal: an org proxy may block this download. Video prep needs
+        # ffmpeg, but the 360 tours and photo lanes do not, so a failure here
+        # must not sink the whole setup.
+        try {
+            Invoke-WebRequest -Uri "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip" -OutFile $zipPath
+            Expand-Archive -Path $zipPath -DestinationPath $ffmpegDir -Force
+            Remove-Item $zipPath
+            $found = Get-ChildItem -Path $ffmpegDir -Recurse -Filter "ffmpeg.exe" | Select-Object -First 1
+            if ($found) {
+                $ffmpegBin = $found.DirectoryName
+                Write-Host "ffmpeg installed to $ffmpegBin" -ForegroundColor Green
+            } else {
+                Write-Host "ffmpeg download did not produce ffmpeg.exe. Video prep may fail later." -ForegroundColor Yellow
+            }
+        } catch {
+            Write-Host "Could not download ffmpeg ($($_.Exception.Message))." -ForegroundColor Yellow
+            Write-Host "That is fine unless you plan to use the video-to-splat lane; tours do not need it." -ForegroundColor Yellow
         }
     }
 }
@@ -92,5 +100,8 @@ Write-Host "+----------------------------------------------------+" -ForegroundC
 Write-Host "|  Orbit Studio is ready.                             |" -ForegroundColor Green
 Write-Host "|  Double-click start.bat to launch the studio.       |" -ForegroundColor Green
 Write-Host "|  It opens at http://localhost:7360                  |" -ForegroundColor Green
+Write-Host "|                                                     |" -ForegroundColor Green
+Write-Host "|  Just want the 360 tours? You did not even need     |" -ForegroundColor Green
+Write-Host "|  this - run tour.bat and open /tour instead.        |" -ForegroundColor Green
 Write-Host "+----------------------------------------------------+" -ForegroundColor Green
 Write-Host ""

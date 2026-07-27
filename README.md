@@ -19,6 +19,14 @@ That is the whole setup. If `tour.bat` says Python was not found, finish step 1 
 
 Prefer the terminal? From this folder: `python server.py`, then open <http://localhost:7360/tour>.
 
+### If a script "crashes instantly" after downloading
+
+That is Windows, not the code. When you download this repo as a **ZIP**, Windows stamps every file "came from the internet" (Mark-of-the-Web) and then **blocks `.ps1` scripts** like `setup.ps1` before they run a line. Three ways around it, easiest first:
+
+- **For the tours, skip the `.ps1` entirely** — run `tour.bat` or `python server.py`. `.bat` and `.py` are not blocked the way `.ps1` is.
+- **Clone instead of downloading the ZIP:** `git clone https://github.com/shaver3josiah/orbit-studio.git`. Cloned files carry no internet stamp, so every script runs normally.
+- **Only need the splat studio?** Run **`setup.bat`** (not `setup.ps1`). It clears the block and runs the setup for you.
+
 ## Quickstart (Orbit Studio, the splat pipeline)
 
 1. Right-click `setup.ps1` and choose Run with PowerShell. This one-time step checks Python, installs two small libraries, and fetches ffmpeg if you do not have it.
