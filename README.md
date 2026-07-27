@@ -4,10 +4,22 @@ Walk through your world. Your Insta360 X4 Air footage becomes an explorable 3D s
 
 Two things live here, sharing one local server:
 
-- **Orbit Studio** — video to Gaussian splat, flown through in the browser. Everything below covers this.
-- **Orbit Tour** — 360° photos to a linked virtual tour with hotspots, embeds, and a standalone export. A self-hosted replacement for Kuula.co Pro. Run `start.bat`, then open <http://localhost:7360/tour>. See [docs/TOUR.md](docs/TOUR.md).
+- **Orbit Studio** — video to Gaussian splat, flown through in the browser. The "Quickstart" below and everything under it covers this.
+- **Orbit Tour** — 360° photos to a linked virtual tour with hotspots, embeds, and a standalone export. A self-hosted replacement for Kuula.co Pro. See "Run Orbit Tour" just below, or [docs/TOUR.md](docs/TOUR.md).
 
-## Quickstart
+## Run Orbit Tour (the 360 virtual-tour app)
+
+This is the simplest thing here — it needs **only Python 3**, nothing else. No `setup.ps1`, no libraries to install, no camera to get started.
+
+1. Install Python 3 from <https://www.python.org/downloads/> if you do not already have it. On the first install screen, tick **"Add python.exe to PATH"**.
+2. Double-click **`tour.bat`**. It starts the server and opens the app in your browser.
+3. A **"Sample Apartment"** tour is already there to walk through. When you have your own 360 photos (equirectangular JPGs, 2:1, straight from the Insta360 app — the same format Kuula wants), click **New tour** and drag them in.
+
+That is the whole setup. If `tour.bat` says Python was not found, finish step 1 and double-click it again. Full guide: [docs/TOUR.md](docs/TOUR.md).
+
+Prefer the terminal? From this folder: `python server.py`, then open <http://localhost:7360/tour>.
+
+## Quickstart (Orbit Studio, the splat pipeline)
 
 1. Right-click `setup.ps1` and choose Run with PowerShell. This one-time step checks Python, installs two small libraries, and fetches ffmpeg if you do not have it.
 2. Export an equirectangular MP4 from the Insta360 app or the free Insta360 Studio.
@@ -68,22 +80,15 @@ HunyuanWorld's tools are deliberately left out. Their license carries territoria
 
 ## Get it on GitHub
 
-The notebook badge below only works once this project lives in a real GitHub repository. From the project folder:
+This project lives at <https://github.com/shaver3josiah/orbit-studio> (account: shaver3josiah@gmail.com). Clone it with:
 
 ```
-git init
-git add .
-git commit -m "Initial commit"
-git branch -M main
-git remote add origin https://github.com/YOUR_GITHUB_USERNAME/orbit-studio.git
-git push -u origin main
+git clone https://github.com/shaver3josiah/orbit-studio.git
 ```
 
-Replace `YOUR_GITHUB_USERNAME` with your GitHub username, then this badge opens the notebook straight into Colab:
+This badge opens the splat-training notebook straight into Colab:
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/YOUR_GITHUB_USERNAME/orbit-studio/blob/main/notebooks/OrbitStudio_Colab.ipynb)
-
-The account email on file for this project is shaver3josiah@gmail.com. Use the GitHub account tied to that address when you create the repository, and the badge link above will resolve correctly once `YOUR_GITHUB_USERNAME` is replaced.
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/shaver3josiah/orbit-studio/blob/main/notebooks/OrbitStudio_Colab.ipynb)
 
 ## Troubleshooting
 

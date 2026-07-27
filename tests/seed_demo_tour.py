@@ -1,7 +1,9 @@
-"""Seed a demo tour with generated equirectangular panoramas.
+"""Build the shipped sample tour from generated equirectangular panoramas.
 
-Writes straight into the tours/ folder (no server needed). Re-running
-replaces the previous demo tour. Usage: python tests/seed_demo_tour.py
+Writes into tour/sample/ (committed to the repo). The server copies this into
+a fresh user's tours/ folder on first run, so a new user can walk a real tour
+before they own any 360 photos. Needs Pillow; end users never run this — they
+get the already-generated result. Usage: python tests/seed_demo_tour.py
 """
 from __future__ import annotations
 
@@ -15,8 +17,8 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-TOUR_ID = "demo-tour-000000"
-TOUR_DIR = REPO_ROOT / "tours" / TOUR_ID
+TOUR_ID = "sample-tour"
+TOUR_DIR = REPO_ROOT / "tour" / "sample"
 W, H = 4096, 2048
 
 SCENES = [
@@ -104,7 +106,7 @@ def main() -> None:
     now = datetime.now(timezone.utc).isoformat()
     tour = {
         "id": TOUR_ID,
-        "name": "Demo Apartment",
+        "name": "Sample Apartment (delete me)",
         "created": now,
         "updated": now,
         "settings": {

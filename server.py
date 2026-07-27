@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import importlib
 import json
 import os
 import queue
@@ -19,7 +20,37 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Optional
 
-from pipeline import CancelledError, ProcessHolder, RunContext, bundle, doctor, frames, reframe, splatio
+from pipeline import CancelledError, ProcessHolder, RunContext
+
+
+class _LazyStage:
+    """Defers importing a splat-pipeline submodule (and its numpy/pillow deps)
+    until a splat feature actually uses it. Orbit Tour and static serving are
+    pure stdlib, so this lets the whole server boot on a fresh machine that
+    never ran setup.ps1 — only the splat routes need the extra libraries."""
+
+    def __init__(self, name: str) -> None:
+        self._name = name
+        self._mod = None
+
+    def __getattr__(self, attr: str):
+        if self._mod is None:
+            try:
+                self._mod = importlib.import_module(f"pipeline.{self._name}")
+            except Exception as exc:  # numpy / pillow not installed
+                raise RuntimeError(
+                    "This step needs the splat pipeline libraries. Install them with "
+                    "'pip install numpy pillow' (or run setup.ps1). The 360 tour app "
+                    "needs none of these."
+                ) from exc
+        return getattr(self._mod, attr)
+
+
+bundle = _LazyStage("bundle")
+doctor = _LazyStage("doctor")
+frames = _LazyStage("frames")
+reframe = _LazyStage("reframe")
+splatio = _LazyStage("splatio")
 
 VERSION = "1.0.0"
 REPO_ROOT = Path(__file__).resolve().parent
@@ -187,6 +218,21 @@ def new_tour(name: str) -> dict:
 # outlives the page; a day covers any single editing session with room to spare,
 # and orphans still get collected on the first save after that.
 PRUNE_GRACE_SECONDS = 24 * 60 * 60
+
+
+def seed_sample_tour() -> None:
+    """On first run, drop a ready-made demo tour into the tours folder so a new
+    user has something to walk through before they own any 360 photos. Pure
+    file copy — the sample panoramas ship in the repo, so this needs no camera
+    and no image libraries."""
+    src = REPO_ROOT / "tour" / "sample"
+    if not (src / "tour.json").exists():
+        return
+    dest = get_tours_dir() / "sample-tour"
+    if dest.exists():
+        return
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copytree(src, dest)
 
 
 def prune_tour_files(tour: dict) -> None:
@@ -1227,8 +1273,10 @@ def main() -> None:
     )
     args = parser.parse_args()
     host = "0.0.0.0" if args.lan else "127.0.0.1"
+    seed_sample_tour()
     server = build_server(args.port, host)
     print(f"orbit-studio serving on http://127.0.0.1:{args.port}", flush=True)
+    print(f"  360 tours:  http://127.0.0.1:{args.port}/tour", flush=True)
     if args.lan:
         print(f"LAN mode: also reachable at http://<this-laptop's-IP>:{args.port} for Orbit Capture", flush=True)
     try:

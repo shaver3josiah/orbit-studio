@@ -9,14 +9,22 @@ cap, and no vendor watermark to pay to remove.
 
 ## Start it
 
+Needs only **Python 3** — no libraries to install, no `setup.ps1`.
+
+Double-click **`tour.bat`**. It starts the server and opens the app. If Python
+isn't installed it tells you where to get it. That's the whole setup.
+
+Or from a terminal:
+
 ```bash
 python server.py
 ```
 
 Then open <http://localhost:7360/tour>.
 
-`start.bat` does the same thing and opens the studio; the tour app is one
-click away at `/tour`.
+On first run a **"Sample Apartment"** tour is copied in so you have something
+to walk through before you own any 360 photos. Delete it whenever — it's a
+normal tour.
 
 ## Make a tour
 
