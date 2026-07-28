@@ -13,7 +13,7 @@ This is the simplest thing here — it needs **only Python 3**, nothing else. No
 
 1. Install Python 3 from <https://www.python.org/downloads/> if you do not already have it. On the first install screen, tick **"Add python.exe to PATH"**.
 2. Double-click **`tour.bat`**. It starts the server and opens the app in your browser.
-3. A **"Sample Apartment"** tour is already there to walk through. When you have your own 360 photos (equirectangular JPGs, 2:1, straight from the Insta360 app — the same format Kuula wants), click **New tour** and drag them in.
+3. A **"Sample Apartment"** tour is already there to walk through. When you have your own photos, click **New tour** and drag them in — a 2:1 equirectangular photo (straight from the Insta360 app, the format Kuula insists on) is still the ideal case, but a phone panorama or an ordinary photo works too, just covering less of the sphere.
 
 That is the whole setup. If `tour.bat` says Python was not found, finish step 1 and double-click it again. Full guide: [docs/TOUR.md](docs/TOUR.md).
 

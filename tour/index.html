@@ -235,6 +235,59 @@
   .field-note { font-size: 11px; color: var(--danger); min-height: 13px; }
   .icon-btn:disabled { opacity: 0.28; cursor: default; background: none; color: var(--text-3); }
 
+  /* ---------- build mode: the link-laying bar ---------- */
+  .btn.on { background: var(--accent); border-color: transparent; color: #fff; }
+  .btn.on:hover { background: #2a94ff; }
+  .build-bar {
+    display: none; gap: 12px; align-items: center; flex-wrap: wrap;
+    padding: 8px 14px; background: rgba(10, 132, 255, 0.10);
+    border-bottom: 1px solid var(--hairline);
+  }
+  .build-bar.open { display: flex; }
+  .bb-label {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--text-3); flex: none;
+  }
+  .bb-chips { display: flex; gap: 6px; flex-wrap: wrap; flex: 1; min-width: 120px; }
+  .bb-chip {
+    display: flex; align-items: center; gap: 7px; max-width: 210px;
+    padding: 3px 11px 3px 3px; font-size: 13px; color: var(--text);
+    background: var(--surface); border: 1px solid var(--hairline-strong); border-radius: 999px;
+  }
+  .bb-chip img { width: 30px; height: 18px; object-fit: cover; border-radius: 999px; flex: none; }
+  .bb-chip .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bb-chip .tick { color: var(--success); flex: none; font-size: 12px; }
+  .bb-chip.on { border-color: var(--accent); background: rgba(10, 132, 255, 0.24); }
+  .bb-chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .bb-return { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-2); flex: none; }
+  .bb-return input { accent-color: var(--accent); width: 16px; height: 16px; }
+
+  /* ---------- scene coverage sliders ---------- */
+  .range-row { display: flex; align-items: center; gap: 8px; margin: 9px 0; }
+  .range-row > label { font-size: 12px; color: var(--text-2); width: 58px; flex: none; }
+  .range-row input[type="range"] { flex: 1; min-width: 0; accent-color: var(--accent); }
+  .range-row .val { font-size: 12px; color: var(--text-2); width: 46px; text-align: right; flex: none; }
+  .scene-note { font-size: 12px; color: var(--text-3); margin: 4px 0 0; }
+
+  /* hotspots are draggable in the editor only — in the viewer they are buttons */
+  #edit-psv .psv-marker { cursor: grab; }
+  /* nothing else says "you can pick this up", so hover has to */
+  #edit-psv .psv-marker:hover { filter: drop-shadow(0 0 7px rgba(10, 132, 255, 0.95)); }
+  #edit-psv.dragging-hotspot, #edit-psv.dragging-hotspot .psv-marker { cursor: grabbing; }
+  #edit-psv.dragging-hotspot .psv-marker { filter: drop-shadow(0 0 9px rgba(10, 132, 255, 1)); }
+
+  /* shape picker */
+  .shape-row { display: flex; gap: 6px; flex-wrap: wrap; }
+  .shape-btn {
+    width: 38px; height: 38px; padding: 4px; display: grid; place-items: center;
+    background: var(--canvas); border: 1px solid var(--hairline); border-radius: 9px;
+  }
+  .shape-btn img { width: 26px; height: 26px; display: block; }
+  .shape-btn.on { border-color: var(--accent); background: rgba(10, 132, 255, 0.18); }
+  .shape-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .hs-panel .range-row > label { width: 52px; }
+  .orphan { width: 7px; height: 7px; border-radius: 50%; background: var(--danger); flex: none; }
+
   /* PSV overrides to match the house style */
   .psv-navbar { background: rgba(11, 11, 14, 0.72); backdrop-filter: blur(8px); }
   .psv-panel { background: rgba(18, 18, 22, 0.96); color: var(--text); }
@@ -258,7 +311,7 @@
 <body>
 <div id="app"></div>
 <script type="module">
-import { Viewer } from '@photo-sphere-viewer/core';
+import { Viewer, SYSTEM } from '@photo-sphere-viewer/core';
 import { MarkersPlugin } from '@photo-sphere-viewer/markers-plugin';
 import { VirtualTourPlugin } from '@photo-sphere-viewer/virtual-tour-plugin';
 import { GalleryPlugin } from '@photo-sphere-viewer/gallery-plugin';
@@ -318,15 +371,462 @@ function el(html) {
 
 const fmtDate = iso => iso ? new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '';
 
-/* ---------- inline icons (no emoji, per house rules) ---------- */
+/* --- pure helpers begin (tests/tour_pano_test.mjs lifts this whole block) --- */
 
-const svgIcon = (paths, size = 40) =>
-  'data:image/svg+xml;utf8,' + encodeURIComponent(
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 40 40">
-      <circle cx="20" cy="20" r="18" fill="rgba(11,11,14,0.75)" stroke="#F2F2F7" stroke-width="2"/>${paths}</svg>`);
+const clamp = (n, lo, hi) => Math.min(hi, Math.max(lo, n));
 
-const ICON_INFO = svgIcon('<rect x="18.5" y="17" width="3" height="12" rx="1.5" fill="#F2F2F7"/><circle cx="20" cy="12" r="2.2" fill="#F2F2F7"/>');
-const ICON_URL = svgIcon('<path d="M15 25L25 15M25 15h-7M25 15v7" stroke="#F2F2F7" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>');
+/* ---------- panorama geometry ----------
+
+   A scene with no `pano` block is a full 360x180 equirect, the Insta360 export
+   this app started with. Everything else — a phone sweep panorama, a partial
+   photo sphere, an ordinary snapshot — covers only a slice of the sphere, and
+   `pano` records which slice:
+
+     hFov   how many degrees wide the photo is (30..360)
+     pitch  elevation of the photo's centre, 0 = horizon
+
+   The vertical field of view is not stored because it is not free: an
+   equirectangular projection has the same degrees-per-pixel on both axes, so
+   vFov = hFov / (width / height). One number, not two, and they can never
+   disagree.
+
+   PSV wants this expressed as a crop out of a virtual full-sphere image, so
+   panoDataFor scales the real pixel size up to what the whole sphere would
+   have measured and centres the crop inside it. */
+
+const isPartial = scene => scene?.pano?.hFov > 0 && scene.pano.hFov < 359.5;
+
+const vFovOf = (hFov, width, height) => (width ? hFov * height / width : 0);
+
+/* Always a function, never undefined: PSV keeps the last function-valued
+   panoData on its config and reuses it whenever a later setPanorama passes
+   none, so a full-sphere scene loaded after a partial one would silently
+   inherit the partial one's crop. Handing it a fresh closure every time is
+   what stops that. Values are snapshotted here rather than read through the
+   scene object, which undo replaces wholesale. */
+/* Every scene reports a pose of zero, deliberately. A photo carrying
+   GPano:PoseHeadingDegrees would otherwise have its whole sphere silently
+   spun round by that many degrees (dataHelper.cleanPanoramaPose -> renderer
+   .setPanoramaPose), which moves where yaw 0 points. That would leave two
+   different meanings of yaw in one tour — image-centre for ordinary photos,
+   true north for photo spheres — and the auto-linker would mis-aim every
+   arrow on exactly the files with the best metadata. One convention instead:
+   yaw 0 is always the centre of the photo, and where that centre points lives
+   in scene.geo.heading where the linker can see it. */
+const NO_POSE = { poseHeading: 0, posePitch: 0, poseRoll: 0 };
+
+function panoDataFor(scene) {
+  const p = isPartial(scene) ? { hFov: scene.pano.hFov, pitch: scene.pano.pitch || 0 } : null;
+  return img => {
+    /* the crop still comes from XMP when we have not overridden it */
+    if (!p) return { ...NO_POSE };
+    const { hFov, pitch } = p;
+    const fullWidth = Math.round(img.width * 360 / hFov);
+    const fullHeight = Math.round(fullWidth / 2);
+    /* pitch is the elevation of the strip's centre: 0 puts the horizon halfway
+       down the image, +20 means the photo was aimed 20 degrees up */
+    const croppedY = Math.round(fullHeight * (90 - pitch) / 180 - img.height / 2);
+    return {
+      fullWidth,
+      fullHeight,
+      croppedWidth: img.width,
+      croppedHeight: img.height,
+      croppedX: Math.round((fullWidth - img.width) / 2),
+      croppedY: clamp(croppedY, 0, Math.max(0, fullHeight - img.height)),
+      ...NO_POSE,
+    };
+  };
+}
+
+/* ---------- reading what the camera wrote ----------
+
+   Two things are worth pulling out of an uploaded photo, and both live in the
+   first few dozen KB: the GPano XMP block (which states the covered slice
+   exactly, so we never have to guess) and the EXIF GPS fix (which lets the
+   auto-linker aim hotspots at where the next scene actually is).
+
+   ponytail: hand-rolled instead of vendoring an EXIF library — this reads six
+   XMP numbers and four EXIF tags and nothing else. Reach for a real parser
+   only if we ever need lens data, timestamps, or maker notes. */
+
+const META_SCAN_BYTES = 256 * 1024;
+
+const xmpNumber = (text, tag) => {
+  const m = text.match(new RegExp(`GPano:${tag}(?:>|=")\\s*(-?[\\d.]+)`));
+  return m ? parseFloat(m[1]) : null;
+};
+
+/* GPano states the crop in pixels of the notional full sphere, which is
+   exactly what we need — no guessing, no slider. */
+function gpanoCoverage(text) {
+  const fullW = xmpNumber(text, 'FullPanoWidthPixels');
+  const fullH = xmpNumber(text, 'FullPanoHeightPixels');
+  const cropW = xmpNumber(text, 'CroppedAreaImageWidthPixels');
+  const cropH = xmpNumber(text, 'CroppedAreaImageHeightPixels');
+  const cropY = xmpNumber(text, 'CroppedAreaTopPixels');
+  if (!(fullW > 0 && fullH > 0 && cropW > 0 && cropH > 0)) return null;
+  const hFov = 360 * cropW / fullW;
+  const centreFromTop = (cropY ?? (fullH - cropH) / 2) + cropH / 2;
+  /* PoseHeadingDegrees is defined exactly as EXIF GPSImgDirection is — the
+     compass heading of the centre of the image — so it stands in when the
+     EXIF tag is missing, which it often is on a photo sphere. */
+  const heading = xmpNumber(text, 'PoseHeadingDegrees');
+  return {
+    hFov,
+    pitch: 90 - 180 * centreFromTop / fullH,
+    ...(Number.isFinite(heading) ? { heading: ((heading % 360) + 360) % 360 } : {}),
+  };
+}
+
+/* The three containers reached the editor by different routes and each hides
+   the same TIFF block somewhere else. Each walk returns the offset of that
+   block, or null. */
+
+const EXIF_MAGIC = 0x45786966; /* "Exif", followed by two zero bytes */
+
+const fourCC = (view, at) =>
+  String.fromCharCode(view.getUint8(at), view.getUint8(at + 1), view.getUint8(at + 2), view.getUint8(at + 3));
+
+/* JPEG: a chain of APP segments, big-endian lengths that include themselves. */
+function jpegTiff(view) {
+  let off = 2;
+  while (off + 4 <= view.byteLength) {
+    if (view.getUint8(off) !== 0xFF) return null;
+    const marker = view.getUint8(off + 1);
+    if (marker === 0xDA || marker === 0xD9) return null; /* scan data starts; no EXIF */
+    const size = view.getUint16(off + 2);
+    if (size < 2) return null;
+    if (marker === 0xE1 && off + 10 <= view.byteLength && view.getUint32(off + 4) === EXIF_MAGIC) {
+      return off + 10; /* skip "Exif\0\0" */
+    }
+    off += 2 + size;
+  }
+  return null;
+}
+
+/* PNG: length-prefixed chunks; EXIF rides in `eXIf` as a bare TIFF block. */
+function pngTiff(view) {
+  let off = 8; /* past the signature */
+  while (off + 12 <= view.byteLength) {
+    const size = view.getUint32(off);
+    if (fourCC(view, off + 4) === 'eXIf') return off + 8;
+    if (fourCC(view, off + 4) === 'IDAT') return null; /* pixels start; nothing left to find */
+    off += 12 + size; /* length + type + data + crc */
+  }
+  return null;
+}
+
+/* WebP: RIFF chunks, little-endian sizes, padded to even. Some writers keep
+   the JPEG-style "Exif\0\0" prefix inside the chunk and some do not. */
+function webpTiff(view) {
+  let off = 12; /* past "RIFF" + size + "WEBP" */
+  while (off + 8 <= view.byteLength) {
+    const size = view.getUint32(off + 4, true);
+    if (fourCC(view, off) === 'EXIF') {
+      const start = off + 8;
+      return start + 6 <= view.byteLength && view.getUint32(start) === EXIF_MAGIC ? start + 6 : start;
+    }
+    off += 8 + size + (size % 2); /* odd payloads carry a pad byte */
+  }
+  return null;
+}
+
+function findExifTiff(view) {
+  if (view.byteLength < 16) return null;
+  if (view.getUint16(0) === 0xFFD8) return jpegTiff(view);
+  if (view.getUint32(0) === 0x89504E47 && view.getUint32(4) === 0x0D0A1A0A) return pngTiff(view);
+  if (fourCC(view, 0) === 'RIFF' && fourCC(view, 8) === 'WEBP') return webpTiff(view);
+  return null;
+}
+
+function readGps(buffer) {
+  const view = new DataView(buffer);
+  const base = findExifTiff(view);
+  if (base === null || base + 8 > view.byteLength) return null;
+  const le = view.getUint16(base) === 0x4949;
+  const u16 = o => view.getUint16(o, le);
+  const u32 = o => view.getUint32(o, le);
+  if (u16(base + 2) !== 42) return null;
+
+  /* every offset in a TIFF IFD is relative to `base`, and a truncated read
+     would send us anywhere — bounds-check before every dereference */
+  const entriesOf = ifd => {
+    if (ifd + 2 > view.byteLength) return [];
+    const n = u16(ifd);
+    const out = [];
+    for (let i = 0; i < n && ifd + 2 + i * 12 + 12 <= view.byteLength; i++) out.push(ifd + 2 + i * 12);
+    return out;
+  };
+  let gpsIfd = null;
+  for (const e of entriesOf(base + u32(base + 4))) {
+    if (u16(e) === 0x8825) { gpsIfd = base + u32(e + 8); break; }
+  }
+  if (gpsIfd === null) return null;
+
+  const rational = o => (o + 8 <= view.byteLength ? u32(o) / (u32(o + 4) || 1) : NaN);
+  const dms = o => rational(o) + rational(o + 8) / 60 + rational(o + 16) / 3600;
+  const out = {};
+  for (const e of entriesOf(gpsIfd)) {
+    const tag = u16(e);
+    const at = base + u32(e + 8); /* rationals never fit the 4-byte inline slot */
+    if (tag === 1 || tag === 3) out[tag === 1 ? 'latRef' : 'lonRef'] = String.fromCharCode(view.getUint8(e + 8));
+    else if (tag === 2) out.lat = dms(at);
+    else if (tag === 4) out.lon = dms(at);
+    else if (tag === 17) out.heading = rational(at);
+  }
+  if (!Number.isFinite(out.lat) || !Number.isFinite(out.lon)) return null;
+  const geo = {
+    lat: +((out.latRef === 'S' ? -out.lat : out.lat).toFixed(7)),
+    lon: +((out.lonRef === 'W' ? -out.lon : out.lon).toFixed(7)),
+  };
+  if (Number.isFinite(out.heading)) geo.heading = +(((out.heading % 360) + 360) % 360).toFixed(2);
+  return geo;
+}
+
+/* Initial bearing from a to b, degrees clockwise from true north. */
+function bearing(a, b) {
+  const rad = Math.PI / 180;
+  const dLon = (b.lon - a.lon) * rad;
+  const lat1 = a.lat * rad;
+  const lat2 = b.lat * rad;
+  const y = Math.sin(dLon) * Math.cos(lat2);
+  const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
+  return ((Math.atan2(y, x) / rad) + 360) % 360;
+}
+
+/* Equirectangular approximation — metres. Fine at tour scale (tens of metres). */
+function metresBetween(a, b) {
+  const rad = Math.PI / 180;
+  const x = (b.lon - a.lon) * rad * Math.cos((a.lat + b.lat) / 2 * rad);
+  const y = (b.lat - a.lat) * rad;
+  return Math.hypot(x, y) * 6371000;
+}
+
+const wrap180 = deg => ((((deg + 180) % 360) + 360) % 360) - 180;
+
+/* ---------- guessing where you can walk ----------
+
+   Placing an arrow at the middle of the photo is a guess that knows nothing
+   about the photo. This knows a little.
+
+   The signal is not darkness. A doorway into an unlit room is darker than the
+   wall around it, but a doorway onto a sunlit deck is brighter — so scoring
+   raw brightness only works indoors and inverts outdoors. What both cases
+   share is that an opening does not look like the wall either side of it. So
+   each column is scored on how far it departs from the local average across
+   its neighbours, which catches a dark gap in a bright wall and a bright gap
+   in a dark one with the same arithmetic.
+
+   The sun, and any window or lamp bright enough to bloom, is excluded first:
+   it is the one bright thing that is reliably not somewhere you can walk.
+
+   ponytail: brightness contrast on a 256x128 thumbnail, a few hundred
+   microseconds and no dependencies. The real answer is a per-column
+   floor-boundary regression (HorizonNet and its descendants), which needs a
+   neural network — worth revisiting only if this proves too noisy in the
+   field. Every angle it returns is a draggable suggestion, never a decision. */
+
+const NAV_MIN_SEPARATION = 45;  /* PSV dims arrows closer than this anyway */
+const NAV_MIN_SCORE = 18;       /* below this the scene is too flat to read */
+/* Comparing a column against its neighbourhood leaves a weak echo either side
+   of a real opening, because the neighbourhood average is dragged toward the
+   opening while the column itself is not. Those echoes are always far weaker
+   than what caused them, so a suggestion has to hold its own against the
+   strongest thing in the photo — otherwise one doorway sprouts three arrows. */
+const NAV_MIN_RELATIVE = 0.45;
+
+function guessNavigableYaws(image, { count = 3, hFov = 360, tilt = 0 } = {}) {
+  const W = image.width;
+  const H = image.height;
+  const d = image.data;
+  if (!W || !H) return [];
+  const vFov = hFov * H / W; /* one degrees-per-pixel scale on both axes */
+
+  const lum = (x, y) => {
+    const i = (y * W + x) * 4;
+    return 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
+  };
+  const rowAt = deg => clamp(Math.round(H * (0.5 - (deg - tilt) / vFov)), 0, H - 1);
+
+  /* a band either side of eye level, where an opening shows as a silhouette,
+     and a second lower band that only corroborates — a puddle should not on
+     its own decide where the tour walks */
+  const columnMeans = (topDeg, botDeg) => {
+    const top = rowAt(topDeg);
+    const bot = Math.max(top + 1, rowAt(botDeg));
+    const out = new Float64Array(W);
+    for (let x = 0; x < W; x++) {
+      let sum = 0;
+      for (let y = top; y < bot; y++) sum += lum(x, y);
+      out[x] = sum / (bot - top);
+    }
+    return out;
+  };
+  /* circular: a panorama has no left or right edge */
+  const smooth = (arr, radius) => {
+    const out = new Float64Array(W);
+    for (let x = 0; x < W; x++) {
+      let sum = 0;
+      for (let k = -radius; k <= radius; k++) sum += arr[(x + k + W) % W];
+      out[x] = sum / (2 * radius + 1);
+    }
+    return out;
+  };
+
+  const wall = smooth(columnMeans(20, -15), 3);
+  const floor = smooth(columnMeans(-20, -50), 3);
+  const wallBase = smooth(wall, Math.max(1, Math.round(W * 0.19)));
+  const floorBase = smooth(floor, Math.max(1, Math.round(W * 0.19)));
+
+  const score = new Float64Array(W);
+  for (let x = 0; x < W; x++) {
+    score[x] = Math.abs(wall[x] - wallBase[x]) + 0.5 * Math.abs(floor[x] - floorBase[x]);
+  }
+
+  /* Knock out the sun, and anything else blooming, plus a margin for glare.
+     A sun is a bright thing that STANDS OUT from the sky around it, not merely
+     the brightest thing present — under a flat overcast the brightest pixel is
+     just sky, and treating it as glare would blank the whole panorama and
+     leave the feature silently doing nothing on a dull day. So the exclusion
+     only runs when something is genuinely brighter than the sky it sits in. */
+  const skyTop = rowAt(85);
+  const skyBot = Math.max(skyTop + 1, rowAt(25));
+  const hist = new Uint32Array(256);
+  for (let x = 0; x < W; x++) for (let y = skyTop; y < skyBot; y++) hist[lum(x, y) | 0]++;
+  const total = W * (skyBot - skyTop);
+  const percentile = fraction => {
+    let seen = 0;
+    for (let v = 255; v > 0; v--) {
+      seen += hist[v];
+      if (seen >= total * fraction) return v;
+    }
+    return 0;
+  };
+  const hot = percentile(0.005);
+  const SUN_CONTRAST = 40;
+  if (hot - percentile(0.5) >= SUN_CONTRAST) {
+    const bloom = Math.max(1, Math.round(W * 0.023));
+    for (let x = 0; x < W; x++) {
+      let glaring = false;
+      for (let y = skyTop; y < skyBot && !glaring; y++) if (lum(x, y) >= hot) glaring = true;
+      if (glaring) for (let k = -bloom; k <= bloom; k++) score[(x + k + W) % W] = 0;
+    }
+  }
+
+  const gap = Math.round(W * NAV_MIN_SEPARATION / 360);
+  const apart = (a, b) => { const n = Math.abs(a - b) % W; return Math.min(n, W - n); };
+  const floorScore = Math.max(NAV_MIN_SCORE, Math.max(...score) * NAV_MIN_RELATIVE);
+  const picked = [];
+  for (const x of [...score.keys()].sort((a, b) => score[b] - score[a])) {
+    if (score[x] < floorScore || picked.length === count) break;
+    if (!picked.some(p => apart(p, x) < gap)) picked.push(x);
+  }
+  return picked.map(x => +wrap180((x + 0.5) / W * hFov - hFov / 2).toFixed(2));
+}
+
+/* Nudge a direction we already believe in onto the nearest thing the photo
+   suggests. Keeps the topology the GPS or the capture order decided, and only
+   sharpens the angle — so a photo with nothing to say costs nothing. */
+function snapToWay(yaw, ways, tolerance = 90) {
+  if (!ways?.length) return yaw;
+  let best = null;
+  for (const w of ways) {
+    const off = Math.abs(wrap180(w - yaw));
+    if (off <= tolerance && (best === null || off < best.off)) best = { w, off };
+  }
+  return best ? best.w : yaw;
+}
+
+/* --- pure helpers end --- */
+
+/* ---------- how a hotspot looks (no emoji, per house rules) ----------
+
+   Shape, size and transparency live on the hotspot itself, so the editor and
+   the viewer read the same three fields and cannot drift apart. All three are
+   optional; a hotspot that has never been styled looks exactly as it always
+   did.
+
+   'arrow' is special: it means the viewer's own arrow lying flat on the floor,
+   which is the right default for a link and is not something drawn here. Every
+   other shape is generated below. */
+
+const HOTSPOT_SHAPES = {
+  arrow: null,
+  circle: '<circle cx="20" cy="20" r="18" fill="rgba(11,11,14,0.75)" stroke="#F2F2F7" stroke-width="2"/>',
+  square: '<rect x="3" y="3" width="34" height="34" rx="8" fill="rgba(11,11,14,0.75)" stroke="#F2F2F7" stroke-width="2"/>',
+  diamond: '<path d="M20 1.5 38.5 20 20 38.5 1.5 20Z" fill="rgba(11,11,14,0.75)" stroke="#F2F2F7" stroke-width="2"/>',
+  ring: '<circle cx="20" cy="20" r="16.5" fill="none" stroke="#F2F2F7" stroke-width="3.5"/>',
+  dot: '<circle cx="20" cy="20" r="9" fill="#F2F2F7" stroke="rgba(11,11,14,0.75)" stroke-width="2"/>',
+};
+
+const HOTSPOT_GLYPHS = {
+  link: '<path d="M14 20h10m0 0l-4.5-4.5M24 20l-4.5 4.5" stroke="#F2F2F7" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>',
+  info: '<rect x="18.5" y="17" width="3" height="12" rx="1.5" fill="#F2F2F7"/><circle cx="20" cy="12" r="2.2" fill="#F2F2F7"/>',
+  url: '<path d="M15 25L25 15M25 15h-7M25 15v7" stroke="#F2F2F7" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>',
+};
+
+const DEFAULT_SHAPE = { link: 'arrow', info: 'circle', url: 'circle' };
+const DEFAULT_SIZE = 40;
+
+const hotspotShape = h => {
+  const shape = h.shape && HOTSPOT_SHAPES[h.shape] !== undefined ? h.shape : (DEFAULT_SHAPE[h.type] || 'circle');
+  /* only a link can wear the floor arrow; anything else falls back to a badge */
+  return shape === 'arrow' && h.type !== 'link' ? 'circle' : shape;
+};
+const hotspotSize = h => clamp(Math.round(h.size || DEFAULT_SIZE), 16, 128);
+const hotspotOpacity = h => clamp(h.opacity ?? 1, 0.1, 1);
+
+/* Returns null only for a link left as the floor arrow — the caller then lets
+   the viewer draw its own. `dot` is deliberately bare: a glyph inside a 9px
+   circle is a smudge.
+
+   Transparency is painted INTO the drawing rather than set on the element,
+   because the viewer rewrites the opacity of any two arrows that overlap, on
+   every frame, to show which is nearer. An element-level fade would flicker
+   away the moment two doorways came within 45 degrees of each other; a fade
+   inside the picture survives, and the viewer's own dimming then reads on top
+   of it as it was meant to. */
+function hotspotIcon(h, forceShape) {
+  const shape = forceShape || hotspotShape(h);
+  const body = HOTSPOT_SHAPES[shape];
+  if (!body) return null;
+  const glyph = shape === 'dot' ? '' : (HOTSPOT_GLYPHS[h.type] || '');
+  const fade = hotspotOpacity(h);
+  const open = fade < 1 ? `<g opacity="${fade}">` : '';
+  return 'data:image/svg+xml;utf8,' + encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">` +
+    `${open}${body}${glyph}${open ? '</g>' : ''}</svg>`);
+}
+
+/* The viewer's stock arrow paints itself with the element's CSS colour, which
+   nothing else touches — so for a link left as an arrow the fade rides in the
+   alpha channel. 0.8 is the stock alpha, kept so full opacity still looks
+   exactly like an untouched tour. */
+const arrowColour = h => `rgba(255,255,255,${(0.8 * hotspotOpacity(h)).toFixed(3)})`;
+
+/* What shows through where a partial panorama has no photo. Black reads as a
+   broken viewer; sky above and ground below reads as a photo that simply did
+   not reach that far, which is the truth. Kuula solves it the same way and
+   for the same reason. Screen-space rather than sphere-space, which is exactly
+   right when you tilt up or down and only approximate when you turn behind
+   you — still far better than a hole. */
+const sceneBackground = scene =>
+  scene?.fill ? `linear-gradient(${scene.fill.top}, ${scene.fill.bottom})` : '#000';
+
+/* The viewer's floor arrow is 80px where a marker is 40px, so the same stored
+   number has to mean the same apparent size on both. */
+const ARROW_SCALE = 2;
+
+const SHAPE_NAMES = {
+  arrow: 'Arrow on the floor', circle: 'Circle', square: 'Square',
+  diamond: 'Diamond', ring: 'Ring', dot: 'Dot',
+};
+
+/* shown only in the shape picker: the real one is drawn by the viewer in 3D */
+const ARROW_PREVIEW = 'data:image/svg+xml;utf8,' + encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">' +
+  '<path d="M20 5 34 31H6Z" fill="rgba(11,11,14,0.75)" stroke="#F2F2F7" stroke-width="2.4" stroke-linejoin="round"/></svg>');
+
 const SAFE_URL = u => /^https?:\/\//i.test(u || '');
 
 const NAV_PLANET_SVG = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="6.5"/><ellipse cx="12" cy="12" rx="10.5" ry="3.6" transform="rotate(-18 12 12)"/></svg>';
@@ -478,25 +978,44 @@ function sceneToNode(tour, scene) {
   return {
     id: scene.id,
     panorama: fileUrl(tour.id, scene.file),
+    panoData: panoDataFor(scene),
     thumbnail: fileUrl(tour.id, scene.thumb || scene.file),
     name: esc(scene.name), /* gallery + arrow tooltips inject this via innerHTML */
     caption: `${esc(tour.name)} &mdash; ${esc(scene.name)}`,
     links: hotspots
       .filter(h => h.type === 'link' && tour.scenes.some(s => s.id === h.target)) /* dangling links must not brick the tour */
-      .map(h => ({
-      nodeId: h.target,
-      position: { yaw: h.yaw * DEG, pitch: h.pitch * DEG },
-      ...(h.label ? { name: esc(h.label) } : {}),
-      /* the editor offers a custom icon on links too — PSV takes it per-link */
-      ...(h.icon ? { arrowStyle: { image: fileUrl(tour.id, h.icon) } } : {}),
-    })),
+      .map(h => {
+        /* a custom uploaded icon wins, then a chosen shape, then nothing at all
+           — which leaves the viewer to draw its own arrow on the floor */
+        const image = h.icon ? fileUrl(tour.id, h.icon) : hotspotIcon(h);
+        const px = hotspotSize(h) * ARROW_SCALE;
+        return {
+          nodeId: h.target,
+          position: { yaw: h.yaw * DEG, pitch: h.pitch * DEG },
+          ...(h.label ? { name: esc(h.label) } : {}),
+          arrowStyle: {
+            ...(image ? { image } : {}),
+            size: { width: px, height: px },
+            /* a shape we drew already carries its fade; the stock arrow takes
+               it through colour; only an uploaded icon has nowhere else to put
+               it and must risk the viewer's own overlap dimming */
+            style: h.icon ? { opacity: String(hotspotOpacity(h)) }
+              : image ? {} : { color: arrowColour(h) },
+          },
+        };
+      }),
     markers: hotspots.filter(h => h.type === 'info' || h.type === 'url').map(h => {
+      const px = hotspotSize(h);
+      const common = {
+        id: h.id,
+        position: { yaw: h.yaw * DEG, pitch: h.pitch * DEG },
+        image: h.icon ? fileUrl(tour.id, h.icon) : hotspotIcon(h),
+        size: { width: px, height: px },
+        opacity: h.icon ? hotspotOpacity(h) : 1, /* a drawn shape is already faded */
+      };
       if (h.type === 'url') {
         return {
-          id: h.id,
-          position: { yaw: h.yaw * DEG, pitch: h.pitch * DEG },
-          image: h.icon ? fileUrl(tour.id, h.icon) : ICON_URL,
-          size: { width: 40, height: 40 },
+          ...common,
           tooltip: esc(h.label || h.url || 'Open link'),
           data: SAFE_URL(h.url) ? { url: h.url } : {},
         };
@@ -506,10 +1025,7 @@ function sceneToNode(tour, scene) {
       if (h.text) parts.push(`<p style="white-space:pre-wrap">${esc(h.text)}</p>`);
       if (h.audio) parts.push(`<audio controls src="${fileUrl(tour.id, h.audio)}" style="width:100%"></audio>`);
       return {
-        id: h.id,
-        position: { yaw: h.yaw * DEG, pitch: h.pitch * DEG },
-        image: h.icon ? fileUrl(tour.id, h.icon) : ICON_INFO,
-        size: { width: 40, height: 40 },
+        ...common,
         tooltip: esc(h.title || 'Info'),
         ...(parts.length ? { content: `<h2>${esc(h.title || '')}</h2>${parts.join('')}` } : {}),
       };
@@ -580,8 +1096,11 @@ async function renderViewer(tourId) {
     ? settings.startScene
     : tour.scenes[0].id;
 
-  /* reduced motion: no planet intro, no self-starting rotation — manual controls stay */
-  const littlePlanet = settings.littlePlanetIntro !== false && !REDUCED_MOTION;
+  /* reduced motion: no planet intro, no self-starting rotation — manual controls stay.
+     A partial panorama has no nadir to look down into, so the planet intro would
+     unfold onto empty sphere — skip it there whatever the setting says. */
+  const startScene = tour.scenes.find(s => s.id === startNodeId);
+  const littlePlanet = settings.littlePlanetIntro !== false && !REDUCED_MOTION && !isPartial(startScene);
   const autorotate = settings.autorotate === true && !REDUCED_MOTION;
 
   const navbar = [
@@ -621,6 +1140,7 @@ async function renderViewer(tourId) {
     mousewheelCtrlKey: embed,
     keyboard: embed ? 'fullscreen' : 'always',
     fisheye: littlePlanet ? 2 : false,
+    canvasBackground: sceneBackground(startScene),
     defaultYaw: ((tour.scenes.find(s => s.id === startNodeId)?.view?.yaw) || 0) * DEG,
     defaultPitch: littlePlanet ? -90 * DEG : ((tour.scenes.find(s => s.id === startNodeId)?.view?.pitch) || 0) * DEG,
     navbar,
@@ -692,8 +1212,11 @@ async function renderViewer(tourId) {
 
   /* face each scene's stored initial view on entry (the intro owns the start pose) */
   virtualTour.addEventListener('node-changed', ({ node }) => {
+    const entered = tour.scenes.find(s => s.id === node.id);
+    /* each scene brings its own sky and ground for the parts it does not cover */
+    viewer.setOption('canvasBackground', sceneBackground(entered));
     if (introPending && node.id === startNodeId) return;
-    const scene = tour.scenes.find(s => s.id === node.id);
+    const scene = entered;
     if (scene?.view) {
       viewer.rotate({ yaw: (scene.view.yaw || 0) * DEG, pitch: (scene.view.pitch || 0) * DEG });
       if (scene.view.zoom != null) viewer.zoom(scene.view.zoom);
@@ -703,7 +1226,21 @@ async function renderViewer(tourId) {
 
 /* ---------- editor ---------- */
 
-const ICON_LINK = svgIcon('<path d="M14 20h10m0 0l-4.5-4.5M24 20l-4.5 4.5" stroke="#F2F2F7" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>');
+/* The server answers a bad upload with its own list of file extensions, and a
+   dead server answers with whatever fetch throws. Neither means anything to
+   someone who just picked a photo. */
+function uploadReason(err) {
+  const msg = err?.message || String(err);
+  if (/expected one of/i.test(msg)) {
+    return 'that kind of file cannot be used here. Pictures need to be JPG, PNG or WebP; sound needs to be MP3, M4A or OGG.';
+  }
+  if (/fetch|network|load failed|failed to fetch/i.test(msg)) {
+    return 'could not reach the server — is server.py still running?';
+  }
+  return msg;
+}
+
+const uploadProblem = (name, err) => `${name}: ${uploadReason(err)}`;
 
 async function uploadFile(tourId, file) {
   const form = new FormData();
@@ -714,21 +1251,122 @@ async function uploadFile(tourId, file) {
   return data.file;
 }
 
-/* decode an image file; reject non-2:1 equirects; return {pano, thumb} blobs */
-async function preparePano(file) {
-  const bmp = await createImageBitmap(file).catch(() => null);
-  if (!bmp) throw new Error(`${file.name}: not a readable image`);
-  const { width, height } = bmp;
-  if (Math.abs(width / height - 2) > 0.04) {
-    bmp.close();
-    throw new Error(`${file.name}: not equirectangular (${width}x${height}, need width = 2x height). Export the 360 photo from the Insta360 app first.`);
-  }
+const WEB_SAFE_IMAGE = file =>
+  /^image\/(jpeg|png|webp)$/.test(file.type) || /\.(jpe?g|png|webp)$/i.test(file.name);
+
+/* Never re-encode wider than this card can actually hold as a texture: past it
+   the viewer scales the photo down anyway, so the extra pixels are weight with
+   no picture in them. 16384 is both the usual hardware ceiling and the one
+   Kuula enforced. Only the re-encode path is affected — a JPEG, PNG or WebP is
+   uploaded byte for byte as it came off the camera. */
+const MAX_PANO_WIDTH = Math.min(16384, SYSTEM.maxTextureWidth || 16384);
+
+/* Big enough to stay sharp on the tour cards at 2x pixel density; the gallery
+   strip only ever asks for 120. Costs about 80KB a scene. */
+const THUMB_WIDTH = 1024;
+
+/* Average the top and bottom strips of the photo, so the empty part of the
+   sphere can wear the sky and ground the photo actually had. */
+function edgeColours(bmp, aspect) {
+  const w = 64;
+  const h = Math.max(4, Math.round(w / aspect));
+  const ctx = drawTo(bmp, w, h).getContext('2d');
+  const band = Math.max(1, Math.round(h * 0.1));
+  const mean = y0 => {
+    const { data } = ctx.getImageData(0, y0, w, band);
+    let r = 0, g = 0, b = 0;
+    for (let i = 0; i < data.length; i += 4) { r += data[i]; g += data[i + 1]; b += data[i + 2]; }
+    const n = data.length / 4;
+    return `rgb(${Math.round(r / n)},${Math.round(g / n)},${Math.round(b / n)})`;
+  };
+  return { top: mean(0), bottom: mean(h - band) };
+}
+
+function drawTo(bmp, w, h) {
   const canvas = document.createElement('canvas');
-  canvas.width = 512; canvas.height = 256;
-  canvas.getContext('2d').drawImage(bmp, 0, 0, 512, 256);
-  bmp.close();
-  const thumb = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.75));
-  return { thumb };
+  canvas.width = w;
+  canvas.height = h;
+  canvas.getContext('2d').drawImage(bmp, 0, 0, w, h);
+  return canvas;
+}
+
+/* Read a dropped photo and work out what it is. Nothing is turned away for its
+   shape any more: a 2:1 equirect, a phone sweep panorama and an ordinary
+   snapshot all become scenes, they just cover different amounts of sphere.
+   Returns the file to actually upload, the slice it covers (null = full 360),
+   its GPS fix if it has one, and a thumbnail. */
+async function preparePano(file) {
+  const head = await file.slice(0, META_SCAN_BYTES).arrayBuffer();
+  const bmp = await createImageBitmap(file).catch(() => null);
+  if (!bmp) {
+    /* the caller names the file — repeating it here would double it up in the
+       one-line-per-reason summary */
+    throw new Error(/heic|heif/i.test(`${file.type} ${file.name}`)
+      ? 'this browser cannot open HEIC photos. On iPhone, Settings > Camera > Formats > Most Compatible saves JPEGs instead, or share the photo through Files to convert it.'
+      : 'that file is not an image this browser can open.');
+  }
+  const { width, height } = bmp;
+  const aspect = width / height;
+
+  /* latin1 never throws on binary, and every value we want is ASCII */
+  const text = new TextDecoder('latin1').decode(head);
+  const stated = text.includes('GPano:') ? gpanoCoverage(text) : null;
+  let pano = null;
+  if (stated) {
+    /* the camera said exactly what it covered — no guessing needed */
+    if (stated.hFov < 359.5) pano = { hFov: +stated.hFov.toFixed(1), pitch: +stated.pitch.toFixed(1) };
+  } else if (Math.abs(aspect - 2) > 0.04) {
+    /* ponytail: nothing to read, so guess from shape. A phone sees roughly 60
+       degrees vertically whether it is sweeping a panorama or taking a plain
+       photo, and an equirect shares its scale between both axes, so the width
+       follows from the aspect ratio. It is only a guess, which is why the
+       editor puts a slider next to it. Replace with a real estimate only if
+       one ever becomes available from metadata. */
+    pano = { hFov: clamp(Math.round(60 * aspect), 30, Math.min(360, Math.round(180 * aspect))), pitch: 0 };
+  }
+
+  /* read the photo once, while it is decoded and in hand, rather than
+     re-fetching every panorama later when the linker runs */
+  let ways = [];
+  try {
+    /* aspect has to survive the downscale — the band-to-pitch mapping is
+       derived from it, so squashing a 5:1 strip into a 2:1 box would aim
+       every band at the wrong part of the photo */
+    const nw = 256;
+    const nh = Math.max(8, Math.round(nw / aspect));
+    const nav = drawTo(bmp, nw, nh).getContext('2d').getImageData(0, 0, nw, nh);
+    ways = guessNavigableYaws(nav, { hFov: pano?.hFov ?? 360, tilt: pano?.pitch ?? 0 });
+  } catch { ways = []; }
+
+  let geo = null;
+  try { geo = readGps(head); } catch { geo = null; }
+  /* a photo sphere usually records its compass heading in XMP and not in EXIF */
+  if (geo && !Number.isFinite(geo.heading) && Number.isFinite(stated?.heading)) {
+    geo.heading = +stated.heading.toFixed(2);
+  }
+
+  /* a decoded 60-megapixel photo is a few hundred MB — release it even when
+     the re-encode below gives up */
+  try {
+    const thumb = await new Promise(r =>
+      drawTo(bmp, THUMB_WIDTH, Math.max(1, Math.round(THUMB_WIDTH / aspect))).toBlob(r, 'image/jpeg', 0.86));
+
+    /* The author's browser opened this, but a visitor's may not — HEIC renders
+       on Apple devices and nowhere else. Re-encode anything outside the three
+       formats every browser reads. The covered slice is already measured, so
+       losing the XMP in the round trip costs nothing. */
+    let upload = file;
+    if (!WEB_SAFE_IMAGE(file)) {
+      const scale = Math.min(1, MAX_PANO_WIDTH / width);
+      const jpeg = await new Promise(r =>
+        drawTo(bmp, Math.round(width * scale), Math.round(height * scale)).toBlob(r, 'image/jpeg', 0.95));
+      if (!jpeg) throw new Error('it could not be converted to a JPEG this browser can share.');
+      upload = new File([jpeg], `${file.name.replace(/\.[^.]+$/, '')}.jpg`, { type: 'image/jpeg' });
+    }
+    return { thumb, pano, geo, ways, upload, width, height, converted: upload !== file, fill: edgeColours(bmp, aspect) };
+  } finally {
+    bmp.close();
+  }
 }
 
 async function renderEditor(tourId) {
@@ -747,7 +1385,9 @@ async function renderEditor(tourId) {
 
   /* ----- state ----- */
   let curSceneId = doc.scenes[0]?.id || null;
-  let placing = null;        // 'link' | 'info' | {move: hotspotId} | null
+  let placing = null;        // 'info' | 'url' | {move: hotspotId} | {link: sceneId} | null
+  let buildReturn = true;    // build mode: also lay the arrow back
+  let lastStyle = null;      // shape/size/opacity the next hotspot inherits
   let saveTimer = null;
   let saveInFlight = false;
   let dirty = false;
@@ -780,8 +1420,11 @@ async function renderEditor(tourId) {
     syncSettingsInputs();
     renderSceneList();
     renderMain();
+    renderSceneShape();
+    syncBuildMode();
     showCurrentScene();
     updateUndoButton();
+    setLinkSummary('');
     toast('Undone');
   }
 
@@ -860,10 +1503,18 @@ async function renderEditor(tourId) {
         <div class="side-section">
           <h3>Scenes</h3>
           <div id="scene-list"></div>
+          <p class="scene-note" id="reach-notice"></p>
           <div class="drop-zone" id="drop-zone" role="button" tabindex="0">
-            <span id="drop-label">Drop 360&deg; photos here<br>or click to choose</span>
-            <input type="file" id="file-input" accept="image/jpeg,image/png,image/webp" multiple hidden>
+            <span id="drop-label">Drop photos here<br>or click to choose</span>
+            <input type="file" id="file-input" accept="image/*,.heic,.heif" multiple hidden>
           </div>
+          <p class="scene-note" id="drop-notice"></p>
+          <button class="btn" id="auto-link" style="width:100%;margin-top:10px">Connect scenes for me</button>
+          <p class="scene-note" id="link-summary"></p>
+        </div>
+        <div class="side-section" id="scene-section" hidden>
+          <h3>This scene</h3>
+          <div id="scene-shape"></div>
         </div>
         <div class="side-section">
           <h3>Tour settings</h3>
@@ -958,16 +1609,39 @@ async function renderEditor(tourId) {
     addScenes([...e.dataTransfer.files]);
   });
   fileInput.addEventListener('change', () => { addScenes([...fileInput.files]); fileInput.value = ''; });
+  document.getElementById('auto-link').addEventListener('click', autoLink);
+
+  /* One persistent line rather than a toast per file. A toast erases the one
+     before it, so a folder of HEICs — every single one of which fails on
+     Windows — used to flash a dozen messages and leave nothing behind but an
+     empty scene list. */
+  function setDropNotice(failures) {
+    const line = document.getElementById('drop-notice');
+    if (!line) return;
+    line.style.whiteSpace = 'pre-line';
+    if (!failures.length) { line.textContent = ''; return; }
+    /* group by REASON, not by file — a folder of HEICs fails the same way
+       forty times over and saying so forty times helps nobody */
+    const reasons = [...new Set(failures.map(f => f.reason))];
+    line.textContent = failures.length === 1
+      ? `${failures[0].name}: ${failures[0].reason}`
+      : reasons.length === 1
+        ? `${failures.length} photos could not be added — ${reasons[0]}`
+        : `${failures.length} photos could not be added:\n• ${reasons.slice(0, 3).join('\n• ')}`;
+  }
 
   async function addScenes(files) {
     /* write into the label span only — clobbering dropZone's children would
        detach the hidden file input mid-upload */
     const dropLabel = document.getElementById('drop-label');
+    const failures = [];
+    const arrivedAt = doc.scenes.length;
+    setDropNotice([]);
     for (const file of files) {
       dropLabel.textContent = `Uploading ${file.name}…`;
       try {
-        const { thumb } = await preparePano(file);
-        const panoName = await uploadFile(doc.id, file);
+        const { thumb, pano, geo, ways, upload, width, height, converted, fill } = await preparePano(file);
+        const panoName = await uploadFile(doc.id, upload);
         const thumbName = await uploadFile(doc.id, new File([thumb], 'thumb.jpg', { type: 'image/jpeg' }));
         const scene = {
           id: newId('s'),
@@ -977,6 +1651,12 @@ async function renderEditor(tourId) {
           view: { yaw: 0, pitch: 0 },
           hotspots: [],
         };
+        if (pano) scene.pano = pano;
+        if (geo) scene.geo = geo;
+        scene.size = { w: width, h: height }; /* so the coverage note can do its arithmetic */
+        if (converted) scene.converted = true;
+        scene.fill = fill; /* what the empty part of the sphere wears */
+        if (ways?.length) scene.ways = ways; /* directions the photo suggests are open */
         doc.scenes.push(scene);
         if (doc.scenes.length === 1) {
           doc.settings.startScene = scene.id;
@@ -984,12 +1664,23 @@ async function renderEditor(tourId) {
         }
         scheduleSave();
         renderSceneList();
-        if (doc.scenes.length === 1) renderMain();
+        if (doc.scenes.length === 1) { renderMain(); renderSceneShape(); }
+        if (placing?.link) renderBuildChips();
       } catch (err) {
-        toast(err.message, true);
+        failures.push({ name: file.name, reason: uploadReason(err) });
       }
     }
-    dropLabel.innerHTML = 'Drop 360&deg; photos here<br>or click to choose';
+    dropLabel.innerHTML = 'Drop photos here<br>or click to choose';
+    setDropNotice(failures);
+    /* Photos with no way to walk between them are not a tour yet. Connect them
+       straight away rather than leaving it behind a button the user has to
+       find — the summary says what it did and Ctrl+Z takes it back.
+       The test is whether THIS batch arrived unconnected, not whether the tour
+       has any link at all: coming back later to add a fifth room should get
+       the same treatment the first four did. */
+    const arrived = doc.scenes.slice(arrivedAt);
+    const stranded = arrived.some(s => !(s.hotspots || []).some(h => h.type === 'link'));
+    if (doc.scenes.length > 1 && stranded) autoLink();
   }
 
   /* ----- scene list ----- */
@@ -1000,14 +1691,22 @@ async function renderEditor(tourId) {
       list.append(el(`<div class="state-note" style="padding:8px 0">No scenes yet.</div>`));
       return;
     }
+    /* a scene nothing links to is unreachable in the finished tour unless it is
+       the one visitors start on — worth a mark rather than a silent dead end */
+    const reachable = new Set([doc.settings.startScene]);
+    for (const s of doc.scenes) {
+      for (const h of s.hotspots || []) if (h.type === 'link') reachable.add(h.target);
+    }
     doc.scenes.forEach((s, i) => {
       const isStart = doc.settings.startScene === s.id;
+      const orphan = doc.scenes.length > 1 && !reachable.has(s.id);
       const row = el(`
         <div class="scene-row${s.id === curSceneId ? ' active' : ''}">
           <button class="scene-pick" data-a="pick" aria-current="${s.id === curSceneId}"
-                  aria-label="Edit scene ${esc(s.name)}">
+                  aria-label="Edit scene ${esc(s.name)}${orphan ? ' — nothing links to it' : ''}">
             <img src="${fileUrl(doc.id, s.thumb || s.file)}" alt="">
             <span class="sn" title="Double-click to rename">${esc(s.name)}</span>
+            ${orphan ? '<span class="orphan" title="Nothing links to this scene yet"></span>' : ''}
           </button>
           <button class="start-btn${isStart ? ' on' : ''}" data-a="start" aria-pressed="${isStart}"
             title="${isStart ? 'This is the start scene' : 'Make start scene'}"
@@ -1076,6 +1775,16 @@ async function renderEditor(tourId) {
       });
       list.append(row);
     });
+    if (placing?.link) renderBuildChips(); /* same list, second view of it */
+    /* the red dot is easy to miss, and half a disconnected tour is worth saying
+       out loud rather than leaving to be discovered by walking it */
+    const line = document.getElementById('reach-notice');
+    if (line) {
+      const stranded = doc.scenes.filter(s => !reachable.has(s.id)).length;
+      line.textContent = stranded && doc.scenes.length > 1
+        ? `${stranded} scene${stranded === 1 ? '' : 's'} nothing links to — a visitor could never reach ${stranded === 1 ? 'it' : 'them'}.`
+        : '';
+    }
   }
 
   function duplicateScene(sid) {
@@ -1113,16 +1822,27 @@ async function renderEditor(tourId) {
     scheduleSave();
     renderSceneList();
     renderMain();
+    renderSceneShape();
+    syncBuildMode();
   }
 
   async function selectScene(sid) {
     if (sid === curSceneId) return;
     curSceneId = sid;
-    placing = null;
+    /* build mode survives the move — walking scene to scene laying arrows is
+       the whole point — but its armed target cannot be the scene we just
+       opened, so re-aim it at something reachable */
+    if (placing?.link) {
+      placing = placing.link === sid ? { link: otherScenes()[0]?.id } : placing;
+      if (!placing.link) placing = null;
+    } else {
+      placing = null;
+    }
     closeHotspotPanel();
     renderSceneList();
+    renderSceneShape();
+    syncBuildMode();
     await showCurrentScene();
-    updateHint();
   }
 
   /* ----- settings panel -----
@@ -1169,7 +1889,7 @@ async function renderEditor(tourId) {
           doc.settings[key] = await uploadFile(doc.id, input.files[0]);
           scheduleSave();
           renderFileSetting(lineId, key, accept, label);
-        } catch (err) { toast(err.message, true); }
+        } catch (err) { toast(uploadProblem(input.files[0].name, err), true); }
       });
       line.append(btn, input);
     }
@@ -1180,9 +1900,12 @@ async function renderEditor(tourId) {
     const pane = document.getElementById('main-pane');
     if (!doc.scenes.length) {
       editorViewer?.destroy(); editorViewer = null; markers = null;
+      placing = null; /* the build bar goes with the toolbar we are about to drop */
       pane.innerHTML = `<div class="editor-empty">
-        <div style="font-size:18px;font-weight:600;color:var(--text)">Add your first 360&deg; photo</div>
-        <div>Drop an equirectangular JPG into the panel on the left.<br>Then place hotspots to connect scenes.</div>
+        <div style="font-size:18px;font-weight:600;color:var(--text)">Add your first photo</div>
+        <div>Drop photos into the panel on the left — a 360&deg; shot, a phone panorama,<br>
+          or an ordinary picture. Each one works out how much of the view it covers.<br>
+          Drop two or more and they get connected for you.</div>
         <button class="btn" id="undo-btn" title="Undo (Ctrl+Z)" disabled>Undo</button>
       </div>`;
       // deleting the last scene removes the toolbar — the moment undo is needed most
@@ -1193,15 +1916,21 @@ async function renderEditor(tourId) {
     if (!editorViewer) {
       pane.innerHTML = `
         <div class="toolbar">
-          <button class="btn" id="add-link">+ Link hotspot</button>
+          <button class="btn" id="build-links" aria-pressed="false">Build links</button>
           <button class="btn" id="add-info">+ Info hotspot</button>
           <button class="btn" id="add-url">+ URL hotspot</button>
           <button class="btn" id="set-view">Set start view from here</button>
           <button class="btn" id="undo-btn" title="Undo (Ctrl+Z)" disabled>Undo</button>
           <span class="hint" id="hint"></span>
         </div>
+        <div class="build-bar" id="build-bar">
+          <span class="bb-label">Walk to</span>
+          <div class="bb-chips" id="bb-chips"></div>
+          <label class="bb-return"><input type="checkbox" id="bb-return" checked> Add the way back too</label>
+        </div>
         <div id="edit-psv"></div>`;
-      document.getElementById('add-link').addEventListener('click', () => startPlacing('link'));
+      document.getElementById('build-links').addEventListener('click', toggleBuildMode);
+      document.getElementById('bb-return').addEventListener('change', e => { buildReturn = e.target.checked; });
       document.getElementById('add-info').addEventListener('click', () => startPlacing('info'));
       document.getElementById('add-url').addEventListener('click', () => startPlacing('url'));
       document.getElementById('undo-btn').addEventListener('click', undo);
@@ -1217,12 +1946,15 @@ async function renderEditor(tourId) {
       editorViewer = new Viewer({
         container: document.getElementById('edit-psv'),
         panorama: fileUrl(doc.id, curScene().file),
+        panoData: panoDataFor(curScene()),
+        canvasBackground: sceneBackground(curScene()),
         loadingTxt: 'Loading scene…',
         navbar: ['zoom', 'move', 'fullscreen'],
         keyboard: 'always',
         plugins: [MarkersPlugin],
       });
       markers = editorViewer.getPlugin(MarkersPlugin);
+      wireMarkerDrag();
       editorViewer.addEventListener('panorama-error', () => {
         toast(`Could not load the photo for "${curScene()?.name || 'this scene'}"`, true);
       });
@@ -1236,7 +1968,11 @@ async function renderEditor(tourId) {
       });
       editorViewer.addEventListener('ready', refreshMarkers, { once: true });
       // debug handle: openHotspot lets tests reach the panel without pointer hit-testing
-      window.orbitEditor = { viewer: editorViewer, doc: () => doc, openHotspot: openHotspotPanel };
+      window.orbitEditor = {
+        viewer: editorViewer, doc: () => doc, openHotspot: openHotspotPanel,
+        place: onPlace, buildMode: toggleBuildMode, autoLink, addFiles: addScenes,
+      };
+      syncBuildMode();
     } else {
       if (!curScene()) curSceneId = doc.scenes[0].id;
       showCurrentScene();
@@ -1246,24 +1982,43 @@ async function renderEditor(tourId) {
   async function showCurrentScene() {
     const s = curScene();
     if (!s || !editorViewer) { renderMain(); return; }
-    await editorViewer.setPanorama(fileUrl(doc.id, s.file), { transition: false, showLoader: true });
+    editorViewer.setOption('canvasBackground', sceneBackground(s));
+    await editorViewer.setPanorama(fileUrl(doc.id, s.file), {
+      transition: false,
+      showLoader: true,
+      panoData: panoDataFor(s),
+    });
     refreshMarkers();
+  }
+
+  /* Re-show the current scene without a network round trip, for the coverage
+     sliders: same file, new panoData, so PSV rebuilds the sphere geometry. */
+  let reshapeTimer = null;
+  function reshapeCurrentScene() {
+    clearTimeout(reshapeTimer);
+    reshapeTimer = setTimeout(() => { showCurrentScene(); }, 120);
   }
 
   function refreshMarkers() {
     if (!markers) return;
     const s = curScene();
     if (!s) return;
-    markers.setMarkers((s.hotspots || []).map(h => ({
-      id: h.id,
-      position: { yaw: (h.yaw || 0) * DEG, pitch: (h.pitch || 0) * DEG },
-      image: h.icon ? fileUrl(doc.id, h.icon) : (h.type === 'link' ? ICON_LINK : h.type === 'url' ? ICON_URL : ICON_INFO),
-      size: { width: 40, height: 40 },
-      tooltip: esc(h.type === 'link'
-        ? (h.label || doc.scenes.find(x => x.id === h.target)?.name || 'Link')
-        : h.type === 'url' ? (h.label || h.url || 'Link')
-        : (h.title || 'Info')),
-    })));
+    markers.setMarkers((s.hotspots || []).map(h => {
+      const px = hotspotSize(h);
+      return {
+        id: h.id,
+        position: { yaw: (h.yaw || 0) * DEG, pitch: (h.pitch || 0) * DEG },
+        /* a link left as the floor arrow still needs something to grab here,
+           so the editor draws it as a badge even though the viewer will not */
+        image: h.icon ? fileUrl(doc.id, h.icon) : (hotspotIcon(h) || hotspotIcon(h, 'circle')),
+        size: { width: px, height: px },
+        opacity: h.icon ? hotspotOpacity(h) : 1, /* a drawn shape is already faded */
+        tooltip: esc(h.type === 'link'
+          ? (h.label || doc.scenes.find(x => x.id === h.target)?.name || 'Link')
+          : h.type === 'url' ? (h.label || h.url || 'Link')
+          : (h.title || 'Info')),
+      };
+    }));
   }
 
   /* ----- hotspot placement + editing ----- */
@@ -1275,7 +2030,11 @@ async function renderEditor(tourId) {
   function updateHint() {
     const hint = document.getElementById('hint');
     if (!hint) return;
-    if (typeof placing === 'string') {
+    if (placing?.link) {
+      const name = doc.scenes.find(s => s.id === placing.link)?.name || 'that scene';
+      hint.className = 'hint placing';
+      hint.textContent = `Click where the way to "${name}" is (Esc stops)`;
+    } else if (typeof placing === 'string') {
       hint.className = 'hint placing';
       hint.textContent = 'Click the panorama to place the hotspot (Esc cancels)';
     } else if (placing?.move) {
@@ -1288,14 +2047,401 @@ async function renderEditor(tourId) {
   }
   document.addEventListener('keydown', e => {
     if (e.key !== 'Escape') return;
-    if (placing) { placing = null; updateHint(); }
+    if (placing?.link) exitBuildMode();
+    else if (placing) { placing = null; updateHint(); }
     else closeHotspotPanel();
   });
+
+  /* ----- drag a hotspot to where you want it -----
+     PSV has no draggable markers, so this rides on top of it: catch the pointer
+     before the viewer sees it, or the panorama spins instead of the hotspot
+     moving. The document is written once on release, so one drag costs one
+     Undo rather than one per pixel. Pointer events cover touch, and the Move
+     button in the hotspot panel stays as the keyboard-reachable equivalent. */
+
+  const MARKER_ID = 'psv-marker-';
+  /* A 16px dot is almost impossible to press dead centre, and on a touchscreen
+     even a 40px one is a coin toss. Grab anything within this ring of a
+     hotspot instead of demanding a direct hit — roughly the 44px target size
+     touch guidance asks for, on the smallest hotspot the editor allows. */
+  const GRAB_SLACK = 18;
+  let dragging = null;
+
+  /* Nearest hotspot to the pointer, by where it actually sits on screen. Going
+     through the rendered elements rather than re-projecting the angles means
+     PSV's own visibility rules decide what is grabbable, so a hotspot behind
+     the camera or off the covered part of a partial panorama is never picked. */
+  function hotspotElementNear(clientX, clientY, host) {
+    let best = null;
+    for (const el of host.querySelectorAll('.psv-marker')) {
+      if (!el.id.startsWith(MARKER_ID)) continue;
+      const box = el.getBoundingClientRect();
+      if (!box.width || !box.height) continue;
+      const d = Math.hypot(clientX - (box.left + box.width / 2), clientY - (box.top + box.height / 2));
+      if (d <= Math.max(box.width, box.height) / 2 + GRAB_SLACK && (!best || d < best.d)) best = { el, d };
+    }
+    return best?.el || null;
+  }
+
+  function wireMarkerDrag() {
+    const host = editorViewer.container;
+
+    const aimAt = e => {
+      const rect = host.getBoundingClientRect();
+      return editorViewer.dataHelper.viewerCoordsToSphericalCoords({
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top,
+      });
+    };
+
+    /* PSV only raises its click when the ray lands on actual photo, and a
+       partial panorama has no geometry outside its covered slice — so a click
+       into the empty part is swallowed with no sign it happened. Say why. */
+    host.addEventListener('click', e => {
+      if (!placing || !isPartial(curScene())) return;
+      if (!aimAt(e)) toast('Your photo does not reach that far — there is nothing there to pin a hotspot to', true);
+    });
+
+    host.addEventListener('pointerdown', e => {
+      if (e.button !== 0) return;
+      const el = hotspotElementNear(e.clientX, e.clientY, host);
+      if (!el) return;
+      if (placing) {
+        /* A marker sits between the pointer and the sphere, so pressing one
+           while placing reached neither the drag nor the placement handler and
+           did nothing at all. Place it here instead — the user aimed there. */
+        const at = aimAt(e);
+        if (!at) return;
+        e.stopPropagation();
+        e.preventDefault();
+        onPlace(+wrap180(at.yaw / DEG).toFixed(2), +(at.pitch / DEG).toFixed(2));
+        return;
+      }
+      const id = el.id.slice(MARKER_ID.length);
+      const h = curScene()?.hotspots?.find(x => x.id === id);
+      if (!h) return;
+      e.stopPropagation();
+      e.preventDefault();
+      dragging = { h, id, moved: false };
+      host.setPointerCapture(e.pointerId);
+      host.classList.add('dragging-hotspot');
+    }, true);
+
+    host.addEventListener('pointermove', e => {
+      if (!dragging) return;
+      e.stopPropagation();
+      const at = aimAt(e);
+      /* the ray misses wherever the sphere has no photo on it, which on a
+         partial panorama is most of it — leave the hotspot at the last spot
+         that had one rather than flinging it somewhere invisible */
+      if (!at) return;
+      dragging.moved = true;
+      dragging.h.yaw = +wrap180(at.yaw / DEG).toFixed(2);
+      dragging.h.pitch = +(at.pitch / DEG).toFixed(2);
+      markers.updateMarker({ id: dragging.id, position: { yaw: at.yaw, pitch: at.pitch } });
+    }, true);
+
+    const drop = e => {
+      if (!dragging) return;
+      e.stopPropagation();
+      host.classList.remove('dragging-hotspot');
+      const { moved, id } = dragging;
+      dragging = null;
+      if (moved) { scheduleSave(); return; }
+      /* Pressed and released without moving: that is a click, and it has to
+         still open the panel. Swallowing the pointer above means PSV never
+         sees it, so its own select-marker never fires and the panel would
+         otherwise be unreachable by the obvious gesture. */
+      openHotspotPanel(id);
+    };
+    host.addEventListener('pointerup', drop, true);
+    host.addEventListener('pointercancel', drop, true);
+  }
+
+  /* ----- build mode -----
+     One armed target, as many clicks as there are doorways. The bar stays open
+     between placements, so laying out a floor never means going back to a menu
+     between arrows. */
+
+  const otherScenes = () => doc.scenes.filter(s => s.id !== curSceneId);
+  const hasLink = (scene, targetId) =>
+    (scene.hotspots || []).some(h => h.type === 'link' && h.target === targetId);
+
+  /* every hotspot is born wearing whatever the last one was styled as, so a
+     look is chosen once rather than forty times */
+  const styled = h => (lastStyle ? Object.assign(h, lastStyle) : h);
+
+  function addLink(from, targetId, yaw, pitch) {
+    from.hotspots = from.hotspots || [];
+    from.hotspots.push(styled({ id: newId('h'), type: 'link', yaw, pitch, target: targetId, label: '' }));
+  }
+
+  function toggleBuildMode() {
+    if (placing?.link) { exitBuildMode(); return; }
+    const others = otherScenes();
+    if (!others.length) {
+      toast('Add a second scene first — a link needs somewhere to go', true);
+      return;
+    }
+    closeHotspotPanel();
+    /* arm somewhere this scene cannot reach yet, so the common case is one click */
+    const linked = new Set((curScene()?.hotspots || []).filter(h => h.type === 'link').map(h => h.target));
+    placing = { link: (others.find(s => !linked.has(s.id)) || others[0]).id };
+    syncBuildMode();
+  }
+
+  function exitBuildMode() {
+    placing = null;
+    syncBuildMode();
+  }
+
+  function syncBuildMode() {
+    const on = Boolean(placing?.link);
+    const btn = document.getElementById('build-links');
+    document.getElementById('build-bar')?.classList.toggle('open', on);
+    if (btn) {
+      btn.classList.toggle('on', on);
+      btn.setAttribute('aria-pressed', String(on));
+      btn.textContent = on ? 'Done linking' : 'Build links';
+    }
+    const ret = document.getElementById('bb-return');
+    if (ret) ret.checked = buildReturn;
+    if (on) renderBuildChips();
+    updateHint();
+  }
+
+  function renderBuildChips() {
+    const host = document.getElementById('bb-chips');
+    if (!host) return;
+    host.innerHTML = '';
+    const from = curScene();
+    for (const s of otherScenes()) {
+      const armed = placing?.link === s.id;
+      const done = from ? hasLink(from, s.id) : false;
+      const chip = el(`<button class="bb-chip${armed ? ' on' : ''}" aria-pressed="${armed}"
+          aria-label="Place a link to ${esc(s.name)}${done ? ', already linked from here' : ''}">
+          <img src="${fileUrl(doc.id, s.thumb || s.file)}" alt="">
+          <span class="nm">${esc(s.name)}</span>
+          ${done ? '<span class="tick" aria-hidden="true">&check;</span>' : ''}
+        </button>`);
+      chip.addEventListener('click', () => {
+        placing = { link: s.id };
+        renderBuildChips();
+        updateHint();
+      });
+      host.append(chip);
+    }
+  }
+
+  /* Where the return arrow points. With a GPS fix and a compass heading on the
+     far scene it can be aimed properly; otherwise the other side of the same
+     doorway is the honest guess. */
+  function returnYaw(from, target, outgoingYaw) {
+    if (from.geo && target.geo && Number.isFinite(target.geo.heading)) {
+      return +wrap180(bearing(target.geo, from.geo) - target.geo.heading).toFixed(2);
+    }
+    return +wrap180(outgoingYaw + 180).toFixed(2);
+  }
+
+  function placeLink(from, targetId, yaw, pitch) {
+    const target = doc.scenes.find(x => x.id === targetId);
+    if (!target) { exitBuildMode(); return; }
+    addLink(from, targetId, yaw, pitch);
+    const back = buildReturn && target.id !== from.id && !hasLink(target, from.id);
+    if (back) addLink(target, from.id, returnYaw(from, target, yaw), pitch);
+    scheduleSave();
+    refreshMarkers();
+    renderBuildChips();
+    renderSceneList();
+    toast(back ? `Linked to "${target.name}", and back again` : `Linked to "${target.name}"`);
+  }
+
+  /* ----- the automatic guess -----
+     Two tiers, and the sidebar says out loud which one ran. Photos carrying a
+     GPS fix get arrows aimed at where the next scene actually stands; without
+     one, the scenes chain in the order they were added, which is the order the
+     walk was shot in. Either way every arrow stays draggable afterwards, and
+     the whole run is one Ctrl+Z. */
+
+  const AUTO_PITCH = -20;      /* arrows belong nearer the floor than eye level */
+  const AUTO_NEIGHBOURS = 2;   /* onward and back; more turns a corridor into a web */
+  const AUTO_MAX_METRES = 60;
+
+  /* Link a pair both ways at once. A one-way arrow is a dead end from the far
+     side, and nothing in the editor would show you that until you walked it. */
+  function linkPair(from, to, outYaw, backYaw) {
+    let made = 0;
+    if (!hasLink(from, to.id)) { addLink(from, to.id, +wrap180(outYaw).toFixed(2), AUTO_PITCH); made++; }
+    if (!hasLink(to, from.id)) { addLink(to, from.id, +wrap180(backYaw).toFixed(2), AUTO_PITCH); made++; }
+    return made;
+  }
+
+  function autoLinkByGps(located) {
+    /* GPS alone fixes WHICH scenes are neighbours; only a compass heading fixes
+       WHERE to draw the arrow. Without one, fall back to the walking layout
+       rather than inventing a bearing off an unknown rotation. */
+    const aim = (from, to, fallback) => Number.isFinite(from.geo.heading)
+      ? wrap180(bearing(from.geo, to.geo) - from.geo.heading)
+      : fallback;
+    let made = 0;
+    for (const from of located) {
+      located
+        .filter(s => s !== from)
+        .map(s => ({ s, d: metresBetween(from.geo, s.geo) }))
+        .sort((a, b) => a.d - b.d)
+        .filter(x => x.d <= AUTO_MAX_METRES)
+        .slice(0, AUTO_NEIGHBOURS)
+        .forEach(({ s }, i) => {
+          /* a real bearing is better than anything the pixels can offer, so
+             only the headingless fallback gets nudged onto an opening */
+          const blind = snapToWay(wrap180((from.view?.yaw || 0) + i * 180), from.ways);
+          const out = aim(from, s, blind);
+          made += linkPair(from, s, out, aim(s, from, snapToWay(wrap180(out + 180), s.ways)));
+        });
+    }
+    return made;
+  }
+
+  /* Chain scenes the way they were added, which is the order the walk was shot
+     in. `seed` picks which scenes start a link; the far end always gets the
+     matching arrow back, so a photo the GPS pass could not place is never left
+     hanging off the end of the tour. */
+  function autoLinkByOrder(scenes, seed = () => true) {
+    let made = 0;
+    scenes.forEach((here, i) => {
+      if (!seed(here)) return;
+      const facing = here.view?.yaw || 0; /* forward sits where the scene already looks */
+      for (const [other, yaw] of [[scenes[i + 1], facing], [scenes[i - 1], facing + 180]]) {
+        if (!other) continue;
+        /* nudge both ends onto whatever each photo suggests is open */
+        made += linkPair(here, other, snapToWay(wrap180(yaw), here.ways), snapToWay(wrap180(yaw + 180), other.ways));
+      }
+    });
+    return made;
+  }
+
+  function autoLink() {
+    if (doc.scenes.length < 2) { toast('Add a second scene first', true); return; }
+    const located = doc.scenes.filter(s => Number.isFinite(s.geo?.lat) && Number.isFinite(s.geo?.lon));
+    const useGps = located.length >= 2;
+    const aimed = located.filter(s => Number.isFinite(s.geo.heading)).length;
+    let made = 0;
+    let strays = 0;
+    if (useGps) {
+      made = autoLinkByGps(located);
+      if (located.length < doc.scenes.length) {
+        /* photos with location turned off would otherwise drop out of the tour
+           without a word — chain them to whatever sits either side in the list */
+        const placed = new Set(located);
+        strays = autoLinkByOrder(doc.scenes, s => !placed.has(s));
+        made += strays;
+      }
+    } else {
+      made = autoLinkByOrder(doc.scenes);
+    }
+    if (!made) { toast('Every scene already reaches its neighbours'); return; }
+    scheduleSave();
+    refreshMarkers();
+    renderSceneList();
+    if (placing?.link) renderBuildChips();
+
+    const n = `${made} link${made === 1 ? '' : 's'}`;
+    const k = doc.scenes.length - located.length;
+    const tail = strays
+      ? ` ${k} photo${k === 1 ? '' : 's'} carried no location, so ${k === 1 ? 'it was' : 'they were'} chained in list order instead.`
+      : '';
+    setLinkSummary((!useGps
+      ? `Added ${n} by walking the scenes in the order you added them — these photos carry no GPS, so treat the directions as a starting point and drag any arrow that sits wrong.`
+      : aimed
+        ? `Added ${n} from the photos' own GPS and compass. Phone GPS is good to a few metres, so check each arrow and drag any that misses.`
+        : `Added ${n}: GPS says which scenes are neighbours, but none of these photos recorded a compass heading, so the directions are guessed. Drag each arrow onto its doorway.`) + tail);
+    toast(`Added ${n} — Ctrl+Z undoes the lot`);
+  }
+
+  function setLinkSummary(text) {
+    const p = document.getElementById('link-summary');
+    if (p) p.textContent = text || '';
+  }
+
+  /* ----- how much sphere this photo covers -----
+     A phone sweep does not say how wide it is, so the upload guesses from the
+     shape and this is where the guess gets corrected. Width is the only real
+     knob: an equirectangular projection shares one degrees-per-pixel scale
+     across both axes, so the height follows from it and cannot disagree. */
+
+  function renderSceneShape() {
+    const section = document.getElementById('scene-section');
+    const host = document.getElementById('scene-shape');
+    if (!section || !host) return;
+    const s = curScene();
+    section.hidden = !s;
+    if (!s) return;
+    const hFov = isPartial(s) ? s.pano.hFov : 360;
+    const pitch = isPartial(s) ? (s.pano.pitch || 0) : 0;
+    /* the two axes share one degrees-per-pixel scale, so a short photo cannot
+       be stretched all the way round without its top and bottom meeting —
+       cap the slider at the widest this shape can honestly be */
+    const maxFov = s.size?.w ? Math.min(360, Math.floor(180 * s.size.w / s.size.h)) : 360;
+    host.innerHTML = `
+      <div class="range-row">
+        <label for="sc-hfov">Width</label>
+        <input type="range" id="sc-hfov" min="30" max="${maxFov}" step="1"
+               value="${Math.round(Math.min(hFov, maxFov))}" aria-describedby="sc-note">
+        <span class="val num" id="sc-hfov-val"></span>
+      </div>
+      <div class="range-row">
+        <label for="sc-tilt">Tilt</label>
+        <input type="range" id="sc-tilt" min="-80" max="80" step="1" value="${Math.round(pitch)}">
+        <span class="val num" id="sc-tilt-val"></span>
+      </div>
+      <p class="scene-note" id="sc-note"></p>`;
+
+    const hEl = host.querySelector('#sc-hfov');
+    const tEl = host.querySelector('#sc-tilt');
+    const note = host.querySelector('#sc-note');
+
+    const describe = () => {
+      const h = Number(hEl.value);
+      host.querySelector('#sc-hfov-val').textContent = `${h}°`;
+      host.querySelector('#sc-tilt-val').textContent = `${Number(tEl.value)}°`;
+      const v = s.size?.w ? Math.round(vFovOf(h, s.size.w, s.size.h)) : null;
+      const coverage = h >= 359.5
+        ? 'Wraps all the way round — a full 360° photo.'
+        : v
+          ? `Covers ${h}° across and ${v}° up and down. The rest takes its sky and ground from the photo.`
+          : `Covers ${h}° across. The rest takes its sky and ground from the photo.`;
+      /* the photo itself is usually the limit on sharpness, not the viewer, so
+         say what came off the camera rather than leaving it to be guessed at */
+      const px = s.size?.w
+        ? ` ${s.size.w} × ${s.size.h} pixels${s.converted ? ', converted to JPEG so every browser can read it.' : ', uploaded exactly as it came off the camera.'}`
+        : '';
+      const capped = s.size?.w > SYSTEM.maxTextureWidth
+        ? ` Wider than this machine's graphics can hold (${SYSTEM.maxTextureWidth}px), so the viewer scales it down to fit.`
+        : '';
+      note.textContent = coverage + px + capped;
+    };
+
+    const commit = () => {
+      const h = Number(hEl.value);
+      const t = Number(tEl.value);
+      if (h >= 359.5 && t === 0) delete s.pano; /* a clean full sphere carries no override */
+      else s.pano = { hFov: h, pitch: t };
+      scheduleSave();
+      reshapeCurrentScene();
+    };
+
+    describe();
+    for (const input of [hEl, tEl]) {
+      input.addEventListener('input', describe);
+      input.addEventListener('change', commit);
+    }
+  }
 
   function onPlace(yaw, pitch) {
     const s = curScene();
     if (!s) return;
     s.hotspots = s.hotspots || [];
+    if (placing?.link) { placeLink(s, placing.link, yaw, pitch); return; }
     if (placing?.move) {
       const h = s.hotspots.find(x => x.id === placing.move);
       if (h) { h.yaw = yaw; h.pitch = pitch; scheduleSave(); refreshMarkers(); }
@@ -1306,11 +2452,9 @@ async function renderEditor(tourId) {
     const type = placing;
     placing = null;
     updateHint();
-    const h = type === 'link'
-      ? { id: newId('h'), type: 'link', yaw, pitch, target: doc.scenes.find(x => x.id !== s.id)?.id || s.id, label: '' }
-      : type === 'url'
-        ? { id: newId('h'), type: 'url', yaw, pitch, url: '', label: '' }
-        : { id: newId('h'), type: 'info', yaw, pitch, title: '', text: '' };
+    const h = styled(type === 'url'
+      ? { id: newId('h'), type: 'url', yaw, pitch, url: '', label: '' }
+      : { id: newId('h'), type: 'info', yaw, pitch, title: '', text: '' });
     s.hotspots.push(h);
     scheduleSave();
     refreshMarkers();
@@ -1356,7 +2500,23 @@ async function renderEditor(tourId) {
         <div class="frow"><label>Image (optional)</label><span id="hs-image-line"></span></div>
         <div class="frow"><label>Audio clip (optional)</label><span id="hs-audio-line"></span></div>`;
     }
+    /* only a link can lie flat on the floor as an arrow */
+    const shapes = (h.type === 'link' ? ['arrow'] : []).concat('circle', 'square', 'diamond', 'ring', 'dot');
+    const current = hotspotShape(h);
     inner += `
+      <div class="frow"><label>Shape</label>
+        <div class="shape-row" role="group" aria-label="Hotspot shape">${shapes.map(sh => `
+          <button class="shape-btn${sh === current ? ' on' : ''}" data-shape="${sh}"
+                  aria-pressed="${sh === current}" title="${SHAPE_NAMES[sh]}" aria-label="${SHAPE_NAMES[sh]}">
+            <img src="${sh === 'arrow' ? ARROW_PREVIEW : hotspotIcon(h, sh)}" alt=""></button>`).join('')}
+        </div>
+      </div>
+      <div class="range-row"><label for="hs-size">Size</label>
+        <input type="range" id="hs-size" min="16" max="128" step="2" value="${hotspotSize(h)}">
+        <span class="val num" id="hs-size-val"></span></div>
+      <div class="range-row"><label for="hs-opacity">Opacity</label>
+        <input type="range" id="hs-opacity" min="10" max="100" step="5" value="${Math.round(hotspotOpacity(h) * 100)}">
+        <span class="val num" id="hs-opacity-val"></span></div>
       <div class="frow"><label>Custom icon (optional)</label><span id="hs-icon-line"></span></div>
       <div class="row">
         <button class="btn" id="hs-move">Move</button>
@@ -1365,6 +2525,35 @@ async function renderEditor(tourId) {
       </div>`;
     const panel = el(`<div class="hs-panel">${inner}</div>`);
     pane.append(panel);
+
+    /* ponytail: a style change rebuilds every marker in the scene. Fine at the
+       handful a room holds; switch to markers.updateMarker if a scene ever
+       carries enough hotspots for the sliders to feel heavy. */
+    const applyStyle = (key, value) => {
+      h[key] = value;
+      /* the next hotspot placed inherits this, so a look is chosen once */
+      lastStyle = { shape: hotspotShape(h), size: hotspotSize(h), opacity: hotspotOpacity(h) };
+      scheduleSave();
+      refreshMarkers();
+    };
+    panel.querySelectorAll('.shape-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        for (const b of panel.querySelectorAll('.shape-btn')) {
+          b.classList.toggle('on', b === btn);
+          b.setAttribute('aria-pressed', String(b === btn));
+        }
+        applyStyle('shape', btn.dataset.shape);
+      });
+    });
+    const sizeEl = panel.querySelector('#hs-size');
+    const opacityEl = panel.querySelector('#hs-opacity');
+    const showVals = () => {
+      panel.querySelector('#hs-size-val').textContent = `${sizeEl.value}px`;
+      panel.querySelector('#hs-opacity-val').textContent = `${opacityEl.value}%`;
+    };
+    showVals();
+    sizeEl.addEventListener('input', () => { showVals(); applyStyle('size', Number(sizeEl.value)); });
+    opacityEl.addEventListener('input', () => { showVals(); applyStyle('opacity', Number(opacityEl.value) / 100); });
 
     if (h.type === 'link') {
       panel.querySelector('#hs-target').addEventListener('change', e => { h.target = e.target.value; scheduleSave(); refreshMarkers(); });
@@ -1428,7 +2617,7 @@ async function renderEditor(tourId) {
           try {
             obj[key] = await uploadFile(doc.id, input.files[0]);
             scheduleSave(); refreshMarkers(); render();
-          } catch (err) { toast(err.message, true); }
+          } catch (err) { toast(uploadProblem(input.files[0].name, err), true); }
         });
         line.append(btn, input);
       }
@@ -1439,6 +2628,7 @@ async function renderEditor(tourId) {
   /* ----- boot ----- */
   renderSceneList();
   renderMain();
+  renderSceneShape();
   updateHint();
 }
 </script>

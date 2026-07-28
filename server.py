@@ -221,18 +221,25 @@ PRUNE_GRACE_SECONDS = 24 * 60 * 60
 
 
 def seed_sample_tour() -> None:
-    """On first run, drop a ready-made demo tour into the tours folder so a new
-    user has something to walk through before they own any 360 photos. Pure
-    file copy — the sample panoramas ship in the repo, so this needs no camera
-    and no image libraries."""
+    """On FIRST run only, drop one ready-made demo tour into the tours folder so
+    a new user has something to walk through before they own any 360 photos.
+    Pure file copy — the sample panoramas ship in the repo, so this needs no
+    camera and no image libraries.
+
+    Deleting the sample is the user saying they are done with it, so a marker
+    file records that and the sample never comes back. Without it, every
+    restart re-created a tour the user had already thrown away."""
     src = REPO_ROOT / "tour" / "sample"
     if not (src / "tour.json").exists():
         return
-    dest = get_tours_dir() / "sample-tour"
-    if dest.exists():
+    tours = get_tours_dir()
+    seeded = tours / ".sample-seeded"
+    dest = tours / "sample-tour"
+    if seeded.exists() or dest.exists():
         return
     dest.parent.mkdir(parents=True, exist_ok=True)
     shutil.copytree(src, dest)
+    seeded.write_text("the sample tour has been placed once; delete this to get it back\n", encoding="utf-8")
 
 
 def prune_tour_files(tour: dict) -> None:
