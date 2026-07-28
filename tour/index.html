@@ -269,6 +269,21 @@
   .range-row .val { font-size: 12px; color: var(--text-2); width: 46px; text-align: right; flex: none; }
   .scene-note { font-size: 12px; color: var(--text-3); margin: 4px 0 0; }
 
+  /* the hotspot you are about to drop, riding the cursor until you place it */
+  .place-ghost {
+    position: fixed; z-index: 200; pointer-events: none;
+    transform: translate(-50%, -50%); opacity: 0.9;
+    filter: drop-shadow(0 0 8px rgba(10, 132, 255, 0.95));
+  }
+
+  /* walking the tour without leaving the editor */
+  .tryout { position: absolute; inset: 0; z-index: 60; background: var(--canvas); }
+  .tryout iframe { display: block; width: 100%; height: 100%; border: 0; }
+  .tryout-close {
+    position: absolute; top: 14px; right: 14px; z-index: 61;
+    background: rgba(11, 11, 14, 0.82); backdrop-filter: blur(8px);
+  }
+
   /* hotspots are draggable in the editor only — in the viewer they are buttons */
   #edit-psv .psv-marker { cursor: grab; }
   /* nothing else says "you can pick this up", so hover has to */
@@ -760,7 +775,9 @@ const HOTSPOT_SHAPES = {
 };
 
 const HOTSPOT_GLYPHS = {
-  link: '<path d="M14 20h10m0 0l-4.5-4.5M24 20l-4.5 4.5" stroke="#F2F2F7" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>',
+  /* points up, not right: an arrow on a hotspot reads as "go this way", and
+     the way is forward from where you are standing */
+  link: '<path d="M20 27V14m0 0l-4.8 4.8M20 14l4.8 4.8" stroke="#F2F2F7" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>',
   info: '<rect x="18.5" y="17" width="3" height="12" rx="1.5" fill="#F2F2F7"/><circle cx="20" cy="12" r="2.2" fill="#F2F2F7"/>',
   url: '<path d="M15 25L25 15M25 15h-7M25 15v7" stroke="#F2F2F7" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>',
 };
@@ -948,7 +965,7 @@ async function renderHome() {
       if (!delBtn.classList.contains('danger-solid')) {
         /* two-step confirm: first click arms, second within 4s deletes */
         delBtn.classList.replace('danger-text', 'danger-solid');
-        delBtn.textContent = 'Really delete?';
+        delBtn.textContent = 'Confirm delete?';
         armTimer = setTimeout(() => {
           delBtn.classList.replace('danger-solid', 'danger-text');
           delBtn.textContent = 'Delete';
@@ -1386,6 +1403,11 @@ async function renderEditor(tourId) {
   /* ----- state ----- */
   let curSceneId = doc.scenes[0]?.id || null;
   let placing = null;        // 'info' | 'url' | {move: hotspotId} | {link: sceneId} | null
+  /* Never test `placing?.link` directly: when `placing` is the STRING 'link',
+     `'link'.link` resolves to String.prototype.link — a legacy method that
+     exists and is therefore truthy — so a plain link placement would be
+     mistaken for an armed build-mode target and quietly refuse to place. */
+  const armedTarget = () => (placing && typeof placing === 'object' ? placing.link : null) || null;
   let buildReturn = true;    // build mode: also lay the arrow back
   let lastStyle = null;      // shape/size/opacity the next hotspot inherits
   let saveTimer = null;
@@ -1415,7 +1437,7 @@ async function renderEditor(tourId) {
     lastState = prev; /* so scheduleSave below does not re-push what we just undid */
     if (!doc.scenes.some(s => s.id === curSceneId)) curSceneId = doc.scenes[0]?.id || null;
     closeHotspotPanel();
-    placing = null;
+    setPlacing(null);
     scheduleSave();
     syncSettingsInputs();
     renderSceneList();
@@ -1665,7 +1687,7 @@ async function renderEditor(tourId) {
         scheduleSave();
         renderSceneList();
         if (doc.scenes.length === 1) { renderMain(); renderSceneShape(); }
-        if (placing?.link) renderBuildChips();
+        if (armedTarget()) renderBuildChips();
       } catch (err) {
         failures.push({ name: file.name, reason: uploadReason(err) });
       }
@@ -1760,7 +1782,7 @@ async function renderEditor(tourId) {
       delBtn.addEventListener('click', () => {
         if (!delBtn.classList.contains('armed')) {
           delBtn.classList.add('armed');
-          delBtn.textContent = 'Really?';
+          delBtn.textContent = 'Confirm?';
           delBtn.setAttribute('aria-label', `Confirm deleting ${s.name}`);
           delTimer = setTimeout(() => {
             if (!delBtn.isConnected) return;
@@ -1775,7 +1797,7 @@ async function renderEditor(tourId) {
       });
       list.append(row);
     });
-    if (placing?.link) renderBuildChips(); /* same list, second view of it */
+    if (armedTarget()) renderBuildChips(); /* same list, second view of it */
     /* the red dot is easy to miss, and half a disconnected tour is worth saying
        out loud rather than leaving to be discovered by walking it */
     const line = document.getElementById('reach-notice');
@@ -1812,7 +1834,7 @@ async function renderEditor(tourId) {
 
   function deleteScene(sid) {
     closeHotspotPanel();
-    placing = null;
+    setPlacing(null);
     doc.scenes = doc.scenes.filter(s => s.id !== sid);
     for (const s of doc.scenes) {
       s.hotspots = (s.hotspots || []).filter(h => h.type !== 'link' || h.target !== sid);
@@ -1832,11 +1854,11 @@ async function renderEditor(tourId) {
     /* build mode survives the move — walking scene to scene laying arrows is
        the whole point — but its armed target cannot be the scene we just
        opened, so re-aim it at something reachable */
-    if (placing?.link) {
-      placing = placing.link === sid ? { link: otherScenes()[0]?.id } : placing;
-      if (!placing.link) placing = null;
+    if (armedTarget()) {
+      const armed = armedTarget() === sid ? otherScenes()[0]?.id : armedTarget();
+      setPlacing(armed ? { link: armed } : null);
     } else {
-      placing = null;
+      setPlacing(null);
     }
     closeHotspotPanel();
     renderSceneList();
@@ -1900,7 +1922,7 @@ async function renderEditor(tourId) {
     const pane = document.getElementById('main-pane');
     if (!doc.scenes.length) {
       editorViewer?.destroy(); editorViewer = null; markers = null;
-      placing = null; /* the build bar goes with the toolbar we are about to drop */
+      setPlacing(null); /* the build bar goes with the toolbar we are about to drop */
       pane.innerHTML = `<div class="editor-empty">
         <div style="font-size:18px;font-weight:600;color:var(--text)">Add your first photo</div>
         <div>Drop photos into the panel on the left — a 360&deg; shot, a phone panorama,<br>
@@ -1916,11 +1938,14 @@ async function renderEditor(tourId) {
     if (!editorViewer) {
       pane.innerHTML = `
         <div class="toolbar">
-          <button class="btn" id="build-links" aria-pressed="false">Build links</button>
+          <button class="btn" id="add-link">+ Link hotspot</button>
           <button class="btn" id="add-info">+ Info hotspot</button>
           <button class="btn" id="add-url">+ URL hotspot</button>
+          <button class="btn" id="build-links" aria-pressed="false"
+                  title="Pick where each link goes first, then click doorway after doorway">Build links</button>
           <button class="btn" id="set-view">Set start view from here</button>
           <button class="btn" id="undo-btn" title="Undo (Ctrl+Z)" disabled>Undo</button>
+          <button class="btn primary" id="start-tour">Start tour</button>
           <span class="hint" id="hint"></span>
         </div>
         <div class="build-bar" id="build-bar">
@@ -1931,8 +1956,10 @@ async function renderEditor(tourId) {
         <div id="edit-psv"></div>`;
       document.getElementById('build-links').addEventListener('click', toggleBuildMode);
       document.getElementById('bb-return').addEventListener('change', e => { buildReturn = e.target.checked; });
+      document.getElementById('add-link').addEventListener('click', () => startPlacing('link'));
       document.getElementById('add-info').addEventListener('click', () => startPlacing('info'));
       document.getElementById('add-url').addEventListener('click', () => startPlacing('url'));
+      document.getElementById('start-tour').addEventListener('click', startTour);
       document.getElementById('undo-btn').addEventListener('click', undo);
       updateUndoButton();
       document.getElementById('set-view').addEventListener('click', () => {
@@ -2014,7 +2041,7 @@ async function renderEditor(tourId) {
         size: { width: px, height: px },
         opacity: h.icon ? hotspotOpacity(h) : 1, /* a drawn shape is already faded */
         tooltip: esc(h.type === 'link'
-          ? (h.label || doc.scenes.find(x => x.id === h.target)?.name || 'Link')
+          ? (h.label || doc.scenes.find(x => x.id === h.target)?.name || 'Not connected yet — click to choose a scene')
           : h.type === 'url' ? (h.label || h.url || 'Link')
           : (h.title || 'Info')),
       };
@@ -2022,16 +2049,88 @@ async function renderEditor(tourId) {
   }
 
   /* ----- hotspot placement + editing ----- */
+  /* ----- the hotspot rides the cursor until you drop it -----
+     Choosing what a hotspot connects to before deciding where it goes is
+     backwards: you are looking at the doorway, not at a list of rooms. So
+     placement comes first — the hotspot follows the pointer, you drop it where
+     it belongs, and the panel then asks what it leads to. Build mode is the
+     other way round on purpose, for laying out a whole floor at speed. */
+
+  let ghost = null;
+  /* an uploaded icon wins here as it does everywhere else, or Move would show
+     a generic badge riding the cursor for a hotspot that does not look like one */
+  const ghostIcon = h => (h.icon ? fileUrl(doc.id, h.icon)
+    : hotspotShape(h) === 'arrow' ? ARROW_PREVIEW
+      : hotspotIcon(h));
+
+  function placingPreview(next) {
+    if (typeof next === 'string') return { type: next, ...(lastStyle || {}) };
+    if (typeof next === 'object' && next?.link) return { type: 'link', ...(lastStyle || {}) };
+    if (next?.move) return curScene()?.hotspots?.find(x => x.id === next.move) || null;
+    return null;
+  }
+
+  function setPlacing(next) {
+    placing = next;
+    ghost?.remove();
+    ghost = null;
+    const preview = placingPreview(next);
+    if (preview) {
+      const px = hotspotSize(preview);
+      ghost = el(`<img class="place-ghost" alt="" src="${ghostIcon(preview)}"
+        style="width:${px}px;height:${px}px;visibility:hidden">`);
+      document.body.append(ghost);
+    }
+    /* the build bar reads straight off this state, so it has to be refreshed
+       from the same choke point — otherwise reaching for "+ Info hotspot" with
+       build mode armed leaves the bar open and a chip still claiming to be
+       armed when nothing is */
+    syncBuildMode();
+  }
+
   function startPlacing(type) {
-    placing = type;
     closeHotspotPanel();
-    updateHint();
+    setPlacing(type);
+  }
+
+  /* ----- walk the tour without leaving the editor -----
+     Preview opens a tab, which is right for showing someone else. Testing your
+     own links wants the opposite: stay put, click through, come back. The real
+     viewer runs in a frame over the editor rather than a second copy of the
+     viewer code, so what you walk is exactly what a visitor gets. */
+  const closeTryout = () => document.querySelector('.tryout')?.remove();
+
+  async function startTour() {
+    while (saveInFlight) await new Promise(r => setTimeout(r, 120));
+    if (dirty || saveTimer) {
+      if (!await saveNow()) toast('Could not save — you are walking the last saved version', true);
+    }
+    closeTryout();
+    setPlacing(null);
+    closeHotspotPanel();
+    const box = el(`<div class="tryout">
+      <iframe src="/tour/view/${esc(doc.id)}" title="Walking through ${esc(doc.name)}"
+        allow="gyroscope; accelerometer; fullscreen; xr-spatial-tracking"></iframe>
+      <button class="btn tryout-close">Back to editing</button>
+    </div>`);
+    box.querySelector('.tryout-close').addEventListener('click', closeTryout);
+    /* Once you click into the tour, its own document swallows the keystrokes
+       and the editor's Escape never fires. Same origin, so we can listen from
+       in there too and keep Escape meaning the same thing everywhere. */
+    box.querySelector('iframe').addEventListener('load', e => {
+      try {
+        e.target.contentDocument.addEventListener('keydown', k => {
+          if (k.key === 'Escape') closeTryout();
+        });
+      } catch { /* the button is always there if this is ever blocked */ }
+    });
+    document.getElementById('main-pane').append(box);
   }
   function updateHint() {
     const hint = document.getElementById('hint');
     if (!hint) return;
-    if (placing?.link) {
-      const name = doc.scenes.find(s => s.id === placing.link)?.name || 'that scene';
+    if (armedTarget()) {
+      const name = doc.scenes.find(s => s.id === armedTarget())?.name || 'that scene';
       hint.className = 'hint placing';
       hint.textContent = `Click where the way to "${name}" is (Esc stops)`;
     } else if (typeof placing === 'string') {
@@ -2047,8 +2146,9 @@ async function renderEditor(tourId) {
   }
   document.addEventListener('keydown', e => {
     if (e.key !== 'Escape') return;
-    if (placing?.link) exitBuildMode();
-    else if (placing) { placing = null; updateHint(); }
+    if (document.querySelector('.tryout')) { closeTryout(); return; }
+    if (armedTarget()) exitBuildMode();
+    else if (placing) setPlacing(null);
     else closeHotspotPanel();
   });
 
@@ -2093,6 +2193,16 @@ async function renderEditor(tourId) {
         y: e.clientY - rect.top,
       });
     };
+
+    /* the hotspot-to-be follows the pointer, and hides whenever it leaves the
+       panorama so it never floats over the sidebar */
+    host.addEventListener('pointermove', e => {
+      if (!ghost) return;
+      ghost.style.left = `${e.clientX}px`;
+      ghost.style.top = `${e.clientY}px`;
+      ghost.style.visibility = 'visible';
+    });
+    host.addEventListener('pointerleave', () => { if (ghost) ghost.style.visibility = 'hidden'; });
 
     /* PSV only raises its click when the ray lands on actual photo, and a
        partial panorama has no geometry outside its covered slice — so a click
@@ -2177,7 +2287,7 @@ async function renderEditor(tourId) {
   }
 
   function toggleBuildMode() {
-    if (placing?.link) { exitBuildMode(); return; }
+    if (armedTarget()) { exitBuildMode(); return; }
     const others = otherScenes();
     if (!others.length) {
       toast('Add a second scene first — a link needs somewhere to go', true);
@@ -2186,17 +2296,15 @@ async function renderEditor(tourId) {
     closeHotspotPanel();
     /* arm somewhere this scene cannot reach yet, so the common case is one click */
     const linked = new Set((curScene()?.hotspots || []).filter(h => h.type === 'link').map(h => h.target));
-    placing = { link: (others.find(s => !linked.has(s.id)) || others[0]).id };
-    syncBuildMode();
+    setPlacing({ link: (others.find(s => !linked.has(s.id)) || others[0]).id });
   }
 
   function exitBuildMode() {
-    placing = null;
-    syncBuildMode();
+    setPlacing(null);
   }
 
   function syncBuildMode() {
-    const on = Boolean(placing?.link);
+    const on = Boolean(armedTarget());
     const btn = document.getElementById('build-links');
     document.getElementById('build-bar')?.classList.toggle('open', on);
     if (btn) {
@@ -2216,7 +2324,7 @@ async function renderEditor(tourId) {
     host.innerHTML = '';
     const from = curScene();
     for (const s of otherScenes()) {
-      const armed = placing?.link === s.id;
+      const armed = armedTarget() === s.id;
       const done = from ? hasLink(from, s.id) : false;
       const chip = el(`<button class="bb-chip${armed ? ' on' : ''}" aria-pressed="${armed}"
           aria-label="Place a link to ${esc(s.name)}${done ? ', already linked from here' : ''}">
@@ -2225,9 +2333,8 @@ async function renderEditor(tourId) {
           ${done ? '<span class="tick" aria-hidden="true">&check;</span>' : ''}
         </button>`);
       chip.addEventListener('click', () => {
-        placing = { link: s.id };
+        setPlacing({ link: s.id });
         renderBuildChips();
-        updateHint();
       });
       host.append(chip);
     }
@@ -2343,7 +2450,7 @@ async function renderEditor(tourId) {
     scheduleSave();
     refreshMarkers();
     renderSceneList();
-    if (placing?.link) renderBuildChips();
+    if (armedTarget()) renderBuildChips();
 
     const n = `${made} link${made === 1 ? '' : 's'}`;
     const k = doc.scenes.length - located.length;
@@ -2441,23 +2548,25 @@ async function renderEditor(tourId) {
     const s = curScene();
     if (!s) return;
     s.hotspots = s.hotspots || [];
-    if (placing?.link) { placeLink(s, placing.link, yaw, pitch); return; }
+    if (armedTarget()) { placeLink(s, armedTarget(), yaw, pitch); return; }
     if (placing?.move) {
       const h = s.hotspots.find(x => x.id === placing.move);
       if (h) { h.yaw = yaw; h.pitch = pitch; scheduleSave(); refreshMarkers(); }
-      placing = null;
-      updateHint();
+      setPlacing(null);
       return;
     }
     const type = placing;
-    placing = null;
-    updateHint();
-    const h = styled(type === 'url'
-      ? { id: newId('h'), type: 'url', yaw, pitch, url: '', label: '' }
-      : { id: newId('h'), type: 'info', yaw, pitch, title: '', text: '' });
+    setPlacing(null);
+    /* a link is born connected to nothing: the panel that opens next is where
+       you say where it goes, which is the point of placing first */
+    const h = styled(
+      type === 'link' ? { id: newId('h'), type: 'link', yaw, pitch, target: '', label: '' }
+        : type === 'url' ? { id: newId('h'), type: 'url', yaw, pitch, url: '', label: '' }
+          : { id: newId('h'), type: 'info', yaw, pitch, title: '', text: '' });
     s.hotspots.push(h);
     scheduleSave();
     refreshMarkers();
+    renderSceneList();
     openHotspotPanel(h.id);
   }
 
@@ -2475,10 +2584,15 @@ async function renderEditor(tourId) {
     if (h.type === 'link') {
       const options = doc.scenes.filter(x => x.id !== s.id).map(x =>
         `<option value="${esc(x.id)}"${x.id === h.target ? ' selected' : ''}>${esc(x.name)}</option>`).join('');
+      /* a freshly dropped link has nowhere to go yet, and saying so is better
+         than quietly aiming it at whichever scene happened to be first */
+      const unset = !doc.scenes.some(x => x.id === h.target);
       inner = `
         <h4>Link hotspot</h4>
         <div class="frow"><label for="hs-target">Goes to</label>
-          <select id="hs-target">${options || '<option value="">(no other scenes yet)</option>'}</select></div>
+          <select id="hs-target">${options
+            ? `${unset ? '<option value="" selected>Choose a scene&hellip;</option>' : ''}${options}`
+            : '<option value="">(no other scenes yet)</option>'}</select></div>
         <div class="frow"><label for="hs-label">Label (optional)</label>
           <input type="text" id="hs-label" value="${esc(h.label || '')}" maxlength="80"></div>`;
     } else if (h.type === 'url') {
@@ -2577,13 +2691,13 @@ async function renderEditor(tourId) {
     }
     wireFileRow(panel.querySelector('#hs-icon-line'), h, 'icon', 'image/png,image/jpeg,image/webp', 'custom icon');
     panel.querySelector('input, select, textarea, button')?.focus();
-    panel.querySelector('#hs-move').addEventListener('click', () => { placing = { move: h.id }; updateHint(); });
+    panel.querySelector('#hs-move').addEventListener('click', () => setPlacing({ move: h.id }));
     const hsDelete = panel.querySelector('#hs-delete');
     let hsDelTimer = null;
     hsDelete.addEventListener('click', () => {
       if (!hsDelete.classList.contains('danger-solid')) {
         hsDelete.classList.replace('danger-text', 'danger-solid');
-        hsDelete.textContent = 'Really?';
+        hsDelete.textContent = 'Confirm?';
         hsDelTimer = setTimeout(() => {
           if (!hsDelete.isConnected) return;
           hsDelete.classList.replace('danger-solid', 'danger-text');

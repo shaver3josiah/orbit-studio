@@ -25,6 +25,9 @@ Then open <http://localhost:7360/tour>.
 On first run a **"Sample Apartment"** tour is copied in so you have something
 to walk through before you own any 360 photos. Delete it whenever — it's a
 normal tour, and deleting it sticks: it won't come back on the next start.
+Deleting anything — a tour, a scene, a hotspot — is two clicks on purpose:
+the button turns into **Confirm delete?** (a scene or hotspot just says
+**Confirm?**) and only fires if you click it again within a few seconds.
 
 ## Make a tour
 
@@ -65,18 +68,30 @@ normal tour, and deleting it sticks: it won't come back on the next start.
    many degrees across the photo covers (30–360, the sphere reshapes live
    as you drag), and **Tilt**, the elevation of the photo's centre, for a
    shot aimed up or down. A note underneath states the resulting coverage,
-   for example "Covers 200° across and 40° up and down. The rest of the
-   sphere stays empty." There's no separate vertical field-of-view control:
+   for example "Covers 200° across and 40° up and down. The rest takes its
+   sky and ground from the photo." There's no separate vertical
+   field-of-view control:
    an equirectangular projection shares one degrees-per-pixel scale across
    both axes, so the vertical coverage follows from the width and the
    photo's own aspect ratio. The same section also states the photo's actual
    pixel dimensions and whether it uploaded untouched or got converted, and
    warns you if it's wider than this machine's graphics can hold.
-4. **Connect the scenes.** Click **Build links** to enter build mode. A blue
-   bar appears under the toolbar reading *Walk to*, with a row of scene
-   chips — thumbnail and name, ticked if this scene already links there.
-   Click a chip to arm it, then click the spot in the panorama where the
-   way there is. Build mode stays on afterwards, so you can keep placing
+4. **Connect the scenes.** Click **+ Link hotspot**: the hotspot follows your
+   pointer around the panorama — already showing the shape, size, and
+   opacity it will actually have — until you click the spot where the way
+   there is. The hotspot panel then opens asking which scene it leads to,
+   starting on *Choose a scene…* rather than guessing; until you pick one,
+   the marker's tooltip reads "Not connected yet — click to choose a scene."
+   The same cursor-following placement is used for *Info* and *URL*
+   hotspots (next step) and for **Move**.
+
+   For laying out a whole floor at speed, **Build links** is the quicker
+   alternative: it arms a target scene first, so you click doorway after
+   doorway without opening a panel each time. Click **Build links** to enter
+   build mode. A blue bar appears under the toolbar reading *Walk to*, with a
+   row of scene chips — thumbnail and name, ticked if this scene already
+   links there. Click a chip to arm it, then click the spot in the panorama
+   where the way there is. Build mode stays on afterwards, so you can keep placing
    links — walking the tour scene to scene, laying arrows as you go —
    without opening a menu each time, and it survives switching scenes.
    **Add the way back too**, ticked by default, also creates the reverse
@@ -111,14 +126,17 @@ normal tour, and deleting it sticks: it won't come back on the next start.
    yet (and it isn't the start scene) — it would be unreachable in the
    finished tour. A line under the list also states how many scenes that
    is, in case the dot itself is easy to miss.
-5. **Add detail.** *+ Info hotspot* opens a panel with a title, text, an image,
-   and an audio clip. *+ URL hotspot* opens an external page in a new tab.
-   Click any hotspot — a link arrow included — to reopen this same panel and
-   choose its look: a row of shapes (Circle, Square, Diamond, Ring, Dot, and,
-   for a link only, Arrow on the floor — the viewer's own floor arrow, and
-   the default for links; Circle is the default for the rest), a Size
-   slider, and an Opacity slider. Leave all three untouched and a hotspot
-   looks exactly as it always did. The next hotspot you place — by hand or
+5. **Add detail.** *+ Info hotspot* and *+ URL hotspot* place the same way as
+   a link — click the button, click the spot in the panorama — and then open
+   a panel: a title, text, an image, and an audio clip for Info; an external
+   page (opened in a new tab) for URL. Click any hotspot — a link arrow
+   included — to reopen this same panel and choose its look: a row of shapes
+   (Circle, Square, Diamond, Ring, Dot, and, for a link only, Arrow on the
+   floor — the viewer's own floor arrow, and the default for links; Circle is
+   the default for the rest), a Size slider, and an Opacity slider. A link's
+   own badge arrow points up — forward, the way you'd walk — rather than
+   sideways. Leave all three untouched and a hotspot looks exactly as it
+   always did. The next hotspot you place — by hand or
    via Connect scenes for me — inherits whatever the last one was styled as,
    so a look gets chosen once rather than forty times.
 
@@ -131,7 +149,11 @@ normal tour, and deleting it sticks: it won't come back on the next start.
    it without a pointer.
 6. **Aim each scene.** Drag to the view a visitor should land on, then
    *Set start view from here*.
-7. **Preview**, then share.
+7. **Try it, then share.** **Start tour**, in the toolbar, saves and runs the
+   real viewer in a frame right over the editor, so you can click through
+   your own links and come back — **Back to editing**, or Escape, closes it.
+   **Preview tour**, in the Share panel, opens the same tour in a separate
+   tab instead, the right one to send someone else to look at.
 
 Everything saves as you work — the status under the tour name reads
 *Saving…* then *Saved*. A failed save retries on its own and says so.
