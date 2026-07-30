@@ -538,16 +538,43 @@
     background-size: 25% 25%; background-position: -1px -1px;
   }
   .plan-box:empty { opacity: 0.5; }
+  /* the structure, under the photos: absolutely positioned so the dots keep
+     using the same percentage coordinates they always did */
+  .plan-deck { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  .plan-deck line { stroke: var(--ink-3); stroke-width: 3; stroke-linecap: round; opacity: .45; }
   .plan-dot {
     position: absolute; width: 11px; height: 11px; padding: 0;
     transform: translate(-50%, -50%); border-radius: 50%;
     background: var(--surface); border: 2px solid var(--ink-3); cursor: pointer;
     transition: transform var(--dur-fast) var(--ease-out);
   }
+  /* Three kinds, and they have to be told apart at eleven pixels without
+     relying on colour alone: a measured position is solid, a guessed one is
+     hollow and dashed, a hand-placed one is filled. */
+  .plan-dot.k-guess { border-style: dashed; background: transparent; }
+  .plan-dot.k-manual { background: var(--ink-3); }
+  button.plan-dot { cursor: grab; touch-action: none; }
   button.plan-dot:hover { transform: translate(-50%, -50%) scale(1.35); border-color: var(--accent); }
   button.plan-dot:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .plan-dot.on { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-tint); }
+  /* Plant on the deck. A square, because every photo on this plate is a circle
+     and the one thing here that is not a photo should not read as one. */
+  .plan-plant {
+    position: absolute; width: 13px; height: 13px;
+    transform: translate(-50%, -50%) rotate(45deg);
+    border: 2px solid var(--warning); background: transparent;
+    pointer-events: none;
+  }
+  .plan-dot.dragging {
+    cursor: grabbing; transition: none; z-index: 1;
+    transform: translate(-50%, -50%) scale(1.5); border-color: var(--accent);
+  }
   @media (prefers-reduced-motion: reduce) { .plan-dot { transition: none; } }
+  /* a coarse pointer cannot hit eleven pixels: grow the target without growing
+     the mark, so the plate still reads as a sketch */
+  @media (pointer: coarse) {
+    button.plan-dot::before { content: ''; position: absolute; inset: -12px; }
+  }
 
   /* scene groups: a flat rail is right for six photos and a scroll for forty */
   .sgroup { border-top: 1px solid var(--line); }
@@ -810,7 +837,59 @@
   /* PSV overrides to match the house style */
   .psv-navbar { background: var(--scrim); backdrop-filter: blur(8px); }
   .psv-panel { background: var(--scrim-strong); color: var(--ink); }
-  .psv-panel-content h2 { margin-top: 0; }
+  /* The scrim is 86% over an ARBITRARY photograph, so on a bright sky the
+     effective background lightens and every contrast ratio underneath drops.
+     The blur is not decoration here — it is what makes the ratios below hold
+     whatever the hotspot happens to be standing in front of. */
+  .psv-panel { backdrop-filter: blur(14px); }
+  .psv-panel-content { padding: var(--s5); }
+
+  /* ---------- what a hotspot says when you open it ----------
+
+     Three groups, in the order an inspector reads them: the evidence, what it
+     IS, and where it sits. Hierarchy is carried by weight, size and SPACE
+     rather than by rules or boxes — a panel this small does not need dividers
+     to be legible, and a card inside a panel would be a card inside a card.
+
+     Every colour here is a token, not an opacity. `opacity: .7` on the ink was
+     the old approach and it is the classic way muted text quietly fails its
+     contrast ratio; --ink-2 is 5.4:1 against this panel even over a white sky,
+     which the opacity version was not. */
+  .hs { display: flex; flex-direction: column; }
+  .hs-shot {
+    display: block; margin: 0 auto var(--s4); border-radius: var(--r-sm);
+    max-width: 100%; max-height: 44vh; width: auto;
+    /* contain rather than cover: this is evidence, and cropping a defect photo
+       to fit a box can crop the defect */
+    background: var(--surface-raised);
+  }
+  .hs-title {
+    margin: 0; font: 600 var(--t-lg)/1.3 var(--f-ui); color: var(--ink);
+    text-wrap: balance;
+  }
+  .hs-code {
+    font-family: var(--f-mono); font-variant-numeric: tabular-nums;
+    font-weight: 600; margin-right: var(--s2);
+  }
+  /* the measurement is the number that gets written into the register, so it
+     sits directly under the identity with almost no gap — one unit, read in
+     one movement — and everything else is pushed away from it */
+  .hs-measure {
+    margin: var(--s1) 0 0; font: 500 var(--t-md)/1.4 var(--f-ui); color: var(--ink);
+    font-variant-numeric: tabular-nums;
+  }
+  .hs-note {
+    margin: var(--s4) 0 0; font: 400 var(--t-md)/1.55 var(--f-ui); color: var(--ink);
+    white-space: pre-wrap; overflow-wrap: anywhere; max-width: 68ch; text-wrap: pretty;
+  }
+  .hs-where {
+    margin: var(--s5) 0 0; font: 400 var(--t-sm)/1.5 var(--f-ui); color: var(--ink-2);
+    display: flex; flex-wrap: wrap; gap: 0 var(--s2);
+  }
+  .hs-where li { list-style: none; }
+  .hs-where li + li::before { content: '·'; margin-right: var(--s2); color: var(--ink-3); }
+  .hs-audio { margin-top: var(--s4); width: 100%; }
+  .hs-where, .hs-title { padding: 0; }
 </style>
 <script type="importmap">
 {
@@ -1149,6 +1228,15 @@ function readGps(buffer) {
 
   const rational = o => (o + 8 <= view.byteLength ? u32(o) / (u32(o + 4) || 1) : NaN);
   const dms = o => rational(o) + rational(o + 8) / 60 + rational(o + 16) / 3600;
+  const ascii = (o, len) => {
+    let s = '';
+    for (let i = 0; i < len && o + i < view.byteLength; i++) {
+      const c = view.getUint8(o + i);
+      if (!c) break;
+      s += String.fromCharCode(c);
+    }
+    return s;
+  };
   const out = {};
   for (const e of entriesOf(gpsIfd)) {
     const tag = u16(e);
@@ -1157,14 +1245,114 @@ function readGps(buffer) {
     else if (tag === 2) out.lat = dms(at);
     else if (tag === 4) out.lon = dms(at);
     else if (tag === 17) out.heading = rational(at);
+    /* 'T' true / 'M' magnetic. Worth knowing on a steel structure: a magnetic
+       reading taken beside a plate girder can be tens of degrees out, which is
+       exactly the case the sun below is able to check. */
+    else if (tag === 16) out.headingRef = String.fromCharCode(view.getUint8(e + 8));
+    else if (tag === 7) out.hms = [rational(at), rational(at + 8), rational(at + 16)];
+    else if (tag === 29) out.utcDate = ascii(at, 11);
   }
   if (!Number.isFinite(out.lat) || !Number.isFinite(out.lon)) return null;
   const geo = {
     lat: +((out.latRef === 'S' ? -out.lat : out.lat).toFixed(7)),
     lon: +((out.lonRef === 'W' ? -out.lon : out.lon).toFixed(7)),
   };
-  if (Number.isFinite(out.heading)) geo.heading = +(((out.heading % 360) + 360) % 360).toFixed(2);
+  if (Number.isFinite(out.heading)) {
+    geo.heading = +(((out.heading % 360) + 360) % 360).toFixed(2);
+    geo.headingRef = out.headingRef === 'M' ? 'M' : 'T';
+  }
+  /* GPSDateStamp and GPSTimeStamp are UTC by definition — the one absolute
+     instant a photo carries. DateTimeOriginal is a local wall-clock reading
+     with no zone attached, which cannot be turned into a sun angle without
+     guessing the offset, and a guessed hour is fifteen degrees of azimuth. */
+  const d = /^(\d{4}):(\d{2}):(\d{2})/.exec(out.utcDate || '');
+  if (d && out.hms?.every(Number.isFinite)) {
+    const ms = Date.UTC(+d[1], +d[2] - 1, +d[3], out.hms[0], out.hms[1], out.hms[2]);
+    if (Number.isFinite(ms)) geo.utc = ms;
+  }
   return geo;
+}
+
+/* ---------- the sun as a compass ----------
+
+   A bridge inspector's compass is the one instrument the structure itself
+   breaks: stand beside a steel girder and a magnetic heading can be tens of
+   degrees out, silently. The sun cannot be deflected by the bridge.
+
+   Three things a photo already carries — where it was taken (GPS), when the
+   shutter fired (GPSDateStamp/GPSTimeStamp, which unlike DateTimeOriginal is
+   genuinely UTC), and where the sun sits in the frame (guessNavigableYaws already
+   finds it, to keep glare from being mistaken for a doorway) — pin the
+   photo's true heading with no compass involved at all.
+
+   NOAA Solar Calculator formulation, i.e. the low-precision solar series from
+   Meeus, Astronomical Algorithms 2nd ed. ch. 25, with the ch. 22 approximate
+   nutation terms. Checked against Meeus Example 25.a to the last published
+   digit, and against an independent IAU SOFA/ERFA chain over 200,000 random
+   (time, place) samples spanning 2000-2100: azimuth error median 0.002°,
+   p99 0.008°, and better than 0.05° for any sun lower than 83° altitude. That
+   is four hundred times finer than the ±2-3° this can actually read the sun's
+   position to off a 256-pixel-wide thumbnail, so the formula is nowhere near
+   the limiting error and there is no case for a longer one (SPA).
+
+   Returns azimuth in degrees clockwise from TRUE north, altitude in degrees
+   above the horizon. Geometric: no refraction, no diurnal parallax, both far
+   below the reading error above. */
+function sunPosition(dateUTC, latDeg, lonDeg) {
+  const R = Math.PI / 180, sin = Math.sin, cos = Math.cos;
+  const jd = +dateUTC / 86400000 + 2440587.5, T = (jd - 2451545) / 36525;
+  const L = 280.46646 + T * (36000.76983 + T * 0.0003032);           /* mean longitude */
+  const M = (357.52911 + T * (35999.05029 - T * 0.0001537)) * R;     /* mean anomaly */
+  const C = (1.914602 - T * (0.004817 + T * 0.000014)) * sin(M)      /* equation of centre */
+          + (0.019993 - T * 0.000101) * sin(2 * M) + 0.000289 * sin(3 * M);
+  const om = (125.04 - 1934.136 * T) * R;                            /* lunar node */
+  const dpsi = -0.00478 * sin(om);                                   /* nutation in longitude */
+  const lam = (L + C - 0.00569 + dpsi) * R;                          /* apparent longitude */
+  const eps = (23.439291 - T * (0.013004 + T * (0.00000016 - T * 0.000000504))
+              + 0.00256 * cos(om)) * R;                              /* true obliquity */
+  const dec = Math.asin(sin(eps) * sin(lam));
+  const ra = Math.atan2(cos(eps) * sin(lam), cos(lam));
+  const gmst = 280.46061837 + 360.98564736629 * (jd - 2451545)
+             + T * T * (0.000387933 - T / 38710000);
+  const H = (gmst + dpsi * cos(eps) + lonDeg) * R - ra;              /* apparent hour angle */
+  const phi = latDeg * R;
+  return {
+    azimuth: (Math.atan2(-cos(dec) * sin(H), cos(phi) * sin(dec) - sin(phi) * cos(dec) * cos(H)) / R + 360) % 360,
+    altitude: Math.asin(sin(phi) * sin(dec) + cos(phi) * cos(dec) * cos(H)) / R,
+  };
+}
+
+/* Below this the sun's glare smears across too many columns to centre, and
+   refraction starts to matter; above it the azimuth of a near-overhead sun is
+   ill-conditioned in the photo as well as in the formula. */
+const SUN_MIN_ALT = 7;
+const SUN_MAX_ALT = 80;
+/* The strongest guard against reading a floodlight, a window reflection or the
+   sun's glint off water as the sun itself: the formula says how high the sun
+   must be, and the photo says how high the bright thing is. If they disagree,
+   the bright thing is not the sun and no heading is claimed. A 256px-wide
+   thumbnail resolves ~1.4° per column, the glare disc is several columns
+   across, and a hand-held camera is rarely dead level — 12° is loose enough to
+   survive all three and still reject a lamp fifty degrees out of place. */
+const SUN_ALT_TOLERANCE = 12;
+/* How far a recorded heading and the sun's answer have to differ before the
+   scene panel raises it. Below this the two agree within their own error and
+   saying so would be noise; above it, one of them is wrong by more than a
+   bridge is wide. */
+const HEADING_DISPUTE = 15;
+
+/* The photo's true heading — the compass bearing of the centre of the frame,
+   defined exactly as EXIF GPSImgDirection is, so it drops into geo.heading
+   beside a recorded one. Null whenever any part of the chain is missing or
+   fails its check; this never guesses. */
+function solarHeading(sun, geo) {
+  if (!sun || !Number.isFinite(geo?.lat) || !Number.isFinite(geo?.lon) || !Number.isFinite(geo?.utc)) return null;
+  const { azimuth, altitude } = sunPosition(geo.utc, geo.lat, geo.lon);
+  if (altitude < SUN_MIN_ALT || altitude > SUN_MAX_ALT) return null;
+  if (Math.abs(altitude - sun.alt) > SUN_ALT_TOLERANCE) return null;
+  /* the sun sits at image-yaw sun.yaw, and image-yaw is measured from the
+     centre of the frame, so centre = sun's true azimuth minus that offset */
+  return +(((azimuth - sun.yaw) % 360 + 360) % 360).toFixed(2);
 }
 
 /* Initial bearing from a to b, degrees clockwise from true north. */
@@ -1218,12 +1406,51 @@ const NAV_MIN_SCORE = 18;       /* below this the scene is too flat to read */
    than what caused them, so a suggestion has to hold its own against the
    strongest thing in the photo — otherwise one doorway sprouts three arrows. */
 const NAV_MIN_RELATIVE = 0.45;
+const SUN_CONTRAST = 40;
 
-function guessNavigableYaws(image, { count = 3, hFov = 360, tilt = 0 } = {}) {
+/* Fluorescent workwear is the most saturated thing on a bridge and the least
+   like anything the structure is made of: concrete, steel, asphalt, water and
+   sky are all either dark or desaturated. These two thresholds are where
+   "bright AND saturated at once" starts, and they are the knobs to turn when a
+   site reads wrong — deep shade under a deck, sodium lighting at night, and
+   flat overcast all shift them. Rust, dry grass, traffic cones and yellow deck
+   striping DO leak through, which is why nothing downstream acts on this
+   without being asked. */
+const HIVIS_MIN_VALUE = 165;
+const HIVIS_MIN_SAT = 0.45;
+/* A vest is a few columns wide. Rust on a girder, or a whole field of dry
+   grass, spans the frame — so the test is not "is there orange" but "is the
+   orange in one place", measured against the median column. */
+const HIVIS_MIN_PEAK_RATIO = 6;
+
+/* How far a pixel has to depart from the deck's own colour to count as
+   something standing on it, and how much of a column has to depart before the
+   column counts. Brightness OR saturation, never darkness — a shadow is the
+   false positive these thresholds exist to exclude. */
+const VEHICLE_MIN_LUM = 34;
+const VEHICLE_MIN_SAT = 26;
+const VEHICLE_MIN_SHARE = 0.42;
+/* A plant vehicle a few metres away subtends tens of degrees. Below the floor
+   it is a bollard or a cone; above the ceiling it is the parapet, the sky
+   showing under the deck, or an exposure shift across the whole photo — none
+   of which is a vehicle, and all of which would otherwise be reported as the
+   widest run in the frame. */
+const VEHICLE_MIN_DEG = 12;
+const VEHICLE_MAX_DEG = 110;
+
+/* ---------- one read of the pixels ----------
+
+   Everything later steps want off a photo, taken in a single pass while it is
+   decoded and in hand: the two brightness bands the navigation guess scores,
+   where the sun is, and whether somebody is standing in shot. Kept together
+   because they all want the same degrees-per-pixel mapping, and splitting them
+   meant three functions deriving it separately and one of them getting it
+   wrong on a partial panorama. */
+function panoProfile(image, { hFov = 360, tilt = 0 } = {}) {
   const W = image.width;
   const H = image.height;
   const d = image.data;
-  if (!W || !H) return [];
+  if (!W || !H) return null;
   const vFov = hFov * H / W; /* one degrees-per-pixel scale on both axes */
 
   const lum = (x, y) => {
@@ -1231,6 +1458,8 @@ function guessNavigableYaws(image, { count = 3, hFov = 360, tilt = 0 } = {}) {
     return 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
   };
   const rowAt = deg => clamp(Math.round(H * (0.5 - (deg - tilt) / vFov)), 0, H - 1);
+  const altAt = row => tilt + vFov * (0.5 - (row + 0.5) / H);
+  const yawAt = col => +wrap180((col + 0.5) / W * hFov - hFov / 2).toFixed(2);
 
   /* a band either side of eye level, where an opening shows as a silhouette,
      and a second lower band that only corroborates — a puddle should not on
@@ -1259,20 +1488,12 @@ function guessNavigableYaws(image, { count = 3, hFov = 360, tilt = 0 } = {}) {
 
   const wall = smooth(columnMeans(20, -15), 3);
   const floor = smooth(columnMeans(-20, -50), 3);
-  const wallBase = smooth(wall, Math.max(1, Math.round(W * 0.19)));
-  const floorBase = smooth(floor, Math.max(1, Math.round(W * 0.19)));
 
-  const score = new Float64Array(W);
-  for (let x = 0; x < W; x++) {
-    score[x] = Math.abs(wall[x] - wallBase[x]) + 0.5 * Math.abs(floor[x] - floorBase[x]);
-  }
-
-  /* Knock out the sun, and anything else blooming, plus a margin for glare.
-     A sun is a bright thing that STANDS OUT from the sky around it, not merely
+  /* A sun is a bright thing that STANDS OUT from the sky around it, not merely
      the brightest thing present — under a flat overcast the brightest pixel is
      just sky, and treating it as glare would blank the whole panorama and
-     leave the feature silently doing nothing on a dull day. So the exclusion
-     only runs when something is genuinely brighter than the sky it sits in. */
+     leave the feature silently doing nothing on a dull day. So this only runs
+     when something is genuinely brighter than the sky it sits in. */
   const skyTop = rowAt(85);
   const skyBot = Math.max(skyTop + 1, rowAt(25));
   const hist = new Uint32Array(256);
@@ -1287,14 +1508,150 @@ function guessNavigableYaws(image, { count = 3, hFov = 360, tilt = 0 } = {}) {
     return 0;
   };
   const hot = percentile(0.005);
-  const SUN_CONTRAST = 40;
+  let sun = null;
   if (hot - percentile(0.5) >= SUN_CONTRAST) {
-    const bloom = Math.max(1, Math.round(W * 0.023));
+    /* Circular mean over the blown-out pixels. A plain mean of column numbers
+       would put a glare disc that straddles the seam on the far side of the
+       sphere, which is the one error that would make the solar compass
+       confidently 180° wrong. */
+    let sx = 0, sy = 0, rowSum = 0, n = 0;
     for (let x = 0; x < W; x++) {
-      let glaring = false;
-      for (let y = skyTop; y < skyBot && !glaring; y++) if (lum(x, y) >= hot) glaring = true;
-      if (glaring) for (let k = -bloom; k <= bloom; k++) score[(x + k + W) % W] = 0;
+      for (let y = skyTop; y < skyBot; y++) {
+        if (lum(x, y) < hot) continue;
+        const th = 2 * Math.PI * (x + 0.5) / W;
+        sx += Math.cos(th); sy += Math.sin(th); rowSum += y; n++;
+      }
     }
+    if (n) {
+      const col = ((Math.atan2(sy, sx) / (2 * Math.PI)) * W % W + W) % W;
+      sun = { col, yaw: yawAt(col), alt: +altAt(rowSum / n).toFixed(2) };
+    }
+  }
+
+  /* ---- anyone in shot ----
+     Whole frame, not a band: an inspector may be on the deck below the camera
+     or on staging above it. */
+  const vest = new Float64Array(W);
+  for (let x = 0; x < W; x++) {
+    let s = 0;
+    for (let y = 0; y < H; y++) {
+      const i = (y * W + x) * 4;
+      const r = d[i], g = d[i + 1], b = d[i + 2];
+      const m = Math.max(r, g);
+      /* g against r keeps deep red and brick out while admitting both the
+         yellow-green and the orange the standards allow */
+      if (m >= HIVIS_MIN_VALUE && m - b >= m * HIVIS_MIN_SAT && g >= r * 0.4) s += (m - b) / 255;
+    }
+    vest[x] = s;
+  }
+  let person = null;
+  {
+    const sorted = [...vest].sort((a, b) => a - b);
+    const median = sorted[W >> 1];
+    let top = 0;
+    for (let x = 1; x < W; x++) if (vest[x] > vest[top]) top = x;
+    /* the +0.5 keeps an all-black median from dividing by zero, and sets the
+       scale at which a peak counts as "one place" rather than "everywhere" */
+    if (vest[top] > 0 && vest[top] / (median + 0.5) >= HIVIS_MIN_PEAK_RATIO) {
+      person = { col: top, yaw: yawAt(top) };
+    }
+  }
+
+  /* ---- the inspection vehicle ----
+
+     A UBIT, a bucket truck, a snooper: on an inspection it is the biggest
+     man-made thing standing on the deck, and unlike the structure it is in a
+     different place in every photo, which is what makes it useful — two photos
+     that both see it and both know which way they face pin down where it is.
+
+     No model, and no attempt to recognise a truck as such. What is actually
+     detected is "a wide mass on the deck that is not the deck": for each
+     column in the band below the horizon, the share of pixels whose colour
+     departs from the deck's own median, counting only departures that are
+     BRIGHTER or MORE SATURATED. That last clause is what separates a painted
+     vehicle from its own shadow, which is the obvious false positive and is
+     dark rather than bright. The widest run of such columns wins.
+
+     ponytail: this is a coloured-mass finder with a plausible width, not a
+     vehicle classifier. It will also point at a skip, a site cabin, a parked
+     car or a large sign — all of which are, in fairness, also "the big thing
+     on the deck". Everything downstream treats it as a suggestion, and the
+     four numbers below are field-tuning knobs, not constants of nature. */
+  const deckTop = rowAt(-5);
+  const deckBot = Math.max(deckTop + 1, rowAt(-40));
+  const deckRows = deckBot - deckTop;
+  let vehicle = null;
+  if (deckRows >= 3) {
+    const lumOf = i => 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
+    const satOf = i => Math.max(d[i], d[i + 1], d[i + 2]) - Math.min(d[i], d[i + 1], d[i + 2]);
+    /* the deck's own colour, as a median so a vehicle filling a third of the
+       band cannot drag the reference toward itself the way a mean would */
+    const lums = [], sats = [];
+    for (let x = 0; x < W; x += 2) {
+      for (let y = deckTop; y < deckBot; y += 2) {
+        const i = (y * W + x) * 4;
+        lums.push(lumOf(i)); sats.push(satOf(i));
+      }
+    }
+    lums.sort((a, b) => a - b); sats.sort((a, b) => a - b);
+    const deckLum = lums[lums.length >> 1], deckSat = sats[sats.length >> 1];
+
+    const share = new Float64Array(W);
+    for (let x = 0; x < W; x++) {
+      let hits = 0;
+      for (let y = deckTop; y < deckBot; y++) {
+        const i = (y * W + x) * 4;
+        if (lumOf(i) - deckLum >= VEHICLE_MIN_LUM || satOf(i) - deckSat >= VEHICLE_MIN_SAT) hits++;
+      }
+      share[x] = hits / deckRows;
+    }
+    /* longest circular run of columns that are mostly not-deck. Scanning twice
+       round lets a vehicle sitting across the 0/360 seam be found as one run
+       rather than as two halves at opposite ends of the panorama. */
+    let best = null, run = 0;
+    for (let k = 0; k < W * 2; k++) {
+      if (share[k % W] >= VEHICLE_MIN_SHARE) {
+        run++;
+        if (run <= W && (!best || run > best.len)) best = { len: run, end: k };
+      } else run = 0;
+    }
+    const degPer = hFov / W;
+    if (best && best.len * degPer >= VEHICLE_MIN_DEG && best.len * degPer <= VEHICLE_MAX_DEG) {
+      const centre = ((best.end - (best.len - 1) / 2) % W + W) % W;
+      vehicle = { yaw: yawAt(centre), width: +(best.len * degPer).toFixed(1) };
+    }
+  }
+
+  return { W, hFov, wall, floor, sun, person, vehicle };
+}
+
+/* Where the photo suggests you can walk. Reads the bands panoProfile built;
+   every angle it returns is a draggable suggestion, never a decision. */
+function guessNavigableYaws(profile, count = 3) {
+  if (!profile) return [];
+  const { W, hFov, wall, floor, sun } = profile;
+  const smooth = (arr, radius) => {
+    const out = new Float64Array(W);
+    for (let x = 0; x < W; x++) {
+      let sum = 0;
+      for (let k = -radius; k <= radius; k++) sum += arr[(x + k + W) % W];
+      out[x] = sum / (2 * radius + 1);
+    }
+    return out;
+  };
+  const wallBase = smooth(wall, Math.max(1, Math.round(W * 0.19)));
+  const floorBase = smooth(floor, Math.max(1, Math.round(W * 0.19)));
+
+  const score = new Float64Array(W);
+  for (let x = 0; x < W; x++) {
+    score[x] = Math.abs(wall[x] - wallBase[x]) + 0.5 * Math.abs(floor[x] - floorBase[x]);
+  }
+
+  /* the sun is the one bright thing that is reliably not somewhere you can
+     walk — knock it out, plus a margin for the glare around it */
+  if (sun) {
+    const bloom = Math.max(1, Math.round(W * 0.035));
+    for (let k = -bloom; k <= bloom; k++) score[(Math.round(sun.col) + k + W) % W] = 0;
   }
 
   const gap = Math.round(W * NAV_MIN_SEPARATION / 360);
@@ -1308,6 +1665,115 @@ function guessNavigableYaws(image, { count = 3, hFov = 360, tilt = 0 } = {}) {
   return picked.map(x => +wrap180((x + 0.5) / W * hFov - hFov / 2).toFixed(2));
 }
 
+/* ---------- keeping every hotspot clickable ----------
+
+   Two hotspots close together on screen are one hotspot as far as anybody
+   pressing them is concerned, and the one underneath cannot be reached at all.
+   Automatic arrows now step aside as they are created (see freeYaw), but that
+   cannot help the cases that matter most: two defects genuinely three degrees
+   apart on the same spall, a tour built before that fix existed, or any pair
+   that only collides once you zoom out.
+
+   So marks are separated where they are DRAWN, never where they are stored.
+   The record keeps the exact angle somebody clicked — the register, the CSV
+   and the photo log all read the stored yaw and pitch and none of them can see
+   any of this. Only pixels move.
+
+   Takes boxes at {x, y, w, h} centres, returns one {dx, dy} per box in the
+   same order. Pure, so the geometry can be tested without a viewer.
+
+   ponytail: pairwise relaxation, O(n² · passes). At the dozen-or-two markers
+   ever visible at once that is a few hundred operations a frame, far cheaper
+   than the quadtree that would replace it. */
+
+const DECLUTTER_GAP = 4;        /* px of daylight left between two marks */
+/* Past half its own size a mark would stop covering the point it marks, and a
+   defect pin that no longer sits on the defect is worse than one you have to
+   zoom in to separate. This cap is the honesty of the whole mechanism. */
+const DECLUTTER_LIMIT = 0.5;
+const DECLUTTER_PASSES = 4;
+
+function separateMarks(marks) {
+  const at = marks.map(m => ({ x: m.x, y: m.y }));
+
+  /* Marks landing on the very same pixel are the case this exists for, and
+     pairwise pushing alone handles them badly: each push picks one axis, so a
+     stack of three ends up in a LINE, which is the shape that leaves the middle
+     one least room. Seed them on a ring first and the relaxation refines a fan
+     instead. Up to four equal marks a ring at the cap radius keeps every centre
+     clear of every other; a fifth cannot be fitted inside the cap by any
+     arrangement, and gets a better place rather than a provably clear one. */
+  const groups = new Map();
+  marks.forEach((m, i) => {
+    const key = `${Math.round(m.x)},${Math.round(m.y)}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(i);
+  });
+  const stack = marks.map(() => -1); /* -1 = this mark shares its pixel with nobody */
+  let stackId = 0;
+  for (const idx of groups.values()) {
+    if (idx.length < 2) continue;
+    const id = stackId++;
+    idx.forEach((i, n) => {
+      stack[i] = id;
+      const th = 2 * Math.PI * n / idx.length;
+      const r = Math.max(marks[i].w, marks[i].h) * DECLUTTER_LIMIT;
+      at[i].x += Math.cos(th) * r;
+      at[i].y += Math.sin(th) * r;
+    });
+  }
+
+  for (let pass = 0; pass < DECLUTTER_PASSES; pass++) {
+    let moved = false;
+    for (let i = 0; i < marks.length; i++) {
+      for (let j = i + 1; j < marks.length; j++) {
+        /* Two marks off the same pixel are already as far apart as the cap
+           will ever allow them to be, and pushing them further only spends
+           the budget unevenly — measured, it turned an exact four-way ring
+           into two marks sitting back on each other's centres. They still
+           relax against everything OUTSIDE their own stack. */
+        if (stack[i] !== -1 && stack[i] === stack[j]) continue;
+        const a = at[i], b = at[j];
+        let dx = b.x - a.x, dy = b.y - a.y;
+        const overX = (marks[i].w + marks[j].w) / 2 + DECLUTTER_GAP - Math.abs(dx);
+        const overY = (marks[i].h + marks[j].h) / 2 + DECLUTTER_GAP - Math.abs(dy);
+        if (overX <= 0 || overY <= 0) continue; /* already clear of each other */
+        moved = true;
+        /* Exactly coincident is the common case here, not the rare one — it is
+           what two auto-links on one bearing used to produce — and it offers no
+           direction to push along. Push along the golden angle instead of along
+           an axis: axis-aligned would lay a stack of three out in a LINE, where
+           a radial fan spreads them around the point and leaves each one more
+           room. Each mark gets its own angle, so the fan is deterministic. */
+        if (!dx && !dy) {
+          const th = i * 2.39996;
+          const need = Math.max(overX, overY) / 2;
+          a.x -= Math.cos(th) * need; a.y -= Math.sin(th) * need;
+          b.x += Math.cos(th) * need; b.y += Math.sin(th) * need;
+          continue;
+        }
+        /* separate along the axis needing the least movement — pushing apart
+           sideways when they are stacked vertically travels much further */
+        if (overX < overY) {
+          const s = Math.sign(dx || 1) * overX / 2;
+          a.x -= s; b.x += s;
+        } else {
+          const s = Math.sign(dy || 1) * overY / 2;
+          a.y -= s; b.y += s;
+        }
+      }
+    }
+    if (!moved) break;
+  }
+  return marks.map((m, i) => {
+    let dx = at[i].x - m.x, dy = at[i].y - m.y;
+    const cap = Math.max(m.w, m.h) * DECLUTTER_LIMIT;
+    const d = Math.hypot(dx, dy);
+    if (d > cap) { dx = dx * cap / d; dy = dy * cap / d; }
+    return { dx, dy };
+  });
+}
+
 /* Nudge a direction we already believe in onto the nearest thing the photo
    suggests. Keeps the topology the GPS or the capture order decided, and only
    sharpens the angle — so a photo with nothing to say costs nothing. */
@@ -1319,6 +1785,162 @@ function snapToWay(yaw, ways, tolerance = 90) {
     if (off <= tolerance && (best === null || off < best.off)) best = { w, off };
   }
   return best ? best.w : yaw;
+}
+
+/* ---------- how far the next photo is turned from this one ----------
+
+   Two photos taken a few metres apart see the same things — the deck line, the
+   piers, the parapet, the truck parked on the approach. Slide one column
+   profile round against the other and the offset that lines them up IS the
+   rotation between the two photos. Circular cross-correlation, no library.
+
+   ponytail: naive O(W²), 65k multiply-adds at W=256, measured at 90-265µs. A
+   forty-photo tour's consecutive pairs cost under 10ms — one frame. An FFT
+   would be 200 lines to save that, so no FFT until W passes ~1024.
+
+   The hard part is not the shift, it is knowing when not to believe it. Three
+   things had to be measured rather than assumed:
+
+   - The raw peak lies. Two unrelated bridge photos still correlate at a median
+     0.5, because a smoothed 256-column profile holds only ~36 independent
+     samples and there are 256 lags to find a lucky one in. So what is reported
+     is the peak's MARGIN over the best rival lag outside its own lobe.
+   - A row of identical piers correlates 1.000 at every multiple of the pier
+     spacing, and picks an arbitrary one — measured 180° wrong. The margin
+     catches this exactly: the rival is also 1.000, so the margin is 0.000.
+   - A smooth profile — a photo under a deck soffit, a flat overcast horizon —
+     produces ONE broad lobe. Then the lobe walk swallows every lag, there is
+     no rival left to beat, and a naive reading hands back full confidence.
+     Measured: two unrelated single-bump profiles scored 1.0000 at a 180° error.
+     No threshold fixes this, because the statistic stops being monotone in
+     evidence; raising the bar to 0.70 still let a third of them through while
+     killing the real matches. The fix is a precondition on the INPUT — a
+     profile without enough structure to correlate is refused before its
+     confidence is looked at — which took the false accepts from 21% to 0.3%
+     with no loss of true matches. */
+
+/* Sign changes about the profile's own mean. Six is the fewest that leaves a
+   correlation peak anything to compete against. */
+const MATCH_MIN_CROSSINGS = 6;
+const MATCH_MIN_CONFIDENCE = 0.35;
+/* Both bands must land within this of each other. Set just above the error
+   parallax alone contributes over a couple of metres of walk — widen it for a
+   site where the photos are far apart, narrow it for a tripod survey. */
+const MATCH_AGREE_COLUMNS = 6;
+
+function correlateYaw(a, b) {
+  const W = a?.length | 0;
+  const nothing = { shiftColumns: 0, confidence: 0 };
+  if (!W || b?.length !== W) return nothing;
+
+  /* zero-mean, unit-variance. This does NOT change which lag wins — the DC
+     term is constant across lags and the scale is positive — but it puts the
+     peak in correlation-coefficient units, so one threshold means the same
+     thing on a photo shot two stops brighter. */
+  const norm = src => {
+    let mean = 0;
+    for (let i = 0; i < W; i++) mean += src[i];
+    mean /= W;
+    const out = new Float64Array(W);
+    let ss = 0;
+    for (let i = 0; i < W; i++) { out[i] = src[i] - mean; ss += out[i] * out[i]; }
+    const sd = Math.sqrt(ss / W);
+    if (!(sd > 1e-9)) return null;
+    for (let i = 0; i < W; i++) out[i] /= sd;
+    /* the precondition: too few crossings and this is one broad blob, which
+       correlates beautifully with any other broad blob anywhere */
+    let crossings = 0;
+    for (let i = 0; i < W; i++) if ((out[i] > 0) !== (out[(i + 1) % W] > 0)) crossings++;
+    return crossings >= MATCH_MIN_CROSSINGS ? out : null;
+  };
+  const x = norm(a), y = norm(b);
+  if (!x || !y) return nothing;
+
+  const r = new Float64Array(W);
+  for (let k = 0; k < W; k++) {
+    let s = 0;
+    for (let i = 0; i < W; i++) s += x[i] * y[(i + k) % W];
+    r[k] = s / W;
+  }
+
+  let peak = -2, best = 0;
+  for (let k = 0; k < W; k++) if (r[k] > peak) { peak = r[k]; best = k; }
+
+  /* the peak's own shoulder is as wide as the scene's own features, not a
+     fixed number, so walk down off it until the correlation stops falling */
+  const at = k => r[(k % W + W) % W];
+  let lo = 0, hi = 0;
+  while (lo < W / 2 && at(best - lo - 1) < at(best - lo)) lo++;
+  while (hi < W / 2 && at(best + hi + 1) < at(best + hi)) hi++;
+  let rival = -2, rivals = 0;
+  for (let k = 0; k < W; k++) {
+    const dist = ((k - best) % W + W) % W;
+    if (dist > hi && dist < W - lo) { rivals++; if (r[k] > rival) rival = r[k]; }
+  }
+  /* No rival left, or none of them even positive, both mean the same thing:
+     one broad lobe and nothing to compare it against. That is an absence of
+     evidence, not a strong result — the distinction this used to get backwards. */
+  if (!rivals || rival < 0) return { shiftColumns: best, confidence: 0 };
+
+  /* a feature at column c in `a` sits at column c + shiftColumns in `b` */
+  return { shiftColumns: best, confidence: +Math.max(0, peak - rival).toFixed(4) };
+}
+
+/* Degrees `to` is rotated relative to `from`, or null when the photos do not
+   agree that they are looking at the same place. Both bands, always: one band
+   alone false-accepts a fifth of unrelated pairs at this threshold, and making
+   wall and floor agree cuts that seventeenfold.
+
+   The whole gate is deliberately timid. Measured over 600 synthetic pairs per
+   regime, it answers 14-32% of the time on an ordinary scene and 0-4% on a
+   near-flat one — but across every regime tried, 0% of unrelated pairs were
+   accepted and 0% of accepted answers were wrong by more than 11°. Refusing is
+   free: the caller falls back to the assumption it used before this existed.
+   Answering wrongly is not, so the trade is the right way round.
+
+   Never better than ±5° however confident it sounds — the two photos are
+   metres apart, so near things swing further than far ones and the profile is
+   not a pure rotation. */
+function yawBetween(from, to) {
+  const a = unpackProfile(from?.prof), b = unpackProfile(to?.prof);
+  if (!a || !b || a.W !== b.W) return null;
+  /* profiles built at different coverages are not comparable, and the
+     wrap-around the correlation assumes is wrong for a partial panorama */
+  if ((from.pano?.hFov ?? 360) !== (to.pano?.hFov ?? 360)) return null;
+  const w = correlateYaw(a.wall, b.wall);
+  const f = correlateYaw(a.floor, b.floor);
+  if (w.confidence < MATCH_MIN_CONFIDENCE || f.confidence < MATCH_MIN_CONFIDENCE) return null;
+  const d = Math.abs(w.shiftColumns - f.shiftColumns) % a.W;
+  if (Math.min(d, a.W - d) > MATCH_AGREE_COLUMNS) return null;
+  return {
+    degrees: +wrap180(w.shiftColumns * 360 / a.W).toFixed(2),
+    confidence: Math.min(w.confidence, f.confidence),
+  };
+}
+
+/* The bands are luma means, so a byte each loses nothing the correlation can
+   see. Two 256-column bands ride in a scene as ~690 characters of base64. */
+function packProfile(profile) {
+  if (!profile) return null;
+  const { W, wall, floor } = profile;
+  const bytes = new Uint8Array(W * 2);
+  for (let i = 0; i < W; i++) {
+    bytes[i] = clamp(Math.round(wall[i]), 0, 255);
+    bytes[W + i] = clamp(Math.round(floor[i]), 0, 255);
+  }
+  return btoa(String.fromCharCode(...bytes));
+}
+
+function unpackProfile(packed) {
+  if (typeof packed !== 'string' || !packed) return null;
+  try {
+    const bin = atob(packed);
+    const W = bin.length >> 1;
+    if (!W || W * 2 !== bin.length) return null;
+    const wall = new Float64Array(W), floor = new Float64Array(W);
+    for (let i = 0; i < W; i++) { wall[i] = bin.charCodeAt(i); floor[i] = bin.charCodeAt(W + i); }
+    return { W, wall, floor };
+  } catch { return null; }
 }
 
 /* ---------- the defect register ----------
@@ -1392,39 +2014,157 @@ function nextDefectCode(scenes) {
 
 /* ---------- where the photos were taken from ----------
 
-   Positions come from EXIF GPS and nothing else. There is no fallback layout
-   for a tour without it: a row of evenly spaced dots that are not where
-   anything is would be a drawing of the tool's imagination, and on a structure
-   where "which pier is that" is the question, a confident wrong map is worse
-   than no map.
+   This used to draw EXIF GPS and refuse everything else, on the grounds that a
+   row of evenly spaced dots which are not where anything is would be a drawing
+   of the tool's imagination, and that on a structure where "which pier is
+   that" is the question, a confident wrong map is worse than no map.
 
-   Local east/north metres from the first located photo, then normalised into a
-   SQUARE box so the site keeps its own proportions instead of being stretched
-   to fill. Returns [] when fewer than two photos are located, because one dot
-   is not a plan. */
+   That reasoning was right about confidence and wrong about usefulness. A
+   guessed layout you can DRAG is not a claim, it is a starting position — and
+   an inspector who knows the site can fix forty dots faster than they can
+   place them from nothing. So the refusal is now carried by the drawing rather
+   than by the absence of one: a guessed dot is hollow and dashed, a GPS dot is
+   solid, a dot somebody moved by hand is solid and accented, and the note
+   under the plate counts each kind. Nothing here is ever exported as a
+   surveyed coordinate.
+
+   Three tiers, most trusted first:
+     manual  — s.plan {x,y}, because a human said so
+     gps     — EXIF, good to a few metres
+     guess   — spread along the structure's own axis in capture order
+
+   Everything is computed in local east/north METRES from the first located
+   photo, and only normalised into the box at the end. Keeping one metric space
+   is what lets a hand-dragged dot survive a later photo widening the site:
+   store box fractions instead and every override silently slides when the
+   scale changes. */
+
+/* The long axis of a set of points, by principal component. A bridge walk is a
+   line — deck loop out, elevations back — so the axis through the photos IS
+   the structure, and it is worth drawing because it turns a scatter of dots
+   into something recognisable enough to correct. */
+function principalAxis(pts) {
+  const n = pts.length;
+  let mx = 0, my = 0;
+  for (const p of pts) { mx += p.x; my += p.y; }
+  mx /= n; my /= n;
+  let sxx = 0, syy = 0, sxy = 0;
+  for (const p of pts) {
+    const dx = p.x - mx, dy = p.y - my;
+    sxx += dx * dx; syy += dy * dy; sxy += dx * dy;
+  }
+  /* degenerate (one point, or every photo on the same fix) falls out as 0,
+     i.e. due east — arbitrary, but it is a line the user can drag off */
+  const th = 0.5 * Math.atan2(2 * sxy, sxx - syy);
+  return { mx, my, dx: Math.cos(th), dy: Math.sin(th) };
+}
+
+/* Where several bearings agree something is. Each sighting is a place and a
+   true bearing from it; the answer is the point with the least total squared
+   distance to all those lines, which is a 2x2 solve and no iteration.
+
+   Two bearings that are nearly parallel cross at a place enormously sensitive
+   to a fraction of a degree in either — the classic way a plausible-looking
+   triangulation lands in the next county. `det` measures exactly that
+   degeneracy, so it is the gate: too small and this returns null rather than a
+   number nobody should trust. Normalised by the sighting count so the
+   threshold means the same thing for two bearings and for twenty. */
+const CROSS_MIN_CONDITION = 0.12;
+function triangulate(sightings) {
+  if (!sightings || sightings.length < 2) return null;
+  let a11 = 0, a12 = 0, a22 = 0, b1 = 0, b2 = 0;
+  for (const s of sightings) {
+    const th = s.bearing * Math.PI / 180;
+    /* the bearing's normal: the residual being minimised is the distance from
+       the answer to the line, measured across it */
+    const nx = -Math.cos(th), ny = Math.sin(th);
+    const c = nx * s.x + ny * s.y;
+    a11 += nx * nx; a12 += nx * ny; a22 += ny * ny;
+    b1 += nx * c; b2 += ny * c;
+  }
+  const n = sightings.length;
+  const det = (a11 * a22 - a12 * a12) / (n * n);
+  if (!(Math.abs(det) >= CROSS_MIN_CONDITION)) return null;
+  const d = a11 * a22 - a12 * a12;
+  return { x: (a22 * b1 - a12 * b2) / d, y: (a11 * b2 - a12 * b1) / d };
+}
+
 function planPositions(scenes) {
-  const located = (scenes || []).filter(s => Number.isFinite(s.geo?.lat) && Number.isFinite(s.geo?.lon));
-  if (located.length < 2) return [];
-  const origin = located[0].geo;
-  const pts = located.map(s => {
-    const d = metresBetween(origin, s.geo);
-    const b = bearing(origin, s.geo) * Math.PI / 180;
-    return { id: s.id, x: d * Math.sin(b), y: d * Math.cos(b) };
+  const list = scenes || [];
+  if (list.length < 2) return null; /* one dot is not a plan */
+  const located = list.filter(s => Number.isFinite(s.geo?.lat) && Number.isFinite(s.geo?.lon));
+  const origin = located[0]?.geo || null;
+
+  const placed = new Map();
+  for (const s of list) {
+    if (Number.isFinite(s.plan?.x) && Number.isFinite(s.plan?.y)) {
+      placed.set(s.id, { id: s.id, x: s.plan.x, y: s.plan.y, kind: 'manual' });
+    } else if (origin && Number.isFinite(s.geo?.lat) && Number.isFinite(s.geo?.lon)) {
+      const d = metresBetween(origin, s.geo);
+      const b = bearing(origin, s.geo) * Math.PI / 180;
+      placed.set(s.id, { id: s.id, x: d * Math.sin(b), y: d * Math.cos(b), kind: 'gps' });
+    }
+  }
+
+  /* the structure's axis, from whatever is actually pinned down. With nothing
+     pinned there is no scale either, so pick a nominal one and say so. */
+  const anchors = [...placed.values()];
+  const scaled = anchors.length >= 2;
+  const axis = anchors.length ? principalAxis(anchors) : { mx: 0, my: 0, dx: 1, dy: 0 };
+  const along = p => (p.x - axis.mx) * axis.dx + (p.y - axis.my) * axis.dy;
+  const ts = anchors.map(along);
+  const NOMINAL_M = 40; /* a plausible short span, so an ungeolocated tour is not drawn as a dot */
+  const tMin = scaled ? Math.min(...ts) : -NOMINAL_M / 2;
+  const tMax = scaled ? Math.max(...ts) : NOMINAL_M / 2;
+
+  /* Spread the unplaced along that axis in the order they were shot, which is
+     the order the inspector walked. Evenly, because the spacing is not known —
+     that is exactly the part the dragging is for. */
+  const loose = list.filter(s => !placed.has(s.id));
+  loose.forEach((s, i) => {
+    const t = loose.length === 1
+      ? (tMin + tMax) / 2
+      : tMin + (tMax - tMin) * i / (loose.length - 1);
+    placed.set(s.id, { id: s.id, x: axis.mx + axis.dx * t, y: axis.my + axis.dy * t, kind: 'guess' });
   });
-  const xs = pts.map(p => p.x);
-  const ys = pts.map(p => p.y);
+
+  const pts = list.map(s => placed.get(s.id)).filter(Boolean);
+  const xs = pts.map(p => p.x), ys = pts.map(p => p.y);
   const minX = Math.min(...xs), maxX = Math.max(...xs);
   const minY = Math.min(...ys), maxY = Math.max(...ys);
   /* one-metre floor: every photo standing on the same fix would otherwise
-     divide by zero and put every dot at NaN */
-  const span = Math.max(maxX - minX, maxY - minY, 1);
+     divide by zero and put every dot at NaN. The 1.18 leaves the outermost
+     dots a little clear of the border instead of half-buried in it. */
+  const span = Math.max(maxX - minX, maxY - minY, 1) * 1.18;
   const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
-  return pts.map(p => ({
-    id: p.id,
-    u: 0.5 + (p.x - cx) / span,
-    v: 0.5 - (p.y - cy) / span, /* screen v grows downward; north stays up */
-    span,
-  }));
+  /* screen v grows downward; north stays up */
+  const toBox = p => ({ u: 0.5 + (p.x - cx) / span, v: 0.5 - (p.y - cy) / span });
+  const toMetres = (u, v) => ({ x: cx + (u - 0.5) * span, y: cy - (v - 0.5) * span });
+
+  /* The vehicle, from every photo that both saw it and knows which way it was
+     facing. Only ever drawn from a real crossing — with one sighting, or with
+     sightings too nearly parallel to cross, there is no position and none is
+     shown. Placed AFTER the box is fitted, deliberately: a bad triangulation
+     must not be able to rescale the plan and move every photo on it. */
+  const byId = new Map(pts.map(p => [p.id, p]));
+  const sightings = [];
+  for (const s of list) {
+    const at = byId.get(s.id);
+    if (!at || !Number.isFinite(s.vehicle?.yaw) || !Number.isFinite(s.geo?.heading)) continue;
+    sightings.push({ x: at.x, y: at.y, bearing: s.geo.heading + s.vehicle.yaw });
+  }
+  const fix = triangulate(sightings);
+  const inBox = fix && toBox(fix);
+  const vehicle = inBox && inBox.u >= 0 && inBox.u <= 1 && inBox.v >= 0 && inBox.v <= 1
+    ? { ...inBox, from: sightings.length }
+    : null;
+
+  const end = t => toBox({ x: axis.mx + axis.dx * t, y: axis.my + axis.dy * t });
+  return {
+    pts: pts.map(p => ({ ...p, ...toBox(p) })),
+    deck: { from: end(tMin), to: end(tMax) },
+    span, scaled, toMetres, vehicle,
+  };
 }
 
 /* A cell Excel will read back as the text that was typed. Quoting handles
@@ -1904,31 +2644,96 @@ function sceneToNode(tour, scene) {
           data: SAFE_URL(h.url) ? { url: h.url } : {},
         };
       }
+      /* The panel is assembled from the same three groups either way —
+         evidence, identity, provenance — so an info hotspot and a defect read
+         as one component with different contents rather than as two designs. */
+      const shot = (file, alt) => file
+        ? `<img class="hs-shot" src="${fileUrl(tour.id, file)}" alt="${esc(alt)}" loading="lazy">`
+        : '';
+      const where = items => {
+        const kept = items.filter(Boolean);
+        return kept.length ? `<ul class="hs-where">${kept.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : '';
+      };
+
       if (h.type === 'defect') {
         const measure = defectMeasure(h);
-        const rows = [];
-        if (h.image) rows.push(`<img src="${fileUrl(tour.id, h.image)}" alt="${esc(h.defect || 'Defect')} at ${esc(h.code || '')}" style="max-width:100%;border-radius:8px">`);
-        if (measure) rows.push(`<p><strong>${esc(measure)}</strong></p>`);
-        if (h.note) rows.push(`<p style="white-space:pre-wrap">${esc(h.note)}</p>`);
-        const where = [scene.station && `Station ${scene.station}`, scene.element].filter(Boolean).join(' · ');
-        if (where) rows.push(`<p style="opacity:.7">${esc(where)}</p>`);
         return {
           ...common,
           tooltip: esc([h.code, h.defect, measure].filter(Boolean).join(' · ')),
-          content: `<h2>${esc(h.code || 'Defect')} &mdash; ${esc(h.defect || '')}</h2>${rows.join('')}`,
+          content: `<div class="hs">
+            ${shot(h.image, `${h.defect || 'Defect'}${h.code ? ` at ${h.code}` : ''}`)}
+            <h2 class="hs-title">${h.code ? `<span class="hs-code">${esc(h.code)}</span>` : ''}${esc(h.defect || 'Defect')}</h2>
+            ${measure ? `<p class="hs-measure">${esc(measure)}</p>` : ''}
+            ${h.note ? `<p class="hs-note">${esc(h.note)}</p>` : ''}
+            ${where([scene.station && `Station ${scene.station}`, scene.element, scene.name])}
+          </div>`,
         };
       }
-      const parts = [];
-      if (h.image) parts.push(`<img src="${fileUrl(tour.id, h.image)}" alt="${esc(h.title || '')}" style="max-width:100%;border-radius:8px">`);
-      if (h.text) parts.push(`<p style="white-space:pre-wrap">${esc(h.text)}</p>`);
-      if (h.audio) parts.push(`<audio controls src="${fileUrl(tour.id, h.audio)}" style="width:100%"></audio>`);
+      const body = [
+        shot(h.image, h.title || ''),
+        h.title ? `<h2 class="hs-title">${esc(h.title)}</h2>` : '',
+        h.text ? `<p class="hs-note">${esc(h.text)}</p>` : '',
+        h.audio ? `<audio class="hs-audio" controls src="${fileUrl(tour.id, h.audio)}"></audio>` : '',
+      ].filter(Boolean);
       return {
         ...common,
         tooltip: esc(h.title || 'Info'),
-        ...(parts.length ? { content: `<h2>${esc(h.title || '')}</h2>${parts.join('')}` } : {}),
+        /* a title on its own is already in the tooltip; opening a panel to
+           repeat one line of text is a click that gives nothing back */
+        ...(body.length > (h.title ? 1 : 0) ? { content: `<div class="hs">${body.join('')}</div>` } : {}),
       };
     }),
   };
+}
+
+/* ---------- keeping every hotspot clickable ----------
+
+   Two hotspots close together in the sphere are one hotspot as far as anybody
+   pressing them is concerned, and the one underneath cannot be reached at all.
+   Automatic arrows now step aside as they are created (see freeYaw), but that
+   cannot help the cases that matter most: two defects genuinely three degrees
+   apart on the same spall, a tour built before that fix existed, or any pair
+   that only collides once you zoom out.
+
+   So the marks are separated where they are DRAWN rather than where they are
+   stored. The record keeps the exact angle somebody clicked — the register,
+   the CSV and the photo log all read the stored yaw and pitch and are
+   untouched by any of this. Only the pixels move, and never by more than the
+   mark's own radius, so a mark always still covers the point it marks.
+
+   PSV positions markers with the CSS `translate` property and scales them with
+   `scale`, leaving `transform` free; that is what this writes, so the two
+   never fight over the same declaration. */
+
+function wireDeclutter(viewer, plugin, isBusy = () => false) {
+  let nudged = [];
+  const relax = () => {
+    const marks = [];
+    for (const m of Object.values(plugin.markers || {})) {
+      const p = m.state?.position2D;
+      const w = m.state?.size?.width, h = m.state?.size?.height;
+      if (!m.state?.visible || !p || !m.domElement || !w || !h) continue;
+      marks.push({ el: m.domElement, w, h, x: p.x + w / 2, y: p.y + h / 2 });
+    }
+    const offsets = separateMarks(marks);
+    const next = [];
+    for (let i = 0; i < marks.length; i++) {
+      const { dx, dy } = offsets[i];
+      const css = (dx || dy) ? `translate(${dx.toFixed(1)}px, ${dy.toFixed(1)}px)` : '';
+      /* this runs on every frame of a pan; only touch the DOM when it changed */
+      if (marks[i].el.style.transform !== css) marks[i].el.style.transform = css;
+      if (css) next.push(marks[i].el);
+    }
+    /* a mark that stopped colliding has to be let back to its own place */
+    for (const el of nudged) if (!next.includes(el) && el.style.transform) el.style.transform = '';
+    nudged = next;
+  };
+
+  viewer.addEventListener('render', () => {
+    /* while a hotspot is being dragged its position is the pointer's, and
+       nudging it would mean wrestling the user for the mark they are holding */
+    if (!isBusy()) relax();
+  });
 }
 
 async function renderViewer(tourId) {
@@ -2110,6 +2915,7 @@ async function renderViewer(tourId) {
   viewer.getPlugin(MarkersPlugin).addEventListener('select-marker', ({ marker }) => {
     if (SAFE_URL(marker.data?.url)) open(marker.data.url, '_blank', 'noopener');
   });
+  wireDeclutter(viewer, viewer.getPlugin(MarkersPlugin));
 
   /* ----- which way am I facing -----
      Only when at least one photo recorded a compass heading, because a compass
@@ -2321,6 +3127,7 @@ async function preparePano(file) {
   /* read the photo once, while it is decoded and in hand, rather than
      re-fetching every panorama later when the linker runs */
   let ways = [];
+  let profile = null;
   try {
     /* aspect has to survive the downscale — the band-to-pitch mapping is
        derived from it, so squashing a 5:1 strip into a 2:1 box would aim
@@ -2328,8 +3135,9 @@ async function preparePano(file) {
     const nw = 256;
     const nh = Math.max(8, Math.round(nw / aspect));
     const nav = drawTo(bmp, nw, nh).getContext('2d').getImageData(0, 0, nw, nh);
-    ways = guessNavigableYaws(nav, { hFov: pano?.hFov ?? 360, tilt: pano?.pitch ?? 0 });
-  } catch { ways = []; }
+    profile = panoProfile(nav, { hFov: pano?.hFov ?? 360, tilt: pano?.pitch ?? 0 });
+    ways = guessNavigableYaws(profile);
+  } catch { profile = null; ways = []; }
 
   let geo = null;
   try { geo = readGps(head); } catch { geo = null; }
@@ -2340,6 +3148,23 @@ async function preparePano(file) {
   /* a photo sphere usually records its compass heading in XMP and not in EXIF */
   if (geo && !Number.isFinite(geo.heading) && Number.isFinite(stated?.heading)) {
     geo.heading = +stated.heading.toFixed(2);
+    geo.headingRef = 'T'; /* GPano defines PoseHeadingDegrees against true north */
+  }
+
+  /* The sun goes last, because it only ever fills a gap or raises a doubt — it
+     never quietly replaces a heading the camera recorded. Where the camera
+     wrote a MAGNETIC bearing the two are both kept: a magnetic reading taken
+     beside a steel girder can be tens of degrees out, and the inspector is the
+     one who should decide which to believe, having been shown both. */
+  if (geo) {
+    const solar = solarHeading(profile?.sun, geo);
+    if (Number.isFinite(geo.heading)) {
+      geo.headingFrom = geo.headingRef === 'M' ? 'magnetic' : 'recorded';
+      if (solar !== null) geo.sunHeading = solar;
+    } else if (solar !== null) {
+      geo.heading = solar;
+      geo.headingFrom = 'sun';
+    }
   }
 
   /* a decoded 60-megapixel photo is a few hundred MB — release it even when
@@ -2360,7 +3185,12 @@ async function preparePano(file) {
       if (!jpeg) throw new Error('it could not be converted to a JPEG this browser can share.');
       upload = new File([jpeg], `${file.name.replace(/\.[^.]+$/, '')}.jpg`, { type: 'image/jpeg' });
     }
-    return { thumb, pano, geo, shot, ways, upload, width, height, converted: upload !== file, fill: edgeColours(bmp, aspect) };
+    return {
+      thumb, pano, geo, shot, ways, upload, width, height,
+      converted: upload !== file, fill: edgeColours(bmp, aspect),
+      prof: packProfile(profile), person: profile?.person || null,
+      vehicle: profile?.vehicle || null,
+    };
   } finally {
     bmp.close();
   }
@@ -2595,6 +3425,7 @@ async function renderEditor(tourId) {
             <summary>Plan view<span class="plan-span num" id="plan-span"></span></summary>
             <div class="plan-box" id="plan-box"></div>
             <p class="scene-note" id="plan-note"></p>
+            <button class="btn" id="plan-reset" style="width:100%" hidden>Undo my placements</button>
           </details>
         </div>
         <div class="side-section" id="scene-section" hidden>
@@ -2836,7 +3667,8 @@ async function renderEditor(tourId) {
 
   /* Past this many dots the plate is a dartboard, not a map: the dots stay so
      the shape of the walk still reads, but picking moves to Ctrl+K, where a
-     target is a word instead of a four-pixel gap. */
+     target is a word instead of a four-pixel gap. The selected dot stays live
+     regardless — see renderPlan. */
   const PLAN_PICKABLE_MAX = 24;
   /* Wide enough for a long viaduct and its approaches, far short of a bad fix. */
   const PLAN_MAX_SPAN_M = 5000;
@@ -2845,49 +3677,141 @@ async function renderEditor(tourId) {
     const box = document.getElementById('plan-box');
     const note = document.getElementById('plan-note');
     const spanEl = document.getElementById('plan-span');
+    const resetBtn = document.getElementById('plan-reset');
     if (!box || !note || !spanEl) return;
     box.innerHTML = '';
-    const pts = planPositions(doc.scenes);
-    if (!pts.length) {
+    const plan = planPositions(doc.scenes);
+    const moved = doc.scenes.filter(s => s.plan).length;
+    if (resetBtn) resetBtn.hidden = !moved;
+    if (!plan) {
       spanEl.textContent = '';
-      note.textContent = 'No positions yet. Photos carrying a GPS fix place themselves here; '
-        + 'nothing is drawn from guesswork.';
+      note.textContent = 'Add a second photo and a plan of the walk appears here.';
       return;
     }
-    const span = Math.round(pts[0].span);
+    const span = Math.round(plan.span);
     /* readGps only checks Number.isFinite, and zeroed EXIF rationals parse as
        lat 0 / lon 0 — a fix in the Gulf of Guinea. One of those makes the span
        thousands of kilometres, stacks every real photo into a single pixel, and
        prints the distance as a stated fact. That is exactly the confident wrong
-       map the header comment refuses to draw, arriving through the one input
-       this did not sanity-check. */
-    if (span > PLAN_MAX_SPAN_M) {
+       map this refuses to draw, arriving through the one input it did not
+       sanity-check. */
+    if (plan.scaled && span > PLAN_MAX_SPAN_M) {
       spanEl.textContent = '';
       note.textContent = `These photos claim to be ${span.toLocaleString()} m apart, which is not one `
         + 'structure — most likely a photo carrying a zeroed or stale GPS fix. No plan drawn.';
       return;
     }
-    spanEl.textContent = `${span} m`;
-    const pickable = pts.length <= PLAN_PICKABLE_MAX;
-    for (const p of pts) {
+    spanEl.textContent = plan.scaled ? `${span} m` : 'not to scale';
+
+    /* The structure first, then the photos around it. Drawn from the long axis
+       of whatever is actually pinned down, so it is the walk's own line rather
+       than a bridge shape invented out of nothing — on a site with no GPS at
+       all it is simply the line the photos are laid along, and dragging any
+       photo off it bends the line to follow. preserveAspectRatio="none" over a
+       0-100 viewBox makes the coordinates read as percentages, which is what
+       the dots already use. */
+    const d = plan.deck;
+    box.append(el(`<svg class="plan-deck" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+      <line x1="${(d.from.u * 100).toFixed(2)}" y1="${(d.from.v * 100).toFixed(2)}"
+            x2="${(d.to.u * 100).toFixed(2)}" y2="${(d.to.v * 100).toFixed(2)}"
+            vector-effect="non-scaling-stroke"/></svg>`));
+
+    /* Past the cap the plate is a dartboard and clicking a four-pixel gap is
+       hopeless — but the photo you are ON is never ambiguous, so it stays
+       draggable at any count. Otherwise a forty-photo bridge, which is exactly
+       the tour that needs correcting, would be the one you cannot correct. */
+    const pickable = plan.pts.length <= PLAN_PICKABLE_MAX;
+    for (const p of plan.pts) {
       const s = doc.scenes.find(x => x.id === p.id);
       const on = p.id === curSceneId;
+      const live = pickable || on;
       const label = [s?.name, s?.station && `Sta ${s.station}`].filter(Boolean).join(' — ');
-      const dot = el(pickable
-        ? `<button class="plan-dot${on ? ' on' : ''}" title="${esc(label)}" aria-label="Go to ${esc(label)}"
-             aria-current="${on}" style="left:${(p.u * 100).toFixed(2)}%;top:${(p.v * 100).toFixed(2)}%"></button>`
-        : `<span class="plan-dot${on ? ' on' : ''}" aria-hidden="true"
-             style="left:${(p.u * 100).toFixed(2)}%;top:${(p.v * 100).toFixed(2)}%"></span>`);
-      if (pickable) dot.addEventListener('click', () => selectScene(p.id));
+      const where = { gps: 'from GPS', manual: 'placed by hand', guess: 'guessed' }[p.kind];
+      const pos = `left:${(p.u * 100).toFixed(2)}%;top:${(p.v * 100).toFixed(2)}%`;
+      const dot = el(live
+        ? `<button class="plan-dot k-${p.kind}${on ? ' on' : ''}" title="${esc(label)} (${where})"
+             aria-label="${esc(label)}, ${where}. Go to it, or drag to move it."
+             aria-current="${on}" style="${pos}"></button>`
+        : `<span class="plan-dot k-${p.kind}${on ? ' on' : ''}" aria-hidden="true" style="${pos}"></span>`);
+      if (live) {
+        dot.addEventListener('click', () => { if (!dot.dataset.dragged) selectScene(p.id); });
+        makeDraggable(dot, box, plan, p.id);
+      }
       box.append(dot);
     }
-    const missing = doc.scenes.length - pts.length;
+
+    /* Drawn last so it sits over the deck line, and as a distinct mark rather
+       than a fourth kind of dot: it is not a photo, and the plan should not
+       invite anyone to click it as though it were one. */
+    if (plan.vehicle) {
+      const v = plan.vehicle;
+      box.append(el(`<span class="plan-plant" aria-hidden="true"
+        title="Plant on the deck, crossed from ${v.from} photo${v.from === 1 ? '' : 's'}"
+        style="left:${(v.u * 100).toFixed(2)}%;top:${(v.v * 100).toFixed(2)}%"></span>`));
+    }
+
+    const counts = plan.pts.reduce((a, p) => (a[p.kind]++, a), { gps: 0, manual: 0, guess: 0 });
     note.textContent = [
-      `${pts.length} of ${doc.scenes.length} photos located, about ${span} m across.`,
-      missing > 0 ? `${missing} without a fix ${missing > 1 ? 'are' : 'is'} not shown.` : '',
-      pickable ? '' : 'Too many to click at this size — use Ctrl+K to jump.',
-      'Phone GPS is good to a few metres, so treat this as a sketch.',
+      plan.scaled
+        ? `${counts.gps} from GPS, about ${span} m across.`
+        : 'No photo here carries a GPS fix, so this is the shape of the walk, not its size.',
+      counts.guess ? `${counts.guess} placed by capture order — drag ${counts.guess > 1 ? 'them' : 'it'} onto the right spot.` : '',
+      counts.manual ? `${counts.manual} moved by hand.` : '',
+      plan.vehicle
+        ? `The square is plant on the deck, crossed from ${plan.vehicle.from} photos that saw it — a guess at a big bright object, so check it is the truck and not a skip.`
+        : '',
+      pickable ? '' : 'Too many to click at this size — use Ctrl+K to jump, then drag the highlighted dot.',
+      counts.gps ? 'Phone GPS is good to a few metres, so treat this as a sketch.' : '',
     ].filter(Boolean).join(' ');
+  }
+
+  /* Drag a photo to where it actually stood. Committed in metres, not in box
+     fractions, so a later photo widening the site rescales the plate without
+     sliding everything somebody already corrected.
+     The plate re-fits after each drop, so dragging a dot beyond the current
+     extent does shift the others — unavoidable when the view auto-fits, and
+     preferable to a plan that runs off its own edge. */
+  function makeDraggable(dot, box, plan, id) {
+    dot.addEventListener('pointerdown', ev => {
+      if (ev.pointerType === 'mouse' && ev.button !== 0) return;
+      ev.preventDefault();
+      const rect = box.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
+      /* Capture keeps the events coming when the cursor leaves the dot, which
+         it does immediately. It is an improvement, not a requirement — and
+         when it throws (no active pointer with that id) an unguarded call
+         takes the whole drag down with it before a single listener is bound. */
+      try { dot.setPointerCapture(ev.pointerId); } catch { /* drag still works */ }
+      let at = null;
+      const move = e => {
+        at = {
+          u: clamp((e.clientX - rect.left) / rect.width, 0, 1),
+          v: clamp((e.clientY - rect.top) / rect.height, 0, 1),
+        };
+        dot.classList.add('dragging');
+        dot.style.left = `${(at.u * 100).toFixed(2)}%`;
+        dot.style.top = `${(at.v * 100).toFixed(2)}%`;
+      };
+      const up = () => {
+        dot.removeEventListener('pointermove', move);
+        dot.removeEventListener('pointerup', up);
+        dot.removeEventListener('pointercancel', up);
+        dot.classList.remove('dragging');
+        if (!at) return;
+        /* the click that follows this pointer sequence would otherwise also
+           jump the editor to the scene, which is not what a drag asked for */
+        dot.dataset.dragged = '1';
+        const s = doc.scenes.find(x => x.id === id);
+        if (s) {
+          s.plan = plan.toMetres(at.u, at.v);
+          scheduleSave();
+        }
+        renderPlan();
+      };
+      dot.addEventListener('pointermove', move);
+      dot.addEventListener('pointerup', up);
+      dot.addEventListener('pointercancel', up);
+    });
   }
 
   function refreshRegisterNote() {
@@ -2922,6 +3846,12 @@ async function renderEditor(tourId) {
   });
   fileInput.addEventListener('change', () => { addScenes([...fileInput.files]); fileInput.value = ''; });
   document.getElementById('auto-link').addEventListener('click', autoLink);
+  document.getElementById('plan-reset')?.addEventListener('click', () => {
+    for (const s of doc.scenes) delete s.plan;
+    scheduleSave();
+    renderPlan();
+    toast('Placements cleared — back to GPS and capture order');
+  });
 
   /* One persistent line rather than a toast per file. A toast erases the one
      before it, so a folder of HEICs — every single one of which fails on
@@ -2961,7 +3891,7 @@ async function renderEditor(tourId) {
           `<progress max="${total}" value="${done}"></progress>`
         : `Uploading ${esc(file.name)}…`;
       try {
-        const { thumb, pano, geo, shot, ways, upload, width, height, converted, fill } = await preparePano(file);
+        const { thumb, pano, geo, shot, ways, upload, width, height, converted, fill, prof, person, vehicle } = await preparePano(file);
         const panoName = await uploadFile(doc.id, upload);
         const thumbName = await uploadFile(doc.id, new File([thumb], 'thumb.jpg', { type: 'image/jpeg' }));
         const scene = {
@@ -2969,9 +3899,16 @@ async function renderEditor(tourId) {
           name: file.name.replace(/\.[^.]+$/, ''),
           file: panoName,
           thumb: thumbName,
-          view: { yaw: 0, pitch: 0 },
+          /* Yaw 0 is the middle of the file, which is wherever the camera
+             happened to be pointing — an arbitrary opening view. Somebody
+             standing in the shot is a better bet than that: on an inspection
+             the person in frame is nearly always at the thing being inspected.
+             Recorded as a guess so the scene panel can say so and offer to
+             forget it. */
+          view: person ? { yaw: person.yaw, pitch: 0 } : { yaw: 0, pitch: 0 },
           hotspots: [],
         };
+        if (person) scene.viewFrom = 'person';
         if (pano) scene.pano = pano;
         if (geo) scene.geo = geo;
         if (shot) scene.shot = shot;
@@ -2979,6 +3916,8 @@ async function renderEditor(tourId) {
         if (converted) scene.converted = true;
         scene.fill = fill; /* what the empty part of the sphere wears */
         if (ways?.length) scene.ways = ways; /* directions the photo suggests are open */
+        if (prof) scene.prof = prof; /* the two bands, for matching this photo against its neighbours */
+        if (vehicle) scene.vehicle = vehicle; /* which way the plant on the deck lies from here */
         doc.scenes.push(scene);
         if (doc.scenes.length === 1) {
           doc.settings.startScene = scene.id;
@@ -3370,8 +4309,10 @@ async function renderEditor(tourId) {
         if (!s) return;
         const p = editorViewer.getPosition();
         s.view = { yaw: +(p.yaw / DEG).toFixed(2), pitch: +(p.pitch / DEG).toFixed(2), zoom: Math.round(editorViewer.getZoomLevel()) };
+        delete s.viewFrom; /* a person chose it, so stop calling it a guess */
         toast('Start view saved for this scene');
         scheduleSave();
+        renderSceneShape();
       });
       editorViewer = new Viewer({
         container: document.getElementById('edit-psv'),
@@ -3385,6 +4326,9 @@ async function renderEditor(tourId) {
       });
       markers = editorViewer.getPlugin(MarkersPlugin);
       wireMarkerDrag();
+      /* placing and dragging both own the mark's position for as long as they
+         last, so the declutter stands down rather than pulling against them */
+      wireDeclutter(editorViewer, markers, () => !!dragging || !!placing);
       editorViewer.addEventListener('panorama-error', () => {
         toast(`Could not load the photo for "${curScene()?.name || 'this scene'}"`, true);
       });
@@ -3925,14 +4869,21 @@ async function renderEditor(tourId) {
     }
   }
 
-  /* Where the return arrow points. With a GPS fix and a compass heading on the
-     far scene it can be aimed properly; otherwise the other side of the same
-     doorway is the honest guess. */
+  /* Where the return arrow points — the one place that knows how to reverse a
+     link, so every caller gets the same three tiers.
+
+     A real bearing at both ends beats anything else. Failing that, "the other
+     side of the same doorway" used to be it, and that quietly assumes the far
+     photo is turned exactly the way this one is — which is only true if the
+     inspector never pivoted between shots. The two photos can measure that
+     turn between themselves off the landmarks they share, so ask them; when
+     they cannot agree, yawBetween returns null and the old assumption stands. */
   function returnYaw(from, target, outgoingYaw) {
     if (from.geo && target.geo && Number.isFinite(target.geo.heading)) {
       return +wrap180(bearing(target.geo, from.geo) - target.geo.heading).toFixed(2);
     }
-    return +wrap180(outgoingYaw + 180).toFixed(2);
+    const turn = yawBetween(from, target);
+    return +wrap180(outgoingYaw + 180 + (turn?.degrees || 0)).toFixed(2);
   }
 
   function placeLink(from, targetId, yaw, pitch) {
@@ -3959,12 +4910,39 @@ async function renderEditor(tourId) {
   const AUTO_NEIGHBOURS = 2;   /* onward and back; more turns a corridor into a web */
   const AUTO_MAX_METRES = 60;
 
+  /* Two arrows on the same spot are one arrow as far as anybody clicking can
+     tell, and the one underneath is unreachable. It happens constantly on a
+     GPS tour: two scenes at similar bearings from here get the same computed
+     yaw, and the second arrow lands exactly on the first.
+
+     So an automatic arrow steps aside if its place is taken. Only automatic
+     ones — a yaw somebody clicked is a decision and is never moved, which is
+     why this lives here rather than in addLink, the function hand placement
+     also goes through. The direction was already a guess the sidebar owns up
+     to, so a few degrees to keep both arrows reachable costs nothing real. */
+  const LINK_MIN_SEPARATION = 14;
+
+  function freeYaw(scene, wanted, pitch) {
+    const taken = (scene.hotspots || []).filter(h =>
+      Math.abs(wrap180((h.pitch || 0) - pitch)) < LINK_MIN_SEPARATION);
+    if (!taken.length) return +wrap180(wanted).toFixed(2);
+    const clear = y => taken.every(h => Math.abs(wrap180(h.yaw - y)) >= LINK_MIN_SEPARATION);
+    /* out from the wanted angle in both directions at once, so the arrow ends
+       up as close to where it meant to point as the crowding allows */
+    for (let step = 0; step <= 3; step++) {
+      for (const y of (step ? [wanted + step * LINK_MIN_SEPARATION, wanted - step * LINK_MIN_SEPARATION] : [wanted])) {
+        if (clear(wrap180(y))) return +wrap180(y).toFixed(2);
+      }
+    }
+    return +wrap180(wanted).toFixed(2); /* wall to wall with arrows: keep the honest angle */
+  }
+
   /* Link a pair both ways at once. A one-way arrow is a dead end from the far
      side, and nothing in the editor would show you that until you walked it. */
   function linkPair(from, to, outYaw, backYaw) {
     let made = 0;
-    if (!hasLink(from, to.id)) { addLink(from, to.id, +wrap180(outYaw).toFixed(2), AUTO_PITCH); made++; }
-    if (!hasLink(to, from.id)) { addLink(to, from.id, +wrap180(backYaw).toFixed(2), AUTO_PITCH); made++; }
+    if (!hasLink(from, to.id)) { addLink(from, to.id, freeYaw(from, outYaw, AUTO_PITCH), AUTO_PITCH); made++; }
+    if (!hasLink(to, from.id)) { addLink(to, from.id, freeYaw(to, backYaw, AUTO_PITCH), AUTO_PITCH); made++; }
     return made;
   }
 
@@ -3988,7 +4966,7 @@ async function renderEditor(tourId) {
              only the headingless fallback gets nudged onto an opening */
           const blind = snapToWay(wrap180((from.view?.yaw || 0) + i * 180), from.ways);
           const out = aim(from, s, blind);
-          made += linkPair(from, s, out, aim(s, from, snapToWay(wrap180(out + 180), s.ways)));
+          made += linkPair(from, s, out, aim(s, from, snapToWay(returnYaw(from, s, out), s.ways)));
         });
     }
     return made;
@@ -4006,7 +4984,8 @@ async function renderEditor(tourId) {
       for (const [other, yaw] of [[scenes[i + 1], facing], [scenes[i - 1], facing + 180]]) {
         if (!other) continue;
         /* nudge both ends onto whatever each photo suggests is open */
-        made += linkPair(here, other, snapToWay(wrap180(yaw), here.ways), snapToWay(wrap180(yaw + 180), other.ways));
+        const out = snapToWay(wrap180(yaw), here.ways);
+        made += linkPair(here, other, out, snapToWay(returnYaw(here, other, out), other.ways));
       }
     });
     return made;
@@ -4042,10 +5021,15 @@ async function renderEditor(tourId) {
     const tail = strays
       ? ` ${k} photo${k === 1 ? '' : 's'} carried no location, so ${k === 1 ? 'it was' : 'they were'} chained in list order instead.`
       : '';
+    const solar = located.filter(s => s.geo.headingFrom === 'sun').length;
+    const sunNote = solar
+      ? ` ${solar} of ${solar === 1 ? 'them took its' : 'them took their'} bearing from where the sun`
+        + ' sits in the photo, which no amount of steel can deflect.'
+      : '';
     setLinkSummary((!useGps
       ? `Added ${n} by walking the scenes in the order you added them — these photos carry no GPS, so treat the directions as a starting point and drag any arrow that sits wrong.`
       : aimed
-        ? `Added ${n} from the photos' own GPS and compass. Phone GPS is good to a few metres, so check each arrow and drag any that misses.`
+        ? `Added ${n} from the photos' own GPS and compass.${sunNote} Phone GPS is good to a few metres, so check each arrow and drag any that misses.`
         : `Added ${n}: GPS says which scenes are neighbours, but none of these photos recorded a compass heading, so the directions are guessed. Drag each arrow onto its doorway.`) + tail);
     toast(`Added ${n} — Ctrl+Z undoes the lot`);
   }
@@ -4081,7 +5065,40 @@ async function renderEditor(tourId) {
                value="${esc(s.element || '')}" placeholder="e.g. Bearing, elastomeric pad"></div>
       <div class="frow"><label for="sc-station">Station</label>
         <input type="text" id="sc-station" maxlength="20"
-               value="${esc(s.station || '')}" placeholder="e.g. 2+50"></div>`;
+               value="${esc(s.station || '')}" placeholder="e.g. 2+50"></div>
+      <p class="scene-note" id="sc-derived"></p>`;
+
+    /* What was worked out about this photo rather than typed into it, and
+       where each piece came from. An inspector writing "the fascia faces 118°"
+       into a report needs to know whether that number came off a compass, off
+       the sun, or out of an assumption. */
+    const derived = [];
+    const g = s.geo;
+    if (Number.isFinite(g?.heading)) {
+      const src = {
+        sun: 'worked out from the sun',
+        magnetic: 'from the camera’s magnetic compass',
+      }[g.headingFrom] || 'recorded by the camera';
+      derived.push(`Centre of this photo faces ${Math.round(g.heading)}°, ${src}.`);
+      /* Both numbers exist and disagree: say so rather than silently preferring
+         one. On a steel structure the magnetic one is the suspect — but it is
+         the inspector standing there who knows whether they were beside a
+         girder or out on the approach. */
+      if (Number.isFinite(g.sunHeading)) {
+        const off = Math.abs(wrap180(g.sunHeading - g.heading));
+        if (off >= HEADING_DISPUTE) {
+          derived.push(`The sun puts it at ${Math.round(g.sunHeading)}° instead, ${Math.round(off)}° away.`
+            + ' Steel deflects a magnetic compass and the sun cannot be deflected, so prefer the sun'
+            + ' if this photo was taken close to the structure.');
+        }
+      }
+    }
+    if (s.viewFrom === 'person') {
+      derived.push('Opens facing someone in hi-vis, on the assumption they are at whatever is being'
+        + ' inspected. Turn to what you want and press “Set start view from here” to override.');
+    }
+    box.querySelector('#sc-derived').textContent = derived.join(' ');
+
     box.querySelector('#sc-stop').addEventListener('change', e => {
       s.stop = e.target.value || undefined; scheduleSave(); renderCoverage(); renderSceneList();
     });

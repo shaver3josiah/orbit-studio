@@ -117,7 +117,27 @@ the button turns into **Confirm delete?** (a scene or hotspot just says
    the order the walk was shot in — and any photo with no location is
    chained to its list neighbours so it never drops out of the tour. Every
    link is made both ways, existing links are never duplicated, and the
-   whole run is one Ctrl+Z. It also now runs on its own right after a drop
+   whole run is one Ctrl+Z.
+
+   Two things sharpen those arrows without a compass. **The sun**: a photo
+   that carries a GPS fix and a UTC timestamp (GPSDateStamp/GPSTimeStamp, not
+   the zone-less DateTimeOriginal) and has the sun visible in frame gets its
+   true heading from where the sun sits, because the sun's real bearing at
+   that time and place is calculable to a hundredth of a degree. This matters
+   on a steel structure, where a magnetic compass can read tens of degrees
+   out: measured on generated fixtures, the recovered heading landed within
+   1° of truth. It never overwrites a heading the camera recorded — where the
+   camera wrote a *magnetic* bearing and the sun disagrees by more than 15°,
+   the scene panel shows both and leaves the call to you. Nothing is claimed
+   unless the bright thing in frame is at the height the sun must actually be
+   at, which is what stops a floodlight or a reflection off water being read
+   as the sun. **Shared landmarks**: two photos that see the same piers and
+   parapet can measure how far one is turned from the other, which aims the
+   return arrow properly instead of assuming both photos face the same way.
+   It refuses far more often than it answers — a repeating row of piers or a
+   featureless soffit gets no answer at all rather than a confident wrong one.
+
+   It also runs on its own right after a drop
    of photos that don't yet connect to anything, so a tour never sits
    unlinked just because nobody clicked the button — it steps aside once the
    arriving scenes already have links, so it won't fight you mid-edit.
@@ -205,10 +225,28 @@ A forty-panorama bridge is a maze, so:
 
 - **Ctrl+K** jumps to any scene or defect by name, station, element or code.
 - The scene list **groups itself by photo stop** past eight scenes.
-- **Plan view**, under the scene list, plots every photo that carries a GPS fix,
-  north up, with the site's real proportions and the distance across it. Nothing
-  is drawn from guesswork: without GPS it says so rather than inventing a layout.
-- The viewer shows a **compass** whenever a photo recorded a heading.
+- **Plan view**, under the scene list, draws the structure's own long axis and
+  places every photo around it, north up, with the site's real proportions and
+  the distance across it. Three kinds of dot, told apart by their drawing and
+  counted in the note underneath: solid for a GPS fix, hollow and dashed for a
+  photo placed by capture order because it had no fix, filled for one you moved
+  yourself. **Drag any dot** to put a photo where it actually stood — the
+  correction is stored in metres, so a later photo widening the site rescales
+  the plate without sliding anything you have already fixed. *Undo my
+  placements* clears them all. A guessed dot is a starting position, never a
+  surveyed coordinate, and the plate says so.
+  If two or more photos both see the plant on the deck and both know which way
+  they were facing, the bearings are crossed and the vehicle is drawn as a
+  square. Near-parallel bearings cross at a point far too sensitive to be worth
+  anything, so those are refused rather than drawn.
+- The viewer shows a **compass** whenever a photo has a heading — recorded by
+  the camera, or worked out from the sun (below).
+- **Hotspots never sit on top of each other.** An automatic arrow steps aside
+  if its bearing is already taken, and any that still collide on screen —
+  two defects on the same spall, or a tour built before that fix — are spread
+  apart where they are *drawn*. The stored angle never moves, so the register,
+  the CSV and the photo log are unaffected, and no mark is ever displaced
+  further than its own radius, so it always still covers the point it marks.
 - Picking a scene puts it in the address bar, so a link can point at one exact
   scene rather than the front door.
 - **Order by capture time** puts a folder drop back into the order it was walked.
@@ -303,11 +341,16 @@ second editor.
 node tests/tour_pano_test.mjs
 ```
 
-113 checks on the coverage geometry, GPano XMP reading, EXIF GPS parsing (from
-JPEG APP1, and now PNG eXIf and WebP EXIF chunks too), bearing maths, the
-walkable-direction guess that suggests where hotspots go, the defect register's
-measurement phrasing and code numbering, the CSV writer (including the leading
-`=` Excel would otherwise execute), and the plan-view projection.
+212 checks on the coverage geometry, GPano XMP reading, EXIF GPS parsing (from
+JPEG APP1, and now PNG eXIf and WebP EXIF chunks too, plus the UTC timestamp
+the sun reading needs), bearing maths, the walkable-direction guess that
+suggests where hotspots go, the solar position (against published Meeus worked
+examples and an independent IAU SOFA/ERFA chain), the landmark matcher and its
+refusals, the plant-on-the-deck finder and the shadow it must not mistake for
+one, the bearing crossing and its refusal to cross near-parallel lines, the
+hotspot separation geometry, the defect register's measurement phrasing and
+code numbering, the CSV writer (including the leading `=` Excel would otherwise
+execute), and the plan-view projection including the drag round-trip.
 
 `python tests/seed_demo_tour.py` builds a demo tour with three generated
 panoramas and a hotspot ring, useful for looking at the viewer without a
