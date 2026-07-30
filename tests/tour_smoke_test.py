@@ -123,11 +123,18 @@ def main() -> int:
     check(http_status(f"/api/tours/{tid}/files/{up1['file']}") == 200, "referenced file survives save")
     check(http_status(f"/api/tours/{tid}/files/{up2['file']}") == 200, "fresh orphan survives save (prune grace window)")
 
+    # a second editor holding the version we just replaced must not clobber it
+    status, _ = http_json_allow_error("POST", f"/api/tours/{tid}", doc)
+    check(status == 409, "a save from a stale version is refused, not silently applied")
+    # a well-behaved client carries the stamp the server just handed back
+    doc["updated"] = saved["updated"]
+
     orphan_path = TEMP_HOME / "tours" / tid / "files" / up2["file"]
     old = time.time() - (orbit_server.PRUNE_GRACE_SECONDS + 60)
     os.utime(orphan_path, (old, old))
-    status, _ = http_json("POST", f"/api/tours/{tid}", doc)
+    status, saved = http_json("POST", f"/api/tours/{tid}", doc)
     check(status == 200, "second save accepted")
+    doc["updated"] = saved["updated"]
     check(http_status(f"/api/tours/{tid}/files/{up2['file']}") == 404, "aged orphan pruned on save")
     check(http_status(f"/api/tours/{tid}/files/{up1['file']}") == 200, "referenced file still survives")
 
@@ -145,7 +152,16 @@ def main() -> int:
     with zipfile.ZipFile(io.BytesIO(zip_bytes)) as z:
         names = z.namelist()
         index = z.read("index.html").decode("utf-8")
+        manifest = json.loads(z.read("manifest.json").decode("utf-8"))
     check("index.html" in names and "README.txt" in names, "export has index + readme")
+    # provenance: a folder found in three years has to explain itself
+    check("manifest.json" in names, "export carries a provenance manifest")
+    check(manifest["app"] == "orbit-tour" and manifest["tour"]["id"] == tid,
+          "manifest names the app and the tour")
+    check(manifest["counts"]["scenes"] == len(doc["scenes"]),
+          "manifest scene count matches the document")
+    check("exportedAt" in manifest and manifest["viewer"]["photoSphereViewer"] == "5.14.3",
+          "manifest stamps the export time and the viewer version")
     check(f"files/{up1['file']}" in names, "export bundles media")
     check(any(n.startswith("vendor/") and n.endswith(".js") for n in names), "export bundles vendor js")
     check(

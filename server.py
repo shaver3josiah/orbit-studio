@@ -1049,6 +1049,20 @@ def handle_tour_save(handler: "Handler", tour_id: str) -> None:
     if payload is None or not isinstance(payload.get("scenes"), list):
         send_error(handler, 400, "bad_request", "expected a tour doc with a scenes list")
         return
+    # Two editors on one tour used to overwrite each other in silence, because a
+    # save posts the WHOLE document. If the client is working from a version
+    # that is no longer the one on disk, refuse rather than clobber; the client
+    # keeps its edits and decides. A payload with no "updated" at all is a
+    # first save or a non-browser client and is let through unchanged.
+    seen = payload.get("updated")
+    if seen and existing.get("updated") and seen != existing["updated"]:
+        send_error(
+            handler,
+            409,
+            "stale",
+            "this tour was changed somewhere else since you loaded it",
+        )
+        return
     payload["id"] = tour_id
     payload["created"] = existing.get("created", payload.get("created"))
     payload["updated"] = datetime.now(timezone.utc).isoformat()
@@ -1125,6 +1139,59 @@ then visit http://localhost:8000
 """
 
 
+def export_manifest(tour: dict) -> dict:
+    """What this zip is, so a folder found in three years still explains itself.
+
+    An inspection deliverable that cannot say which structure it is, when it was
+    walked and who walked it is an archive of anonymous photographs. Everything
+    here is derived from the tour rather than asked for again, so it cannot
+    disagree with the record it ships beside.
+    """
+    # Defensive about shape on purpose: handle_tour_save only validates that
+    # "scenes" is a list, so a hand-edited or third-party doc can put anything
+    # inside it. Before this, one non-dict scene raised AttributeError and took
+    # the WHOLE export down with a 500 — a regression against the pre-change
+    # export, which never looked inside the document at all.
+    scenes = [s for s in (tour.get("scenes") or []) if isinstance(s, dict)]
+    defects = [
+        h
+        for s in scenes
+        for h in (s.get("hotspots") or [])
+        if isinstance(h, dict) and h.get("type") == "defect"
+    ]
+    inspection = tour.get("inspection")
+    if not isinstance(inspection, dict):
+        inspection = {}
+    return {
+        "app": "orbit-tour",
+        "tour": {"id": tour.get("id"), "name": tour.get("name")},
+        "inspection": {
+            "structureId": inspection.get("structureId"),
+            "date": inspection.get("date"),
+            "inspectedBy": inspection.get("by"),
+            "sheet": inspection.get("sheet"),
+        },
+        "counts": {
+            "scenes": len(scenes),
+            "defects": len(defects),
+            # which of the eleven NBIS stops carry at least one photo
+            "photoStopsCovered": len(
+                {s["stop"] for s in scenes if isinstance(s.get("stop"), str)}
+            ),
+        },
+        "defectCodes": sorted(
+            (h["code"] for h in defects if isinstance(h.get("code"), str)),
+            key=lambda c: int(c[1:]) if c[1:].isdigit() else 0,
+        ),
+        "exportedAt": datetime.now(timezone.utc).isoformat(),
+        "viewer": {"photoSphereViewer": "5.14.3", "three": "0.184.0"},
+        "note": (
+            "360 capture supplements the inspection record; it does not replace "
+            "hands-on NBIS judgement or access requirements."
+        ),
+    }
+
+
 def handle_tour_export(handler: "Handler", tour_id: str) -> None:
     """Zip a tour into a static site: viewer html + vendored libs + media."""
     tour = load_tour(tour_id)
@@ -1148,6 +1215,7 @@ def handle_tour_export(handler: "Handler", tour_id: str) -> None:
         with zipfile.ZipFile(tmp_path, "w", zipfile.ZIP_DEFLATED) as z:
             z.writestr("index.html", html)
             z.writestr("README.txt", EXPORT_README)
+            z.writestr("manifest.json", json.dumps(export_manifest(tour), indent=2))
             for f in sorted((REPO_ROOT / "tour" / "vendor").iterdir()):
                 if f.suffix in (".js", ".css"):
                     z.write(f, f"vendor/{f.name}")

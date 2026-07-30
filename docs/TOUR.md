@@ -76,7 +76,7 @@ the button turns into **Confirm delete?** (a scene or hotspot just says
    photo's own aspect ratio. The same section also states the photo's actual
    pixel dimensions and whether it uploaded untouched or got converted, and
    warns you if it's wider than this machine's graphics can hold.
-4. **Connect the scenes.** Click **+ Link hotspot**: the hotspot follows your
+4. **Connect the scenes.** Click **+ Link**: the hotspot follows your
    pointer around the panorama — already showing the shape, size, and
    opacity it will actually have — until you click the spot where the way
    there is. The hotspot panel then opens asking which scene it leads to,
@@ -126,7 +126,7 @@ the button turns into **Confirm delete?** (a scene or hotspot just says
    yet (and it isn't the start scene) — it would be unreachable in the
    finished tour. A line under the list also states how many scenes that
    is, in case the dot itself is easy to miss.
-5. **Add detail.** *+ Info hotspot* and *+ URL hotspot* place the same way as
+5. **Add detail.** *+ Info* and *+ URL* place the same way as
    a link — click the button, click the spot in the panorama — and then open
    a panel: a title, text, an image, and an audio clip for Info; an external
    page (opened in a new tab) for URL. Click any hotspot — a link arrow
@@ -158,6 +158,70 @@ the button turns into **Confirm delete?** (a scene or hotspot just says
 
 Everything saves as you work — the status under the tour name reads
 *Saving…* then *Saved*. A failed save retries on its own and says so.
+
+## Record an inspection
+
+Orbit Tour also speaks the vocabulary of the field-sketch tool, so one
+structure's 360 record and its sketch register can be read side by side.
+
+**The title block.** Under the tour name, **Inspection** holds the same four
+fields the sketch tool asks for — Structure ID, inspection date, inspected by,
+sheet. The date fills itself in from the first photo's EXIF capture time if you
+leave it empty, and never overwrites one you typed.
+
+**Tagging a photo.** *This scene* gains three fields: the **required photo
+stop** it covers, the **element** in view (free text, with the usual bridge
+vocabulary as suggestions), and the **station**, written the way stations are
+written — `2+50`.
+
+**Defects.** **+ Defect** places a marker where the defect is, numbered `D1`,
+`D2`, `D3` across the whole tour. The marker wears its own code in a red ring so
+a reviewer can call out "D7" without opening anything. The nine types and their
+measurement increments are the sketch tool's exactly: a spall takes a depth
+(1/4, 1/2, 1, 2, over 2 in) and a *reinforcement exposed* tick; a crack or map
+cracking takes a width (hairline, 1/16, 1/8, 1/4, over 1/4 in); the rest are
+recorded by note and photo, because that is all the sketch tool measures either.
+Switching a defect's type clears a measurement that no longer applies, so a
+register never carries a number nobody typed.
+
+**Coverage.** The Inspection panel lists the eleven NBIS photo stops and ticks
+each one that has a photo filed against it. A tick means *filed*, not *shown* —
+this cannot see a bearing. 360 capture supplements the inspection record; it
+does not replace hands-on judgement.
+
+**The paperwork.** The Share panel offers **Download defect register (CSV)** —
+Code, Type, Measure, Scene, Photo stop, Element, Station, Note, sorted so D9
+comes before D10 — and **Print photo log**, which lays out one row per defect
+with its photo, code, measure and station under the title block, for Print to
+PDF. Both are built in the browser from the tour document, so they need no
+server: in a **standalone export** the same two appear in the viewer's own
+toolbar, whenever the tour carries any defects. That matters, because the
+export is the folder an owner actually archives — a zip holding the walk but
+neither the register nor the log would be a slideshow, not a record.
+
+## Getting around a big tour
+
+A forty-panorama bridge is a maze, so:
+
+- **Ctrl+K** jumps to any scene or defect by name, station, element or code.
+- The scene list **groups itself by photo stop** past eight scenes.
+- **Plan view**, under the scene list, plots every photo that carries a GPS fix,
+  north up, with the site's real proportions and the distance across it. Nothing
+  is drawn from guesswork: without GPS it says so rather than inventing a layout.
+- The viewer shows a **compass** whenever a photo recorded a heading.
+- Picking a scene puts it in the address bar, so a link can point at one exact
+  scene rather than the front door.
+- **Order by capture time** puts a folder drop back into the order it was walked.
+
+Press **?** for the full list of keyboard shortcuts.
+
+## Away from a desk
+
+The editor works on a tablet: below 960px, or on any touch screen, the sidebar
+becomes a drawer and every control grows to a 44px target. The app follows your
+system's light or dark setting — the chrome turns to paper in daylight, while
+the panorama keeps dark surroundings in both, because that is how a photograph
+is shown.
 
 ## Share it
 
@@ -211,7 +275,7 @@ libraries are lockstepped — bump them together or not at all.
 | POST | `/api/tours/<id>/duplicate` | copy tour + media |
 | POST | `/api/tours/<id>/files` | upload media (multipart `file`) |
 | GET | `/api/tours/<id>/files/<name>` | serve media |
-| GET | `/api/tours/<id>/export.zip` | standalone static site |
+| GET | `/api/tours/<id>/export.zip` | standalone static site + `manifest.json` provenance |
 
 Uploads are capped at 64 MB and limited to jpg/png/webp/mp3/m4a/ogg on the
 wire — HEIC and any other non-web-safe image is converted to JPEG in the
@@ -229,17 +293,21 @@ files immediately.
 python tests/tour_smoke_test.py
 ```
 
-30 checks across the tour API: CRUD, upload validation, the prune grace
+35 checks across the tour API: CRUD, upload validation, the prune grace
 window, path-traversal and malformed-id rejection, oversize rejection,
-duplicate, and the export bundle's contents.
+duplicate, the export bundle's contents and its provenance manifest, and the
+409 a save from a stale version now gets instead of silently overwriting a
+second editor.
 
 ```bash
 node tests/tour_pano_test.mjs
 ```
 
-58 checks on the coverage geometry, GPano XMP reading, EXIF GPS parsing (from
-JPEG APP1, and now PNG eXIf and WebP EXIF chunks too), bearing maths, and the
-walkable-direction guess that suggests where hotspots go.
+113 checks on the coverage geometry, GPano XMP reading, EXIF GPS parsing (from
+JPEG APP1, and now PNG eXIf and WebP EXIF chunks too), bearing maths, the
+walkable-direction guess that suggests where hotspots go, the defect register's
+measurement phrasing and code numbering, the CSV writer (including the leading
+`=` Excel would otherwise execute), and the plan-view projection.
 
 `python tests/seed_demo_tour.py` builds a demo tour with three generated
 panoramas and a hotspot ring, useful for looking at the viewer without a

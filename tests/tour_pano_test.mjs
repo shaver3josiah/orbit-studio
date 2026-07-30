@@ -24,19 +24,25 @@ if (from < 0 || to < 0 || to < from) {
   throw new Error('tour/index.html no longer fences its pure-helper block — see the markers named in this test');
 }
 const source = html.slice(from, to);
-for (const name of ['panoDataFor', 'gpanoCoverage', 'readGps', 'bearing', 'metresBetween', 'guessNavigableYaws', 'snapToWay']) {
+for (const name of ['panoDataFor', 'gpanoCoverage', 'readGps', 'bearing', 'metresBetween', 'guessNavigableYaws',
+  'snapToWay', 'fmtIn', 'defectMeasure', 'defectNeedsMeasure', 'nextDefectCode',
+  'csvCell', 'registerCsv', 'planPositions']) {
   if (!source.includes(`function ${name}`)) throw new Error(`extracted block is missing ${name}`);
 }
 
 const helpers = await import(
   'data:text/javascript,' + encodeURIComponent(
     `${source}\nexport { clamp, isPartial, vFovOf, panoDataFor, gpanoCoverage, readGps, bearing,` +
-    ` metresBetween, wrap180, guessNavigableYaws, snapToWay };`
+    ` metresBetween, wrap180, guessNavigableYaws, snapToWay,` +
+    ` fmtIn, defectMeasure, defectNeedsMeasure, nextDefectCode, DEFECT_TYPES, DEFECT_MEASURE,` +
+    ` DEPTH_STEPS, WIDTH_STEPS, csvCell, registerCsv, planPositions };`
   )
 );
 const {
   isPartial, vFovOf, panoDataFor, gpanoCoverage, readGps, bearing, metresBetween, wrap180,
   guessNavigableYaws, snapToWay,
+  fmtIn, defectMeasure, defectNeedsMeasure, nextDefectCode, DEFECT_TYPES, DEFECT_MEASURE,
+  DEPTH_STEPS, WIDTH_STEPS, csvCell, registerCsv, planPositions,
 } = helpers;
 
 let failures = 0;
@@ -323,6 +329,125 @@ check(snapToWay(0, [140, -150]) === 0, 'a suggestion beyond the tolerance is ign
 check(snapToWay(0, [25, 140]) === 25, 'a suggestion within tolerance wins');
 check(snapToWay(0, [40, -12, 80]) === -12, 'the closest suggestion wins, not the first');
 check(snapToWay(170, [-175]) === -175, 'snapping works across the seam');
+
+/* ---------- the defect register ----------
+ * These numbers are a contract with the sibling field-sketch tool
+ * (android/app/src/main/assets/bridge-sketch.html). If the two ever phrase a
+ * measurement differently, one inspection produces two disagreeing registers,
+ * so the phrasing is asserted, not just the arithmetic. */
+
+check(DEFECT_TYPES.length === 9, 'nine defect types, matching the field sketch');
+check(DEFECT_TYPES[0] === 'Spall' && DEFECT_TYPES.includes('Exposed reinforcement'),
+  'the type names are the sketch tool\'s, not paraphrased');
+check(DEPTH_STEPS.map(s => s[0]).join() === '0.25,0.5,1,2,3', 'depth increments are 1/4, 1/2, 1, 2, over 2');
+check(WIDTH_STEPS.map(s => s[0]).join() === '0.01,0.0625,0.125,0.25,0.375',
+  'width increments are hairline, 1/16, 1/8, 1/4, over 1/4');
+
+check(fmtIn(0.01) === 'hairline', 'the hairline sentinel is a word, not a hundredth of an inch');
+check(fmtIn(0.375) === 'over 1/4 in', 'the open-ended width bucket reads as over 1/4 in');
+check(fmtIn(3) === 'over 2 in', 'the open-ended depth bucket reads as over 2 in');
+check(fmtIn(0.0625) === '1/16 in', 'a sixteenth renders as a fraction');
+check(fmtIn(0.125) === '1/8 in', 'an eighth reduces');
+check(fmtIn(0.5) === '1/2 in', 'a half reduces');
+check(fmtIn(1) === '1 in', 'a whole inch drops the fraction');
+check(fmtIn(2) === '2 in', 'two whole inches drop the fraction');
+check(fmtIn(0) === '' && fmtIn(undefined) === '', 'no measurement renders as nothing, not NaN');
+
+check(defectMeasure({ defect: 'Spall', depthIn: 0.5 }) === '1/2 in deep', 'a spall reads as a depth');
+check(defectMeasure({ defect: 'Spall', depthIn: 2, rebar: true }) === '2 in deep, reinforcement exposed',
+  'exposed reinforcement is appended the way the sketch tool phrases it');
+check(defectMeasure({ defect: 'Crack', widthIn: 0.01 }) === 'hairline wide', 'a crack reads as a width');
+check(defectMeasure({ defect: 'Efflorescence' }) === '', 'a type with no measurement measures nothing');
+/* the field that no longer applies must not leak into the register */
+check(defectMeasure({ defect: 'Crack', depthIn: 2, widthIn: 0.125 }) === '1/8 in wide',
+  'a stale depth on a crack is ignored, not printed');
+
+check(defectNeedsMeasure({ defect: 'Spall' }), 'a spall with no depth is flagged');
+check(!defectNeedsMeasure({ defect: 'Spall', depthIn: 0.25 }), 'a spall with a depth is not flagged');
+check(!defectNeedsMeasure({ defect: 'Patch' }), 'a type that takes no measurement is never flagged');
+
+check(nextDefectCode([]) === 'D1', 'the first defect in an empty tour is D1');
+check(nextDefectCode(undefined) === 'D1', 'a tour with no scenes still yields D1');
+check(nextDefectCode([{ hotspots: [{ type: 'link' }] }]) === 'D1', 'links do not consume defect numbers');
+check(nextDefectCode([{ hotspots: [{ code: 'D1' }] }, { hotspots: [{ code: 'D2' }] }]) === 'D3',
+  'codes run across the whole tour, not per scene');
+/* deleting D2 must not hand D3's number to the next defect and collide */
+check(nextDefectCode([{ hotspots: [{ code: 'D1' }, { code: 'D3' }] }]) === 'D4',
+  'a gap left by a deleted defect is not reused');
+
+/* ---------- the exported register ---------- */
+
+check(csvCell('plain') === 'plain', 'an ordinary cell is not quoted');
+check(csvCell('a,b') === '"a,b"', 'a comma forces quoting');
+check(csvCell('say "hi"') === '"say ""hi"""', 'an embedded quote is doubled');
+check(csvCell('line\r\nbreak') === '"line\r\nbreak"', 'a newline stays inside one quoted cell');
+/* Excel executes a leading =, + or @ however the cell is quoted */
+check(csvCell('=SUM(A1:A9)') === "'=SUM(A1:A9)", 'a leading = is defused with an apostrophe');
+check(csvCell('+1') === "'+1", 'a leading + is defused');
+check(csvCell('@x') === "'@x", 'a leading @ is defused');
+/* Excel parses a leading minus as a formula exactly as it does '='. The
+   Measure column is generated and can never start with one, but Note, Scene,
+   Element and Station are free text and can. */
+check(csvCell("-2+3+cmd|'/C calc'!A0") === "'-2+3+cmd|'/C calc'!A0",
+  'a leading minus is defused too — the free-text columns can carry one');
+check(csvCell(undefined) === '' && csvCell(null) === '', 'a missing value is an empty cell, not "undefined"');
+
+const sampleTour = {
+  scenes: [
+    { name: 'Bay 2', stop: 'Underside', element: 'Soffit', station: '3+00', hotspots: [
+      { type: 'defect', code: 'D10', defect: 'Crack', widthIn: 0.01, note: 'Transverse' },
+      { type: 'link', target: 'x' },
+    ] },
+    { name: 'Pier 1', stop: 'Pier faces', element: 'Pier, column', station: '2+50', hotspots: [
+      { type: 'defect', code: 'D9', defect: 'Spall', depthIn: 2, rebar: true, note: 'At the joint, "wet"' },
+      { type: 'info', title: 'note' },
+    ] },
+  ],
+};
+const csvLines = registerCsv(sampleTour).split('\r\n');
+check(csvLines[0] === 'Code,Type,Measure,Scene,Photo stop,Element,Station,Note',
+  'the header matches the field sketch register columns');
+check(csvLines.length === 3, 'only defects become rows — links and info hotspots do not');
+check(csvLines[1].startsWith('D9,'), 'D9 sorts before D10 numerically, not as text');
+check(csvLines[1] === 'D9,Spall,"2 in deep, reinforcement exposed",Pier 1,Pier faces,"Pier, column",2+50,"At the joint, ""wet"""',
+  'a full defect row round-trips measure, element and a quoted note');
+check(csvLines[2] === 'D10,Crack,hairline wide,Bay 2,Underside,Soffit,3+00,Transverse',
+  'the second row carries its own scene metadata');
+check(registerCsv({ scenes: [] }).split('\r\n').length === 1, 'a tour with no defects exports just the header');
+check(registerCsv(undefined).split('\r\n').length === 1, 'a missing tour does not throw');
+/* ---------- plan view geometry ---------- */
+
+const geoScene = (id, lat, lon) => ({ id, geo: { lat, lon } });
+check(planPositions([]).length === 0, 'no scenes plots nothing');
+check(planPositions(undefined).length === 0, 'a missing list does not throw');
+check(planPositions([geoScene('a', 40, -75)]).length === 0, 'one located photo is not a plan');
+check(planPositions([geoScene('a', 40, -75), { id: 'b' }]).length === 0,
+  'a photo with no fix cannot make a plan on its own');
+
+/* a north-south pair: north must sit ABOVE south on screen */
+const ns = planPositions([geoScene('s', 40.0000, -75), geoScene('n', 40.0010, -75)]);
+check(ns.length === 2, 'two located photos plot');
+check(ns.find(p => p.id === 'n').v < ns.find(p => p.id === 's').v, 'north plots above south');
+check(near(ns.find(p => p.id === 'n').u, 0.5, 0.02) && near(ns.find(p => p.id === 's').u, 0.5, 0.02),
+  'a due north-south pair shares one column');
+
+/* an east-west pair: east must sit RIGHT of west */
+const ew = planPositions([geoScene('w', 40, -75.0010), geoScene('e', 40, -75.0000)]);
+check(ew.find(p => p.id === 'e').u > ew.find(p => p.id === 'w').u, 'east plots right of west');
+
+/* every photo standing on one fix must not divide by zero */
+const same = planPositions([geoScene('a', 40, -75), geoScene('b', 40, -75), geoScene('c', 40, -75)]);
+check(same.length === 3 && same.every(p => Number.isFinite(p.u) && Number.isFinite(p.v)),
+  'identical fixes stay finite instead of collapsing to NaN');
+check(same.every(p => near(p.u, 0.5, 1e-6) && near(p.v, 0.5, 1e-6)), 'identical fixes stack at the centre');
+
+/* the site keeps its own proportions: a long thin walk is not stretched square */
+const strip = planPositions([geoScene('a', 40, -75), geoScene('b', 40, -74.999), geoScene('c', 40.00002, -75)]);
+const us = strip.map(p => p.u), vs = strip.map(p => p.v);
+check((Math.max(...us) - Math.min(...us)) > (Math.max(...vs) - Math.min(...vs)) * 5,
+  'a long east-west walk stays long rather than being stretched to fill the box');
+check(strip.every(p => p.u >= 0 && p.u <= 1 && p.v >= 0 && p.v <= 1), 'every dot lands inside the box');
+check(strip[0].span >= 1, 'the span is reported in metres and never below the one-metre floor');
 
 console.log(failures ? `\n${failures} check(s) failed` : '\nall checks passed');
 process.exit(failures ? 1 : 0);

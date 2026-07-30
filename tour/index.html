@@ -10,120 +10,250 @@
 <link rel="stylesheet" href="/tour/vendor/psv-gallery.css">
 <style>
   :root {
-    --canvas: #0B0B0E;
-    --surface: #1C1C22;
-    --hairline: rgba(255, 255, 255, 0.12);
-    --hairline-strong: rgba(255, 255, 255, 0.20);
-    --text: #F2F2F7;
-    --text-2: rgba(255, 255, 255, 0.60);
-    --text-3: rgba(255, 255, 255, 0.38);
-    --accent: #0A84FF;
-    --danger: #FF453A;
-    --success: #30D158;
-    --r-sm: 12px;
-    --r-md: 16px;
-    --r-lg: 24px;
+    color-scheme: light dark;
+
+    /* ---- primitives. Lifted from the sibling inspection tool,
+       android/app/src/main/assets/bridge-sketch.html:147-171, so the two
+       tools read as one toolkit. Never referenced outside this block. ---- */
+    --p-bg-l:#E7EAEF;   --p-panel-l:#FFFFFF; --p-panel2-l:#F5F7FA;
+    --p-ink-l:#13181F;  --p-muted-l:#606A76; --p-line-l:#DCE1E8;
+    --p-bg-d:#0A0F1A;   --p-panel-d:#131826; --p-panel2-d:#1A2138;
+    --p-ink-d:#E8ECF4;  --p-muted-d:#94A3B8; --p-line-d:#2A3450;
+    --p-blue:#1763C2;   --p-blue-2:#2A7EE0;  --p-blue-tint:#EAF2FC; --p-blue-deep:#114E9C;
+    --p-blue-d:#2F80E8; --p-blue-2d:#4F9BEC; --p-blue-tint-d:#16243D;
+    --p-red:#C62828;    --p-red-d:#FF5A52;
+    --p-green:#2E7D32;  --p-green-d:#4CAF50;
+    --p-defect:#C0392B; --p-defect-d:#FF6B5E;
+    --p-amber:#B26A00;  --p-amber-d:#E0A02E;  /* derived: the sketch tool has no warning role */
+
+    /* ---- semantic roles: the only names the rest of the sheet may use.
+       Declared ONCE. The tempting `--x:#hex; --x:light-dark(...)` pair is not a
+       fallback: a custom property accepts any token stream at parse time, so an
+       engine without light-dark() keeps the SECOND declaration and every var()
+       consumer then dies invalid-at-computed-value-time. The real fallback is
+       the @supports block below. ---- */
+    --bg:light-dark(var(--p-bg-l),var(--p-bg-d));
+    --surface:light-dark(var(--p-panel-l),var(--p-panel-d));
+    --surface-raised:light-dark(var(--p-panel2-l),var(--p-panel2-d));
+    --ink:light-dark(var(--p-ink-l),var(--p-ink-d));
+    --ink-2:light-dark(var(--p-muted-l),var(--p-muted-d));
+    /* --ink-3 is the quietest tier that is still BODY text, so it is pinned at
+       4.62:1 on white rather than the 3.0:1 a muted grey wants to be. Every
+       12px label in the sidebar rides on it. */
+    --ink-3:light-dark(#6B7684,#8B98AD);
+    --line:light-dark(var(--p-line-l),var(--p-line-d));
+    --line-strong:light-dark(#C3CBD6,#586A90);
+    --accent:light-dark(var(--p-blue),var(--p-blue-d));
+    /* Light hover DARKENS, dark hover brightens. Reusing the sketch tool's
+       lighter --accent-2 here put white on #2A7EE0 at 4.07:1 — under the floor
+       on the hover state of the app's primary action. --accent-deep is 8.09:1. */
+    --accent-hover:light-dark(var(--p-blue-deep),var(--p-blue-2d));
+    /* Flips with the theme. White on the light accent #1763C2 is 5.83:1, but
+       white on the brighter dark-mode accent #2F80E8 is only 3.91:1 — under the
+       4.5:1 floor for a 15px button label. Dark ink on that same blue is 4.78:1.
+       (The pre-token app shipped 3.65:1 here, so this fixes an old defect
+       rather than introducing one.) */
+    --accent-ink:light-dark(#FFFFFF,#08121F);
+    --accent-tint:light-dark(var(--p-blue-tint),var(--p-blue-tint-d));
+    --accent-tint-strong:light-dark(#D6E6FA,#1E3357);
+    --danger:light-dark(var(--p-red),var(--p-red-d));
+    --warning:light-dark(var(--p-amber),var(--p-amber-d));
+    --success:light-dark(var(--p-green),var(--p-green-d));
+    --defect:light-dark(var(--p-defect),var(--p-defect-d));
+    /* Fixed by intent: a scrim sits on a photograph, and a photograph looks the
+       same in both themes. Never wrap these in light-dark(). */
+    --scrim:rgba(11,11,14,.72);
+    --scrim-strong:rgba(11,11,14,.86);
+
+    /* ---- spacing, 4px grid ---- */
+    --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:20px;
+    --s6:24px; --s7:32px; --s8:40px; --s9:56px; --s10:80px;
+
+    /* ---- type: fixed, not fluid. Product UI is read at a consistent DPI and a
+       heading that shrinks inside a 320px rail looks worse, not better. ---- */
+    --t-xs:10px; --t-sm:12px; --t-md:15px; --t-lg:18px; --t-xl:22px; --t-2xl:26px;
+    --f-ui:-apple-system,"Segoe UI",Roboto,system-ui,sans-serif;
+    /* Plex Mono is named first so it is used on machines that already have it
+       (the Android capture app bundles it) and costs nothing on machines that
+       do not. Shipping the woff2 would mean two binaries, a server MIME token,
+       an export-filter token and a smoke-test assertion to make numerals match
+       a sibling tool — ui-monospace already renders a mono. */
+    --f-mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+
+    /* ---- radius ---- */
+    --r-xs:6px; --r-sm:8px; --r-md:12px; --r-lg:16px; --r-pill:999px;
+
+    /* ---- elevation. Themed through the colour components rather than a
+       media query, so the data-theme hook below flips shadows and colours
+       together instead of leaving one behind. ---- */
+    --sh-1:0 1px 2px light-dark(rgba(17,28,44,.08),rgba(0,0,0,.45)),0 1px 1px light-dark(rgba(17,28,44,.04),rgba(0,0,0,.30));
+    --sh-2:0 4px 14px light-dark(rgba(17,28,44,.10),rgba(0,0,0,.55)),0 1px 3px light-dark(rgba(17,28,44,.06),rgba(0,0,0,.35));
+    --sh-3:0 14px 34px light-dark(rgba(17,28,44,.18),rgba(0,0,0,.60)),0 4px 12px light-dark(rgba(17,28,44,.08),rgba(0,0,0,.40));
+
+    /* ---- motion. One place to tune, one branch to disable. ---- */
+    --dur-fast:120ms; --dur-base:180ms; --dur-slow:620ms;
+    --ease-out:cubic-bezier(0.22,1,0.36,1);   /* ease-out-quart */
+    --ease-step:cubic-bezier(0.32,0,0.24,1);  /* the forward push into a scene */
+
+    /* ---- stacking. Photo Sphere Viewer's own 50/80/90/100/110 are sealed
+       inside .psv-container by its container-type:size, which establishes a
+       stacking context, so nothing here has to clear them. ---- */
+    --z-chrome:10;   /* .tour-title, .tour-logo */
+    --z-overlay:20;  /* .load-error */
+    --z-panel:30;    /* .hs-panel */
+    --z-tryout:40;   /* .tryout — its close button is a later sibling, so no z-index */
+    --z-toast:50;
+    /* ponytail: below .psv-fullscreen-emulation (9999), which only exists in a
+       browser with no Fullscreen API. The placing ghost would sit under an
+       emulated fullscreen viewer there. Raise it if that browser ever matters. */
+    --z-ghost:60;
   }
+  /* An engine without light-dark() stores the function in the custom property
+     anyway — custom properties accept any token stream at parse time — so every
+     var() consumer would become invalid at computed-value time and the app would
+     render unstyled, not dark. A declaration-level fallback cannot fix that; only
+     re-declaring the roles can. Light is the fallback because this app is used
+     outdoors. */
+  @supports not (color: light-dark(#000, #fff)) {
+    :root {
+      --bg:#E7EAEF; --surface:#FFFFFF; --surface-raised:#F5F7FA;
+      --ink:#13181F; --ink-2:#606A76; --ink-3:#6B7684;
+      --line:#DCE1E8; --line-strong:#C3CBD6;
+      --accent:#1763C2; --accent-hover:#2A7EE0; --accent-ink:#FFFFFF;
+      --accent-tint:#EAF2FC; --accent-tint-strong:#D6E6FA;
+      --danger:#C62828; --warning:#B26A00; --success:#2E7D32; --defect:#C0392B;
+      --sh-1:0 1px 2px rgba(17,28,44,.08),0 1px 1px rgba(17,28,44,.04);
+      --sh-2:0 4px 14px rgba(17,28,44,.10),0 1px 3px rgba(17,28,44,.06);
+      --sh-3:0 14px 34px rgba(17,28,44,.18),0 4px 12px rgba(17,28,44,.08);
+    }
+    /* the photo chrome cannot ride color-scheme here, so pin it by hand */
+    .stage, #edit-psv { --surface:#131826; --surface-raised:#1A2138; --ink:#E8ECF4;
+      --ink-2:#94A3B8; --ink-3:#8B98AD; --line:rgba(255,255,255,.12); --line-strong:rgba(255,255,255,.20); }
+  }
+  :root[data-theme="light"] { color-scheme: light; }
+  :root[data-theme="dark"]  { color-scheme: dark; }
+
+  /* The panorama is a PHOTOGRAPH, and dark chrome around a photograph is not a
+     preference — it is how photographs are shown. color-scheme inherits, so
+     one declaration resolves every light-dark() inside the stage and the
+     editor's viewer to its dark value: the title plate, the load error, the
+     navbar, the loader, PSV's own panels. */
+  .stage, #edit-psv { color-scheme: dark; }
+
   * { box-sizing: border-box; }
   html, body { height: 100%; }
   body {
     margin: 0;
-    background: var(--canvas);
-    color: var(--text);
-    font: 15px/1.5 -apple-system, "Segoe UI", Roboto, system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    font: var(--t-md)/1.5 var(--f-ui);
   }
   button { font: inherit; cursor: pointer; }
-  .num { font-variant-numeric: tabular-nums; font-family: ui-monospace, Consolas, monospace; }
+  .num { font-variant-numeric: tabular-nums; font-family: var(--f-mono); }
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0;
+  }
 
   /* ---------- home ---------- */
   .home { max-width: 960px; margin: 0 auto; padding: 40px 24px 80px; }
   .home-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 8px; }
-  .home-head h1 { font-size: 28px; font-weight: 700; margin: 0; }
-  .home-sub { color: var(--text-2); margin: 0 0 28px; }
+  .home-head h1 { font-size: var(--t-2xl); font-weight: 700; margin: 0; }
+  .home-sub { color: var(--ink-2); margin: 0 0 28px; }
   .btn {
-    background: var(--surface); color: var(--text);
-    border: 1px solid var(--hairline); border-radius: var(--r-sm);
-    padding: 8px 16px; transition: transform 150ms ease-out, background 150ms ease-out;
+    background: var(--surface); color: var(--ink);
+    border: 1px solid var(--line); border-radius: var(--r-md);
+    padding: 8px 16px; transition: transform var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
   }
-  .btn:hover { background: #26262e; }
+  .btn:hover { background: var(--surface-raised); }
   .btn:active { transform: scale(0.98); }
   .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .btn:disabled { opacity: 0.4; cursor: default; }
-  .btn.primary { background: var(--accent); border-color: transparent; color: #fff; }
-  .btn.primary:hover { background: #2a94ff; }
+  .btn.primary { background: var(--accent); border-color: transparent; color: var(--accent-ink); }
+  .btn.primary:hover { background: var(--accent-hover); }
   .btn.danger-text { color: var(--danger); }
-  .btn.danger-solid { background: var(--danger); border-color: transparent; color: #fff; }
+  .btn.danger-solid { background: var(--danger); border-color: transparent; color: var(--accent-ink); }
   .create-row { display: none; gap: 8px; margin-bottom: 20px; }
   .create-row.open { display: flex; }
   .text-input {
-    flex: 1; max-width: 360px; background: var(--surface); color: var(--text);
-    border: 1px solid var(--hairline-strong); border-radius: var(--r-sm);
+    flex: 1; max-width: 360px; background: var(--surface); color: var(--ink);
+    border: 1px solid var(--line-strong); border-radius: var(--r-md);
     padding: 8px 14px; font: inherit;
   }
   .text-input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
   .toast {
     position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%);
-    background: var(--surface); border: 1px solid var(--hairline-strong);
-    border-radius: 999px; padding: 10px 20px; z-index: 100; font-size: 14px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    background: var(--surface); border: 1px solid var(--line-strong);
+    border-radius: var(--r-pill); padding: 10px 20px; z-index: var(--z-toast); font-size: var(--t-md);
+    box-shadow: var(--sh-2);
   }
   .toast.error { border-color: var(--danger); color: var(--danger); }
   .tour-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
   .tour-card {
-    background: var(--surface); border: 1px solid var(--hairline);
-    border-radius: var(--r-md); padding: 20px; display: flex; flex-direction: column; gap: 6px;
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: var(--r-lg); padding: 20px; display: flex; flex-direction: column; gap: 6px;
   }
-  .tour-card h2 { margin: 0; font-size: 17px; font-weight: 600; overflow-wrap: anywhere; }
+  .tour-card h2 { margin: 0; font-size: var(--t-lg); font-weight: 600; overflow-wrap: anywhere; }
   .tour-card .cover {
     width: calc(100% + 40px); margin: -20px -20px 8px; height: 120px;
-    object-fit: cover; border-radius: var(--r-md) var(--r-md) 0 0; display: block;
-    background: var(--canvas);
+    object-fit: cover; border-radius: var(--r-lg) var(--r-lg) 0 0; display: block;
+    background: var(--bg);
   }
-  .tour-card .meta { color: var(--text-2); font-size: 13px; }
+  .tour-card .meta { color: var(--ink-2); font-size: var(--t-sm); }
   .tour-card .row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
   .empty-card {
     grid-column: 1 / -1; text-align: center; padding: 56px 24px;
-    border: 1px dashed var(--hairline-strong); border-radius: var(--r-md); color: var(--text-2);
+    border: 1px dashed var(--line-strong); border-radius: var(--r-lg); color: var(--ink-2);
   }
-  .state-note { color: var(--text-2); padding: 24px 0; }
+  .state-note { color: var(--ink-2); padding: 24px 0; }
   .state-note.error { color: var(--danger); }
 
   /* ---------- viewer ---------- */
   .stage { position: fixed; inset: 0; }
   #psv { width: 100%; height: 100%; }
   .tour-title {
-    position: absolute; top: 16px; left: 16px; z-index: 20;
-    background: rgba(11, 11, 14, 0.72); backdrop-filter: blur(8px);
-    border: 1px solid var(--hairline); border-radius: var(--r-sm);
-    padding: 8px 14px; font-size: 14px; font-weight: 600; max-width: min(60vw, 480px);
+    position: absolute; top: 16px; left: 16px; z-index: var(--z-chrome);
+    background: var(--scrim); backdrop-filter: blur(8px);
+    border: 1px solid var(--line); border-radius: var(--r-md);
+    padding: 8px 14px; font-size: var(--t-md); font-weight: 600; max-width: min(60vw, 480px);
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
   .tour-logo {
-    position: absolute; left: 16px; bottom: 56px; z-index: 20; display: block;
+    position: absolute; left: 16px; bottom: 56px; z-index: var(--z-chrome); display: block;
   }
   .tour-logo img { max-height: 56px; max-width: 160px; display: block; }
   /* stepping to the next scene: lean forward, then settle */
-  .stage .psv-canvas-container { transition: transform 620ms cubic-bezier(0.32, 0, 0.24, 1); }
+  .stage .psv-canvas-container { transition: transform var(--dur-slow) var(--ease-step); }
   .stage.stepping .psv-canvas-container { transform: scale(1.14); }
   @media (prefers-reduced-motion: reduce) {
     .stage .psv-canvas-container { transition: none; }
     .stage.stepping .psv-canvas-container { transform: none; }
   }
+  /* top-right: the toolbar owns the top-left, the navbar owns the bottom */
+  .compass {
+    position: absolute; top: 16px; right: 16px; z-index: var(--z-chrome);
+    display: flex; align-items: center; gap: var(--s2);
+    background: var(--scrim); backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.12); border-radius: var(--r-md);
+    padding: 6px 12px 6px 8px; color: #F2F2F7;
+  }
+  .compass[hidden] { display: none; }
+  .cmp-read { font-size: var(--t-sm); letter-spacing: 0.02em; }
   .load-error {
-    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 30;
-    background: var(--surface); border: 1px solid var(--danger); color: var(--text);
-    border-radius: var(--r-sm); padding: 14px 20px; max-width: 80%; text-align: center;
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: var(--z-overlay);
+    background: var(--surface); border: 1px solid var(--danger); color: var(--ink);
+    border-radius: var(--r-md); padding: 14px 20px; max-width: 80%; text-align: center;
   }
   .center-note {
     position: fixed; inset: 0; display: flex; flex-direction: column; gap: 12px;
     align-items: center; justify-content: center; text-align: center; padding: 24px;
   }
-  .center-note .big { font-size: 20px; font-weight: 600; }
-  .center-note .sub { color: var(--text-2); }
+  .center-note .big { font-size: var(--t-lg); font-weight: 600; }
+  .center-note .sub { color: var(--ink-2); }
   .center-note a { color: var(--accent); }
   .spin {
     width: 28px; height: 28px; border-radius: 50%;
-    border: 3px solid var(--hairline-strong); border-top-color: var(--accent);
+    border: 3px solid var(--line-strong); border-top-color: var(--accent);
     animation: spin 800ms linear infinite;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
@@ -133,186 +263,553 @@
   }
 
   /* ---------- editor ---------- */
-  .editor { display: flex; height: 100vh; }
+  /* dvh, not vh: on a mobile browser 100vh is the viewport with the URL bar
+     retracted, so a vh-tall editor is taller than the screen and the toolbar
+     sits under the chrome. vh first for engines that lack dvh. */
+  .editor { display: flex; height: 100vh; height: 100dvh; position: relative; }
   .side {
     width: 320px; flex: none; background: var(--surface);
-    border-right: 1px solid var(--hairline); display: flex; flex-direction: column;
+    border-right: 1px solid var(--line); display: flex; flex-direction: column;
     overflow-y: auto;
   }
-  .side-head { padding: 16px; border-bottom: 1px solid var(--hairline); }
-  .side-head .back { color: var(--text-2); text-decoration: none; font-size: 13px; }
-  .side-head .back:hover { color: var(--text); }
+  .side-head { padding: 16px; border-bottom: 1px solid var(--line); }
+  .side-head .back { color: var(--ink-2); text-decoration: none; font-size: var(--t-sm); }
+  .side-head .back:hover { color: var(--ink); }
   .name-input {
-    width: 100%; margin-top: 8px; background: transparent; color: var(--text);
+    width: 100%; margin-top: 8px; background: transparent; color: var(--ink);
     border: 1px solid transparent; border-radius: 8px; padding: 6px 8px;
-    font-size: 17px; font-weight: 600;
+    font-size: var(--t-lg); font-weight: 600;
   }
-  .name-input:hover { border-color: var(--hairline); }
-  .name-input:focus-visible { outline: none; border-color: var(--accent); background: var(--canvas); }
-  .save-status { font-size: 12px; color: var(--text-3); margin-top: 4px; min-height: 16px; }
-  .save-status.saving { color: var(--text-2); }
+  .name-input:hover { border-color: var(--line); }
+  .name-input:focus-visible { outline: none; border-color: var(--accent); background: var(--bg); }
+  .save-status { font-size: var(--t-sm); color: var(--ink-3); margin-top: 4px; min-height: 16px; }
+  .save-status.saving { color: var(--ink-2); }
   .save-status.error { color: var(--danger); }
-  .side-section { padding: 14px 16px; border-bottom: 1px solid var(--hairline); }
+  .side-section { padding: 14px 16px; border-bottom: 1px solid var(--line); }
+  /* Sentence case, not a tracked uppercase eyebrow. Four of these stack down
+     one rail; as capitals they read as decoration repeating, and 12px tracked
+     capitals are harder to scan than 12px sentence case at the same size. */
   .side-section h3 {
-    margin: 0 0 10px; font-size: 11px; font-weight: 600; letter-spacing: 0.08em;
-    text-transform: uppercase; color: var(--text-3);
+    margin: 0 0 10px; font-size: var(--t-sm); font-weight: 600; color: var(--ink-2);
   }
   .scene-row {
     display: flex; align-items: center; gap: 4px; padding: 6px; border-radius: 8px;
     border: 1px solid transparent;
   }
-  .scene-row:hover { background: rgba(255, 255, 255, 0.04); }
-  .scene-row.active { border-color: var(--accent); background: rgba(10, 132, 255, 0.10); }
+  .scene-row:hover { background: var(--surface-raised); }
+  .scene-row.active { border-color: var(--accent); background: var(--accent-tint); }
   .scene-pick {
     flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px;
     background: none; border: none; color: inherit; padding: 0 6px 0 0; cursor: pointer; text-align: left;
   }
   .scene-pick:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
   .scene-row img { width: 56px; height: 28px; object-fit: cover; border-radius: 4px; flex: none; }
-  .scene-row .sn { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
+  .scene-row .sn { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--t-md); }
   .start-btn {
-    font-size: 10px; letter-spacing: 0.04em; border-radius: 4px; padding: 1px 5px; flex: none;
-    background: none; border: 1px solid var(--hairline-strong); color: var(--text-3); cursor: pointer;
+    font-size: var(--t-xs); letter-spacing: 0.04em; border-radius: 4px; padding: 1px 5px; flex: none;
+    background: none; border: 1px solid var(--line-strong); color: var(--ink-3); cursor: pointer;
   }
   .start-btn:hover { color: var(--accent); border-color: var(--accent); }
   .start-btn.on { color: var(--accent); border-color: var(--accent); cursor: default; }
   .start-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-  .icon-btn.armed { color: #fff; background: var(--danger); }
+  .icon-btn.armed { color: var(--accent-ink); background: var(--danger); }
   .sn-input {
-    flex: 1; min-width: 0; background: var(--canvas); color: var(--text);
-    border: 1px solid var(--accent); border-radius: 6px; padding: 2px 6px; font: inherit; font-size: 14px;
+    flex: 1; min-width: 0; background: var(--bg); color: var(--ink);
+    border: 1px solid var(--accent); border-radius: 6px; padding: 2px 6px; font: inherit; font-size: var(--t-md);
   }
   .icon-btn {
-    background: none; border: none; color: var(--text-3); padding: 2px 4px;
-    border-radius: 6px; font-size: 14px; line-height: 1; flex: none;
+    background: none; border: none; color: var(--ink-3); padding: 2px 4px;
+    border-radius: 6px; font-size: var(--t-md); line-height: 1; flex: none;
   }
-  .icon-btn:hover { color: var(--text); background: rgba(255, 255, 255, 0.08); }
+  .icon-btn:hover { color: var(--ink); background: rgba(255, 255, 255, 0.08); }
   .icon-btn:focus-visible { outline: 2px solid var(--accent); }
   .drop-zone {
-    margin-top: 10px; border: 1px dashed var(--hairline-strong); border-radius: var(--r-sm);
-    padding: 18px 12px; text-align: center; color: var(--text-2); font-size: 13px; cursor: pointer;
+    margin-top: 10px; border: 1px dashed var(--line-strong); border-radius: var(--r-md);
+    padding: 18px 12px; text-align: center; color: var(--ink-2); font-size: var(--t-sm); cursor: pointer;
   }
-  .drop-zone.drag { border-color: var(--accent); color: var(--accent); background: rgba(10, 132, 255, 0.08); }
-  .field { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 10px 0; font-size: 14px; }
-  .field label { color: var(--text-2); }
+  .drop-zone.drag { border-color: var(--accent); color: var(--accent); background: var(--accent-tint); }
+  .field { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 10px 0; font-size: var(--t-md); }
+  .field label { color: var(--ink-2); }
   .field input[type="checkbox"] { accent-color: var(--accent); width: 16px; height: 16px; }
   .field input[type="number"], .field input[type="url"], .field select {
-    background: var(--canvas); color: var(--text); border: 1px solid var(--hairline);
-    border-radius: 8px; padding: 5px 8px; font: inherit; font-size: 13px; max-width: 150px;
+    background: var(--bg); color: var(--ink); border: 1px solid var(--line);
+    border-radius: 8px; padding: 5px 8px; font: inherit; font-size: var(--t-sm); max-width: 150px;
   }
   .field .file-line { display: flex; align-items: center; gap: 6px; }
   .share-row { margin: 12px 0 0; }
-  .share-row label { display: block; font-size: 12px; color: var(--text-2); margin-bottom: 4px; }
+  .share-row label { display: block; font-size: var(--t-sm); color: var(--ink-2); margin-bottom: 4px; }
   .share-row .copy { display: flex; gap: 6px; align-items: flex-start; }
   .share-row input, .share-row textarea {
-    flex: 1; min-width: 0; background: var(--canvas); color: var(--text-2);
-    border: 1px solid var(--hairline); border-radius: 8px; padding: 6px 8px;
-    font-family: ui-monospace, Consolas, monospace; font-size: 11px; resize: vertical;
+    flex: 1; min-width: 0; background: var(--bg); color: var(--ink-2);
+    border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px;
+    font-family: ui-monospace, Consolas, monospace; font-size: var(--t-sm); resize: vertical;
   }
   .share-row input:focus-visible, .share-row textarea:focus-visible { outline: 2px solid var(--accent); }
-  .share-row .btn { padding: 5px 10px; font-size: 12px; flex: none; }
+  .share-row .btn { padding: 5px 10px; font-size: var(--t-sm); flex: none; }
   a.btn { text-decoration: none; display: inline-block; }
   .main-pane { flex: 1; position: relative; display: flex; flex-direction: column; min-width: 0; }
   .toolbar {
     display: flex; gap: 8px; align-items: center; padding: 10px 14px;
-    background: var(--surface); border-bottom: 1px solid var(--hairline); flex-wrap: wrap;
+    background: var(--surface); border-bottom: 1px solid var(--line); flex-wrap: wrap;
   }
-  .toolbar .hint { color: var(--text-2); font-size: 13px; margin-left: auto; }
+  .toolbar .hint { color: var(--ink-2); font-size: var(--t-sm); margin-left: auto; }
   .toolbar .hint.placing { color: var(--accent); }
   #edit-psv { flex: 1; min-height: 0; }
+  /* Teaches the walk rather than announcing that nothing is here. Left-aligned
+     and capped at a readable measure: this is the one screen in the app whose
+     prose is long enough for line length to matter. */
   .editor-empty {
-    flex: 1; display: flex; flex-direction: column; gap: 10px;
-    align-items: center; justify-content: center; color: var(--text-2); text-align: center; padding: 24px;
+    flex: 1; display: flex; flex-direction: column; gap: var(--s3);
+    align-items: flex-start; justify-content: center;
+    color: var(--ink-2); padding: var(--s6);
+    max-width: 62ch; margin: 0 auto; overflow-y: auto;
+  }
+  .editor-empty h2 { margin: 0; font-size: var(--t-xl); color: var(--ink); text-wrap: balance; }
+  .editor-empty p { margin: 0; }
+  .ee-lead { color: var(--ink); font-weight: 600; margin-top: var(--s3); }
+  /* max-content, not a fixed ch width: "Loop closure" and "Underside lattice"
+     differ by five characters, and a fixed column wraps the longer one */
+  .ee-phases {
+    list-style: none; counter-reset: phase; margin: 0; padding: 0;
+    display: grid; grid-template-columns: max-content 1fr; gap: var(--s2) var(--s4);
+    align-items: baseline; width: 100%;
+  }
+  .ee-phases li { display: contents; counter-increment: phase; }
+  .ee-name { color: var(--ink); font-weight: 600; font-size: var(--t-sm); white-space: nowrap; }
+  .ee-name::before { content: counter(phase) ". "; color: var(--ink-3); font-weight: 400; }
+  .ee-what { font-size: var(--t-sm); }
+  .ee-actions { display: flex; gap: var(--s2); margin-top: var(--s3); flex-wrap: wrap; }
+
+  .empty-card h2 { margin: 0 0 var(--s2); font-size: var(--t-lg); color: var(--ink); }
+  .empty-card p { margin: 0 auto var(--s2); max-width: 52ch; }
+  .empty-card .ec-next { margin-bottom: 0; }
+
+  /* per-file progress through a folder of forty panoramas */
+  .drop-zone progress { width: 100%; height: 4px; margin-top: var(--s2); display: block; }
+  .up-name {
+    display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    color: var(--ink-3); font-size: var(--t-sm);
   }
   .hs-panel {
-    position: absolute; top: 60px; right: 14px; z-index: 30; width: 300px;
-    background: var(--surface); border: 1px solid var(--hairline-strong);
-    border-radius: var(--r-md); padding: 16px; box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+    position: absolute; top: 60px; right: 14px; z-index: var(--z-panel); width: 300px;
+    background: var(--surface); border: 1px solid var(--line-strong);
+    border-radius: var(--r-lg); padding: 16px; box-shadow: var(--sh-3);
   }
-  .hs-panel h4 { margin: 0 0 10px; font-size: 14px; }
+  .hs-panel h4 { margin: 0 0 10px; font-size: var(--t-md); }
   .hs-panel .frow { margin: 8px 0; display: flex; flex-direction: column; gap: 4px; }
-  .hs-panel .frow label { font-size: 12px; color: var(--text-2); }
+  .hs-panel .frow label { font-size: var(--t-sm); color: var(--ink-2); }
   .hs-panel input[type="text"], .hs-panel textarea, .hs-panel select {
-    background: var(--canvas); color: var(--text); border: 1px solid var(--hairline);
-    border-radius: 8px; padding: 6px 8px; font: inherit; font-size: 13px; width: 100%;
+    background: var(--bg); color: var(--ink); border: 1px solid var(--line);
+    border-radius: 8px; padding: 6px 8px; font: inherit; font-size: var(--t-sm); width: 100%;
   }
   .hs-panel textarea { min-height: 64px; resize: vertical; }
   .hs-panel .row { display: flex; gap: 8px; margin-top: 12px; }
   .hs-panel input.invalid { border-color: var(--danger); }
-  .field-note { font-size: 11px; color: var(--danger); min-height: 13px; }
-  .icon-btn:disabled { opacity: 0.28; cursor: default; background: none; color: var(--text-3); }
+  .field-note { font-size: var(--t-sm); color: var(--danger); min-height: 13px; }
+  .icon-btn:disabled { opacity: 0.28; cursor: default; background: none; color: var(--ink-3); }
 
   /* ---------- build mode: the link-laying bar ---------- */
-  .btn.on { background: var(--accent); border-color: transparent; color: #fff; }
-  .btn.on:hover { background: #2a94ff; }
+  .btn.on { background: var(--accent); border-color: transparent; color: var(--accent-ink); }
+  .btn.on:hover { background: var(--accent-hover); }
   .build-bar {
     display: none; gap: 12px; align-items: center; flex-wrap: wrap;
-    padding: 8px 14px; background: rgba(10, 132, 255, 0.10);
-    border-bottom: 1px solid var(--hairline);
+    padding: 8px 14px; background: var(--accent-tint);
+    border-bottom: 1px solid var(--line);
   }
   .build-bar.open { display: flex; }
+  /* --ink-2, not --ink-3: this label sits on --accent-tint, where the quiet
+     tier lands at 3.9:1 instead of the 4.62:1 it clears on a plain surface. */
   .bb-label {
-    font-size: 11px; font-weight: 600; letter-spacing: 0.08em;
-    text-transform: uppercase; color: var(--text-3); flex: none;
+    font-size: var(--t-sm); font-weight: 600; color: var(--ink-2); flex: none;
   }
   .bb-chips { display: flex; gap: 6px; flex-wrap: wrap; flex: 1; min-width: 120px; }
   .bb-chip {
     display: flex; align-items: center; gap: 7px; max-width: 210px;
-    padding: 3px 11px 3px 3px; font-size: 13px; color: var(--text);
-    background: var(--surface); border: 1px solid var(--hairline-strong); border-radius: 999px;
+    padding: 3px 11px 3px 3px; font-size: var(--t-sm); color: var(--ink);
+    background: var(--surface); border: 1px solid var(--line-strong); border-radius: 999px;
   }
   .bb-chip img { width: 30px; height: 18px; object-fit: cover; border-radius: 999px; flex: none; }
   .bb-chip .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .bb-chip .tick { color: var(--success); flex: none; font-size: 12px; }
-  .bb-chip.on { border-color: var(--accent); background: rgba(10, 132, 255, 0.24); }
+  .bb-chip .tick { color: var(--success); flex: none; font-size: var(--t-sm); }
+  .bb-chip.on { border-color: var(--accent); background: var(--accent-tint-strong); }
   .bb-chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-  .bb-return { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-2); flex: none; }
+  .bb-return { display: flex; align-items: center; gap: 6px; font-size: var(--t-sm); color: var(--ink-2); flex: none; }
   .bb-return input { accent-color: var(--accent); width: 16px; height: 16px; }
 
   /* ---------- scene coverage sliders ---------- */
   .range-row { display: flex; align-items: center; gap: 8px; margin: 9px 0; }
-  .range-row > label { font-size: 12px; color: var(--text-2); width: 58px; flex: none; }
+  .range-row > label { font-size: var(--t-sm); color: var(--ink-2); width: 58px; flex: none; }
   .range-row input[type="range"] { flex: 1; min-width: 0; accent-color: var(--accent); }
-  .range-row .val { font-size: 12px; color: var(--text-2); width: 46px; text-align: right; flex: none; }
-  .scene-note { font-size: 12px; color: var(--text-3); margin: 4px 0 0; }
+  .range-row .val { font-size: var(--t-sm); color: var(--ink-2); width: 46px; text-align: right; flex: none; }
+  .scene-note { font-size: var(--t-sm); color: var(--ink-3); margin: 4px 0 0; }
 
   /* the hotspot you are about to drop, riding the cursor until you place it */
   .place-ghost {
-    position: fixed; z-index: 200; pointer-events: none;
+    position: fixed; z-index: var(--z-ghost); pointer-events: none;
     transform: translate(-50%, -50%); opacity: 0.9;
-    filter: drop-shadow(0 0 8px rgba(10, 132, 255, 0.95));
+    filter: drop-shadow(0 0 8px var(--accent));
   }
 
   /* walking the tour without leaving the editor */
-  .tryout { position: absolute; inset: 0; z-index: 60; background: var(--canvas); }
+  .tryout { position: absolute; inset: 0; z-index: var(--z-tryout); background: var(--bg); }
   .tryout iframe { display: block; width: 100%; height: 100%; border: 0; }
   .tryout-close {
-    position: absolute; top: 14px; right: 14px; z-index: 61;
-    background: rgba(11, 11, 14, 0.82); backdrop-filter: blur(8px);
+    position: absolute; top: 14px; right: 14px;
+    background: var(--scrim-strong); backdrop-filter: blur(8px);
   }
 
   /* hotspots are draggable in the editor only — in the viewer they are buttons */
   #edit-psv .psv-marker { cursor: grab; }
   /* nothing else says "you can pick this up", so hover has to */
-  #edit-psv .psv-marker:hover { filter: drop-shadow(0 0 7px rgba(10, 132, 255, 0.95)); }
+  #edit-psv .psv-marker:hover { filter: drop-shadow(0 0 7px var(--accent)); }
   #edit-psv.dragging-hotspot, #edit-psv.dragging-hotspot .psv-marker { cursor: grabbing; }
-  #edit-psv.dragging-hotspot .psv-marker { filter: drop-shadow(0 0 9px rgba(10, 132, 255, 1)); }
+  #edit-psv.dragging-hotspot .psv-marker { filter: drop-shadow(0 0 9px var(--accent)); }
+
+  /* ---------- the inspection title block ----------
+     <details> because the header is written once and read rarely, and it must
+     not push the scene list — the thing actually being worked on — down the
+     rail. Native disclosure, no JS, keyboard and screen reader included. */
+  .insp > summary {
+    display: flex; align-items: center; gap: var(--s2);
+    font-size: var(--t-sm); font-weight: 600; color: var(--ink-2);
+    cursor: pointer; list-style-position: inside;
+  }
+  .insp > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--r-xs); }
+  .insp[open] > summary { margin-bottom: var(--s3); }
+  .insp-tally {
+    margin-left: auto; font-size: var(--t-sm); color: var(--ink-2);
+    background: var(--surface-raised); border: 1px solid var(--line);
+    border-radius: var(--r-pill); padding: 1px 8px;
+  }
+  .insp-tally.done { color: var(--success); border-color: var(--success); }
+  .insp .frow { display: flex; flex-direction: column; gap: var(--s1); margin: var(--s3) 0; }
+  .insp .frow label { font-size: var(--t-sm); color: var(--ink-2); }
+  .insp input {
+    background: var(--bg); color: var(--ink); border: 1px solid var(--line);
+    border-radius: var(--r-sm); padding: 6px 8px; font: inherit; font-size: var(--t-sm); width: 100%;
+  }
+  .insp input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .cov-head { margin: var(--s5) 0 var(--s2); font-size: var(--t-sm); font-weight: 600; color: var(--ink-2); }
+  .cov { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+  .cov li {
+    display: flex; align-items: center; gap: var(--s2);
+    font-size: var(--t-sm); color: var(--ink-3); padding: 3px 0;
+  }
+  .cov li.on { color: var(--ink); }
+  .cov-mark {
+    width: 16px; height: 16px; flex: none; display: grid; place-items: center;
+    border: 1px solid var(--line-strong); border-radius: var(--r-xs);
+    font-size: var(--t-xs); line-height: 1;
+  }
+  .cov li.on .cov-mark { background: var(--success); border-color: transparent; color: var(--accent-ink); }
+  .cov-name { flex: 1; min-width: 0; }
+  .cov-n { color: var(--ink-2); }
+
+  /* This scene: same field vocabulary as everything around it. Shipped bare
+     first time round, so a UA-chrome select sat beside styled siblings. */
+  #scene-meta .frow { display: flex; flex-direction: column; gap: var(--s1); margin: var(--s3) 0; }
+  #scene-meta .frow label { font-size: var(--t-sm); color: var(--ink-2); }
+  #scene-meta input, #scene-meta select {
+    background: var(--bg); color: var(--ink); border: 1px solid var(--line);
+    border-radius: var(--r-sm); padding: 6px 8px; font: inherit; font-size: var(--t-sm); width: 100%;
+  }
+  #scene-meta input:hover, #scene-meta select:hover { border-color: var(--line-strong); }
+  #scene-meta input:focus-visible, #scene-meta select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  @media (max-width: 960px), (pointer: coarse) {
+    #scene-meta input, #scene-meta select { min-height: 44px; }
+  }
+
+  /* ---------- plan view ----------
+     In the rail, not floating over the panorama: an overlay would land on the
+     viewer's own navbar, and a plan belongs beside the list it indexes. */
+  .plan { margin-top: var(--s3); }
+  .plan > summary {
+    display: flex; align-items: center; gap: var(--s2); cursor: pointer;
+    font-size: var(--t-sm); color: var(--ink-2); list-style-position: inside; padding: var(--s1) 0;
+  }
+  .plan > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--r-xs); }
+  .plan-span { margin-left: auto; font-size: var(--t-sm); color: var(--ink-3); }
+  .plan-box {
+    position: relative; aspect-ratio: 1; margin: var(--s2) 0;
+    background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-sm);
+    /* north is up, and a grid says "sketch" rather than "survey" */
+    background-image: linear-gradient(var(--line) 1px, transparent 1px),
+                      linear-gradient(90deg, var(--line) 1px, transparent 1px);
+    background-size: 25% 25%; background-position: -1px -1px;
+  }
+  .plan-box:empty { opacity: 0.5; }
+  .plan-dot {
+    position: absolute; width: 11px; height: 11px; padding: 0;
+    transform: translate(-50%, -50%); border-radius: 50%;
+    background: var(--surface); border: 2px solid var(--ink-3); cursor: pointer;
+    transition: transform var(--dur-fast) var(--ease-out);
+  }
+  button.plan-dot:hover { transform: translate(-50%, -50%) scale(1.35); border-color: var(--accent); }
+  button.plan-dot:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .plan-dot.on { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-tint); }
+  @media (prefers-reduced-motion: reduce) { .plan-dot { transition: none; } }
+
+  /* scene groups: a flat rail is right for six photos and a scroll for forty */
+  .sgroup { border-top: 1px solid var(--line); }
+  .sgroup:first-of-type { border-top: 0; }
+  .sgroup > summary {
+    display: flex; align-items: center; gap: var(--s2); cursor: pointer;
+    font-size: var(--t-sm); font-weight: 600; color: var(--ink-2);
+    padding: var(--s2) 0; list-style-position: inside;
+  }
+  .sgroup > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--r-xs); }
+  .sg-n {
+    margin-left: auto; font-size: var(--t-sm); color: var(--ink-3);
+    background: var(--surface-raised); border-radius: var(--r-pill); padding: 0 7px;
+  }
+  .sg-body { padding-bottom: var(--s2); }
+
+  /* ---------- pre-share check ----------
+     A <details>, not a modal. A modal would interrupt the one moment the user
+     is certain about what they want, and every finding here is advisory. */
+  .preflight > summary {
+    display: flex; align-items: center; gap: var(--s2); cursor: pointer;
+    font-size: var(--t-sm); color: var(--ink-2); list-style-position: inside;
+    padding: var(--s1) 0;
+  }
+  .preflight > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--r-xs); }
+  .pf-count {
+    margin-left: auto; font-size: var(--t-sm); padding: 1px 8px;
+    border: 1px solid var(--warning); color: var(--warning); border-radius: var(--r-pill);
+  }
+  .pf-count.clear { border-color: var(--success); color: var(--success); }
+  .pf-list {
+    list-style: none; margin: var(--s2) 0 0; padding: 0;
+    display: grid; gap: var(--s2); font-size: var(--t-sm); color: var(--ink-2);
+  }
+  .pf-list li { padding-left: var(--s4); text-indent: calc(var(--s4) * -1); }
+  .pf-list li::before { content: "•"; color: var(--warning); padding-right: var(--s2); }
+  .pf-list .pf-ok::before { content: "✓"; color: var(--success); }
+
+  /* ---------- the defect register ---------- */
+  /* The one place --defect earns a control of its own. It is a border and a
+     text colour, never a filled button: a solid red button in a toolbar reads
+     as "destructive", and this one creates a record. */
+  .btn.defect { color: var(--defect); border-color: color-mix(in srgb, var(--defect) 45%, var(--line)); }
+  .btn.defect:hover { background: color-mix(in srgb, var(--defect) 10%, transparent); }
+  @supports not (color: color-mix(in srgb, red 50%, blue)) {
+    .btn.defect { border-color: var(--defect); }
+  }
+  .code-chip {
+    font-size: var(--t-sm); font-weight: 600; color: var(--defect);
+    border: 1px solid var(--defect); border-radius: var(--r-xs);
+    padding: 1px 6px; margin-left: var(--s1); vertical-align: 1px;
+  }
+  /* Quantised measurements, the same increments the field sketch offers. A
+     segmented row rather than a dropdown because these are the five answers
+     you actually give, and one tap beats open-scroll-pick with a glove on. */
+  .seg { display: flex; flex-wrap: wrap; gap: var(--s1); }
+  .seg-btn {
+    flex: 1 0 auto; min-width: 62px; padding: 7px 8px; font-size: var(--t-sm);
+    background: var(--surface-raised); color: var(--ink-2);
+    border: 1px solid var(--line); border-radius: var(--r-sm);
+    transition: background var(--dur-fast) var(--ease-out);
+  }
+  .seg-btn:hover { background: var(--accent-tint); color: var(--ink); }
+  .seg-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .seg-btn.on { background: var(--accent); border-color: transparent; color: var(--accent-ink); }
+  .seg-btn:disabled { opacity: 0.4; cursor: default; }
+  @media (prefers-reduced-motion: reduce) { .seg-btn { transition: none; } }
+  @media (max-width: 960px), (pointer: coarse) { .seg-btn { min-height: 44px; } }
 
   /* shape picker */
   .shape-row { display: flex; gap: 6px; flex-wrap: wrap; }
   .shape-btn {
     width: 38px; height: 38px; padding: 4px; display: grid; place-items: center;
-    background: var(--canvas); border: 1px solid var(--hairline); border-radius: 9px;
+    background: var(--bg); border: 1px solid var(--line); border-radius: 9px;
   }
   .shape-btn img { width: 26px; height: 26px; display: block; }
-  .shape-btn.on { border-color: var(--accent); background: rgba(10, 132, 255, 0.18); }
+  .shape-btn.on { border-color: var(--accent); background: var(--accent-tint); }
   .shape-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .hs-panel .range-row > label { width: 52px; }
   .orphan { width: 7px; height: 7px; border-radius: 50%; background: var(--danger); flex: none; }
 
+  /* ---------- field conditions: a tablet, outdoors, possibly gloved ----------
+     ONE breakpoint governs both the drawer and the finger-sized targets. A
+     landscape tablet at 1024px reports pointer:coarse and wants both, for the
+     same reason. A touchscreen laptop driven by a mouse reports pointer:fine
+     and rightly keeps the desktop layout.
+     ponytail: the case this misses is that same laptop folded into tablet mode,
+     which still reports pointer:fine at 1920px. `any-pointer: coarse` is the
+     upgrade if that ever turns out to matter — it costs a touchscreen laptop
+     big targets while mousing, which is why it is not the default. */
+  .drawer-toggle, .drawer-scrim { display: none; }
+
+  /* Six tab stops per scene row means a keyboard user pays for every photo in
+     the tour before reaching the panorama. One link buys the whole way past. */
+  .skip {
+    position: absolute; left: var(--s2); top: -100px; z-index: var(--z-toast);
+    background: var(--accent); color: var(--accent-ink); text-decoration: none;
+    padding: 10px 16px; border-radius: var(--r-sm); box-shadow: var(--sh-2);
+    transition: top var(--dur-fast) var(--ease-out);
+  }
+  .skip:focus { top: var(--s2); }
+  #main-pane:focus { outline: none; }
+  #main-pane:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  @media (prefers-reduced-motion: reduce) { .skip { transition: none; } }
+
+  /* Jump-to. <dialog> again: backdrop, Escape, focus trap, inertness, free. */
+  .palette {
+    border: 1px solid var(--line-strong); border-radius: var(--r-lg);
+    background: var(--surface); color: var(--ink); box-shadow: var(--sh-3);
+    padding: 0; width: min(560px, calc(100vw - var(--s8)));
+    margin-top: 12vh; overflow: hidden;
+  }
+  .palette::backdrop { background: rgba(11, 14, 20, 0.55); }
+  .palette #pal-q {
+    width: 100%; border: 0; border-bottom: 1px solid var(--line); background: transparent;
+    color: var(--ink); font: inherit; font-size: var(--t-lg); padding: var(--s4) var(--s5);
+  }
+  .palette #pal-q:focus { outline: none; }
+  .pal-list { list-style: none; margin: 0; padding: var(--s2); max-height: 52vh; overflow-y: auto; }
+  .pal-list li {
+    display: flex; align-items: baseline; gap: var(--s3);
+    padding: 8px var(--s3); border-radius: var(--r-sm); cursor: pointer;
+  }
+  .pal-list li.on { background: var(--accent-tint); }
+  .pal-kind {
+    flex: none; font-size: var(--t-xs); font-weight: 600; color: var(--ink-2);
+    border: 1px solid var(--line-strong); border-radius: var(--r-xs); padding: 1px 5px;
+  }
+  .pal-kind.defect { color: var(--defect); border-color: var(--defect); }
+  .pal-label { flex: none; color: var(--ink); }
+  .pal-detail {
+    flex: 1; min-width: 0; font-size: var(--t-sm); color: var(--ink-2);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: right;
+  }
+  .pal-none { color: var(--ink-2); cursor: default; }
+  @media (max-width: 960px), (pointer: coarse) { .pal-list li { min-height: 44px; } }
+
+  /* keyboard help. <dialog> brings the backdrop, Escape, focus trap and
+     inertness for free — none of that is worth hand-writing. */
+  .help-sheet {
+    border: 1px solid var(--line-strong); border-radius: var(--r-lg);
+    background: var(--surface); color: var(--ink); box-shadow: var(--sh-3);
+    padding: var(--s6); max-width: 420px; width: calc(100vw - var(--s8));
+  }
+  .help-sheet::backdrop { background: rgba(11, 14, 20, 0.55); }
+  .help-sheet h4 { margin: 0 0 var(--s4); font-size: var(--t-lg); }
+  .help-sheet dl {
+    display: grid; grid-template-columns: max-content 1fr;
+    gap: var(--s2) var(--s4); margin: 0 0 var(--s5);
+  }
+  .help-sheet dt { margin: 0; }
+  .help-sheet dd { margin: 0; color: var(--ink-2); }
+  .help-sheet kbd {
+    font: 500 var(--t-sm)/1 var(--f-mono); background: var(--surface-raised);
+    border: 1px solid var(--line); border-bottom-width: 2px;
+    border-radius: var(--r-xs); padding: 4px 7px; display: inline-block; color: var(--ink);
+  }
+  .help-sheet form { display: flex; justify-content: flex-end; }
+
+  @media (max-width: 960px), (pointer: coarse) {
+    .side {
+      position: fixed; z-index: var(--z-panel); inset: 0 auto 0 0;
+      width: min(340px, 86vw); box-shadow: var(--sh-3);
+      transform: translateX(-100%); visibility: hidden;
+      /* visibility lags the slide out, so a closed drawer leaves the tab order
+         instead of sitting off-screen collecting focus */
+      transition: transform var(--dur-base) var(--ease-out), visibility 0s linear var(--dur-base);
+    }
+    .editor.panels-open .side { transform: none; visibility: visible; transition-delay: 0s; }
+    .drawer-scrim {
+      display: block; position: fixed; inset: 0; z-index: calc(var(--z-panel) - 1);
+      background: var(--scrim); opacity: 0; pointer-events: none;
+      transition: opacity var(--dur-base) var(--ease-out);
+    }
+    .editor.panels-open .drawer-scrim { opacity: 1; pointer-events: auto; }
+    .drawer-toggle {
+      display: inline-flex; align-items: center; gap: var(--s2);
+      position: fixed; top: var(--s2); left: var(--s2);
+      /* above the drawer, not level with it: equal z-index let the later
+         element win, so the open drawer swallowed its own close button */
+      z-index: calc(var(--z-panel) + 1);
+      min-height: 44px; min-width: 44px; box-shadow: var(--sh-1);
+    }
+    .toolbar { padding-left: 84px; }
+    .editor-empty { padding-top: var(--s9); }
+
+    /* The hotspot panel becomes a bottom sheet. A 300px card pinned top-right
+       is both out of thumb reach and directly over the hotspot being edited. */
+    .hs-panel {
+      top: auto; right: 0; bottom: 0; left: 0; width: auto;
+      max-height: 62dvh; overflow-y: auto;
+      border-radius: var(--r-lg) var(--r-lg) 0 0;
+    }
+
+    /* --- the 44px finger floor --- */
+    .toolbar .btn { min-height: 44px; min-width: 44px; }
+    .icon-btn { min-width: 44px; min-height: 44px; display: inline-grid; place-items: center; padding: 0; }
+    .start-btn { min-height: 32px; padding: 6px 10px; font-size: var(--t-sm); }
+    /* six controls plus a thumbnail cannot share one 340px line at 44px each,
+       so the name takes its own row and the controls sit under it */
+    .scene-row { flex-wrap: wrap; row-gap: var(--s1); padding: var(--s2); }
+    .scene-pick { flex-basis: 100%; min-height: 44px; }
+    .shape-btn { width: 48px; height: 48px; }
+    .field input[type="checkbox"], .bb-return input { width: 24px; height: 24px; }
+    /* .field is flex + align-items:center, so min-height on the ROW leaves the
+       label its 22px line box floating in dead space. The label itself has to
+       become the target the for= binding already promised. */
+    .field label { display: flex; align-items: center; min-height: 44px; flex: 1; }
+    .range-row input[type="range"] { height: 44px; }
+    .bb-chip { min-height: 44px; }
+    .drop-zone { padding: var(--s6) var(--s3); }
+    /* the panel the breakpoint exists to create was never covered */
+    .side .btn, .share-row .btn, .side a.btn { min-height: 44px; }
+    .insp > summary, .plan > summary, .sgroup > summary, .preflight > summary { min-height: 44px; }
+    .plan-dot { width: 20px; height: 20px; }
+    .start-btn { min-height: 44px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .side, .drawer-scrim { transition: none; }
+  }
+
+  /* ---------- the printed photo log ----------
+     Browser print-to-PDF is the whole delivery mechanism; there is no PDF
+     library here and there should not be one. The log is built on demand and
+     removed again, so it can never disagree with the document it came from. */
+  .print-log { display: none; }
+  @media print {
+    /* :has() scopes this to a page that actually HAS a log. Unscoped, it hid
+       #app on every screen, so an ordinary Ctrl+P printed a blank sheet. */
+    body:has(.print-log) > *:not(.print-log) { display: none !important; }
+    .print-log { display: block; }
+    /* forced to paper regardless of the reader's theme: a dark-mode PDF of an
+       inspection log is a ream of toner and an unreadable filing copy */
+    :root { color-scheme: light; }
+    .print-log, .print-log * { color: #000; background: transparent; }
+    .pl-head { border-bottom: 1.5pt solid #000; padding-bottom: 8pt; margin-bottom: 14pt; }
+    .pl-head h1 { font-size: 16pt; margin: 0 0 6pt; }
+    .pl-head dl { display: flex; flex-wrap: wrap; gap: 4pt 18pt; margin: 0 0 6pt; font-size: 9pt; }
+    .pl-head dt { font-weight: 600; display: inline; margin-right: 4pt; }
+    .pl-head dd { display: inline; margin: 0; }
+    .pl-sub { font-size: 8pt; margin: 0; }
+    .pl-row {
+      display: grid; grid-template-columns: 52mm 1fr; gap: 8pt;
+      break-inside: avoid; page-break-inside: avoid;
+      padding: 8pt 0; border-bottom: 0.5pt solid #999;
+    }
+    .pl-row img { width: 100%; height: auto; max-height: 40mm; object-fit: cover; }
+    .pl-body h2 { font-size: 11pt; margin: 0 0 3pt; }
+    .pl-code {
+      font-family: var(--f-mono); border: 1pt solid #000;
+      border-radius: 2pt; padding: 0 3pt; margin-right: 4pt;
+    }
+    .pl-measure { font-size: 10pt; font-weight: 600; margin: 0 0 3pt; }
+    .pl-measure.pl-none { font-weight: 400; font-style: italic; }
+    .pl-where { font-size: 9pt; margin: 0 0 3pt; }
+    .pl-note { font-size: 9pt; margin: 0; white-space: pre-wrap; }
+    @page { margin: 14mm; }
+  }
+
   /* PSV overrides to match the house style */
-  .psv-navbar { background: rgba(11, 11, 14, 0.72); backdrop-filter: blur(8px); }
-  .psv-panel { background: rgba(18, 18, 22, 0.96); color: var(--text); }
+  .psv-navbar { background: var(--scrim); backdrop-filter: blur(8px); }
+  .psv-panel { background: var(--scrim-strong); color: var(--ink); }
   .psv-panel-content h2 { margin-top: 0; }
 </style>
 <script type="importmap">
@@ -367,12 +864,30 @@ async function api(method, path, body) {
   }
   const res = await fetch(path, opts);
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.detail || data.error || `${res.status}`);
+  if (!res.ok) {
+    /* Carry the status on the error. Branching on the prose of a message
+       written for a human is how the stale-save recovery below ended up
+       unreachable: the 409 detail contains neither "409" nor "stale". */
+    const err = new Error(data.detail || data.error || `${res.status}`);
+    err.status = res.status;
+    err.code = data.error;
+    throw err;
+  }
   return data;
 }
 
 /* An exported tour is a static folder: no API, media sits in ./files/ */
 const STATIC_TOUR = window.ORBIT_STATIC_TOUR || null;
+
+/* The scene named by the #s= fragment, or ''. decodeURIComponent THROWS on a
+   truncated percent-escape, and a station id encodes to things like
+   "Sta%202%2B12" — a chat client clipping a shared link produces exactly the
+   malformed case. Unguarded, that threw before either screen had rendered and
+   left the viewer on a blank stage and the editor on a permanent spinner. */
+function sceneIdFromHash() {
+  const raw = (location.hash.match(/^#s=(.+)$/) || [])[1] || '';
+  try { return decodeURIComponent(raw); } catch { return ''; }
+}
 
 function fileUrl(tourId, name) {
   const safe = encodeURIComponent(name);
@@ -561,7 +1076,11 @@ function findExifTiff(view) {
   return null;
 }
 
-function readGps(buffer) {
+/* Opens the TIFF block an EXIF segment carries, or null if there is not one.
+   Every offset in a TIFF IFD is relative to `base`, and a truncated read would
+   send us anywhere, so every dereference is bounds-checked. Shared by the GPS
+   and capture-time readers rather than written twice. */
+function tiffCursor(buffer) {
   const view = new DataView(buffer);
   const base = findExifTiff(view);
   if (base === null || base + 8 > view.byteLength) return null;
@@ -569,9 +1088,6 @@ function readGps(buffer) {
   const u16 = o => view.getUint16(o, le);
   const u32 = o => view.getUint32(o, le);
   if (u16(base + 2) !== 42) return null;
-
-  /* every offset in a TIFF IFD is relative to `base`, and a truncated read
-     would send us anywhere — bounds-check before every dereference */
   const entriesOf = ifd => {
     if (ifd + 2 > view.byteLength) return [];
     const n = u16(ifd);
@@ -579,6 +1095,52 @@ function readGps(buffer) {
     for (let i = 0; i < n && ifd + 2 + i * 12 + 12 <= view.byteLength; i++) out.push(ifd + 2 + i * 12);
     return out;
   };
+  return { view, base, u16, u32, entriesOf, ifd0: base + u32(base + 4) };
+}
+
+/* When the shutter fired. A bridge walk is a sequence — deck loop, then
+   elevations, then the underside — so capture order IS the walk, and it is the
+   order the scenes want to be in. A folder drop arrives in whatever order the
+   OS felt like, which is only sometimes the same thing.
+   DateTimeOriginal lives in the Exif sub-IFD; DateTime in IFD0 is the fallback
+   for a photo that has been through an editor. Returns a sortable
+   "YYYY-MM-DDTHH:MM:SS", or null — EXIF carries no timezone, so this is a local
+   wall-clock reading and is never treated as an instant. */
+function readShotTime(buffer) {
+  const t = tiffCursor(buffer);
+  if (!t) return null;
+  const ascii = (at, len) => {
+    if (at + len > t.view.byteLength) return '';
+    let s = '';
+    for (let i = 0; i < len; i++) {
+      const c = t.view.getUint8(at + i);
+      if (!c) break;
+      s += String.fromCharCode(c);
+    }
+    return s;
+  };
+  const readTag = (ifd, tag) => {
+    for (const e of t.entriesOf(ifd)) {
+      if (t.u16(e) !== tag) continue;
+      const count = t.u32(e + 4);
+      const at = count > 4 ? t.base + t.u32(e + 8) : e + 8;
+      return ascii(at, Math.min(count, 32));
+    }
+    return '';
+  };
+  let exifIfd = null;
+  for (const e of t.entriesOf(t.ifd0)) {
+    if (t.u16(e) === 0x8769) { exifIfd = t.base + t.u32(e + 8); break; }
+  }
+  const raw = (exifIfd !== null && readTag(exifIfd, 0x9003)) || readTag(t.ifd0, 0x0132);
+  const m = /^(\d{4}):(\d{2}):(\d{2})[ T](\d{2}):(\d{2}):(\d{2})/.exec(raw || '');
+  return m ? `${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}:${m[6]}` : null;
+}
+
+function readGps(buffer) {
+  const t = tiffCursor(buffer);
+  if (!t) return null;
+  const { view, base, u16, u32, entriesOf } = t;
   let gpsIfd = null;
   for (const e of entriesOf(base + u32(base + 4))) {
     if (u16(e) === 0x8825) { gpsIfd = base + u32(e + 8); break; }
@@ -759,6 +1321,145 @@ function snapToWay(yaw, ways, tolerance = 90) {
   return best ? best.w : yaw;
 }
 
+/* ---------- the defect register ----------
+
+   None of this vocabulary is invented here. The nine types, the quantised
+   increments and the phrasing all come from the sibling field-sketch tool,
+   android/app/src/main/assets/bridge-sketch.html (DEFECT_LABEL, DEFECT_PAL and
+   its measurement fields). Keeping them byte-identical is the entire point: a
+   structure's 360 record and its sketch register have to be readable side by
+   side, and a tool that said "1/2 inch" where the other said "1/2 in" would
+   quietly become a second, disagreeing source of truth.
+
+   Only Spall takes a depth and only Crack / Map cracking take a width, because
+   that is all the sketch tool defines. Giving Section loss a measurement the
+   other tool does not have would be exactly the drift this is avoiding. */
+const DEFECT_TYPES = [
+  'Spall', 'Crack', 'Map cracking', 'Patch', 'Section loss',
+  'Delamination', 'Efflorescence', 'Exposed reinforcement', 'Pack rust',
+];
+const DEFECT_MEASURE = { Spall: 'depth', Crack: 'width', 'Map cracking': 'width' };
+const DEPTH_STEPS = [[0.25, '1/4 in'], [0.5, '1/2 in'], [1, '1 in'], [2, '2 in'], [3, 'Over 2 in']];
+const WIDTH_STEPS = [[0.01, 'Hairline'], [0.0625, '1/16 in'], [0.125, '1/8 in'], [0.25, '1/4 in'], [0.375, 'Over 1/4 in']];
+
+/* The three sentinels are the sketch tool's: 0.01 is "hairline" rather than a
+   hundredth of an inch, and 0.375 / 3 are open-ended buckets, not measurements.
+   Everything else renders as a real fraction in sixteenths. */
+function fmtIn(v) {
+  if (!(v > 0)) return '';
+  if (v === 0.01) return 'hairline';
+  if (v === 0.375) return 'over 1/4 in';
+  if (v === 3) return 'over 2 in';
+  const sixteenths = Math.round(v * 16);
+  if (sixteenths % 16 === 0) return `${sixteenths / 16} in`;
+  const gcd = (a, b) => (b ? gcd(b, a % b) : a);
+  const d = gcd(sixteenths, 16);
+  return `${sixteenths / d}/${16 / d} in`;
+}
+
+/* The register's Measure column, and the marker tooltip. */
+function defectMeasure(h) {
+  const kind = DEFECT_MEASURE[h?.defect] || '';
+  const parts = [];
+  if (kind === 'depth' && h.depthIn > 0) parts.push(`${fmtIn(h.depthIn)} deep`);
+  if (kind === 'width' && h.widthIn > 0) parts.push(`${fmtIn(h.widthIn)} wide`);
+  if (h?.rebar) parts.push('reinforcement exposed');
+  return parts.join(', ');
+}
+
+/* A defect of a type that takes a measurement, with none recorded. Advisory,
+   not blocking — a photograph of a spall is still evidence without a depth. */
+function defectNeedsMeasure(h) {
+  const kind = DEFECT_MEASURE[h?.defect] || '';
+  if (!kind) return false;
+  return !(kind === 'depth' ? h.depthIn > 0 : h.widthIn > 0);
+}
+
+/* Codes run D1, D2, D3 across the WHOLE tour, not per scene: the register is
+   one document, and the same spall photographed from two stations must not
+   become two defects. Scanning for the highest rather than counting means
+   deleting D2 never renumbers D3 out from under a note already written. */
+function nextDefectCode(scenes) {
+  let max = 0;
+  for (const s of scenes || []) {
+    for (const h of s.hotspots || []) {
+      const m = /^D(\d+)$/.exec(h.code || '');
+      if (m) max = Math.max(max, +m[1]);
+    }
+  }
+  return `D${max + 1}`;
+}
+
+/* ---------- where the photos were taken from ----------
+
+   Positions come from EXIF GPS and nothing else. There is no fallback layout
+   for a tour without it: a row of evenly spaced dots that are not where
+   anything is would be a drawing of the tool's imagination, and on a structure
+   where "which pier is that" is the question, a confident wrong map is worse
+   than no map.
+
+   Local east/north metres from the first located photo, then normalised into a
+   SQUARE box so the site keeps its own proportions instead of being stretched
+   to fill. Returns [] when fewer than two photos are located, because one dot
+   is not a plan. */
+function planPositions(scenes) {
+  const located = (scenes || []).filter(s => Number.isFinite(s.geo?.lat) && Number.isFinite(s.geo?.lon));
+  if (located.length < 2) return [];
+  const origin = located[0].geo;
+  const pts = located.map(s => {
+    const d = metresBetween(origin, s.geo);
+    const b = bearing(origin, s.geo) * Math.PI / 180;
+    return { id: s.id, x: d * Math.sin(b), y: d * Math.cos(b) };
+  });
+  const xs = pts.map(p => p.x);
+  const ys = pts.map(p => p.y);
+  const minX = Math.min(...xs), maxX = Math.max(...xs);
+  const minY = Math.min(...ys), maxY = Math.max(...ys);
+  /* one-metre floor: every photo standing on the same fix would otherwise
+     divide by zero and put every dot at NaN */
+  const span = Math.max(maxX - minX, maxY - minY, 1);
+  const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
+  return pts.map(p => ({
+    id: p.id,
+    u: 0.5 + (p.x - cx) / span,
+    v: 0.5 - (p.y - cy) / span, /* screen v grows downward; north stays up */
+    span,
+  }));
+}
+
+/* A cell Excel will read back as the text that was typed. Quoting handles
+   commas, quotes and newlines; the apostrophe handles the other thing, which is
+   that Excel treats a leading =, +, - or @ as a formula no matter how it is
+   quoted.
+   The minus belongs in that set. An earlier version left it out, reasoning that
+   "-2 in" is a measurement somebody meant to write — but the Measure column is
+   generated by fmtIn() and can never begin with a minus, while Note, Scene,
+   Element and Station are free text and can. That rationale defended the one
+   column never at risk and left open the four that were. */
+function csvCell(v) {
+  let s = String(v ?? '');
+  if (/^[=+@\t\r-]/.test(s)) s = `'${s}`;
+  return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+/* The defect register: one row per defect across the whole tour, in the same
+   columns the field-sketch tool's XLSX uses, plus where the photo was taken
+   from. Sorted by code NUMERICALLY, so D10 follows D9 rather than D1. */
+function registerCsv(tour) {
+  const rows = [['Code', 'Type', 'Measure', 'Scene', 'Photo stop', 'Element', 'Station', 'Note']];
+  const found = [];
+  for (const s of tour?.scenes || []) {
+    for (const h of s.hotspots || []) {
+      if (h.type === 'defect') found.push([h, s]);
+    }
+  }
+  found.sort((a, b) => (parseInt(a[0].code?.slice(1), 10) || 0) - (parseInt(b[0].code?.slice(1), 10) || 0));
+  for (const [h, s] of found) {
+    rows.push([h.code, h.defect, defectMeasure(h), s.name, s.stop, s.element, s.station, h.note]);
+  }
+  return rows.map(r => r.map(csvCell).join(',')).join('\r\n');
+}
+
 /* --- pure helpers end --- */
 
 /* ---------- how a hotspot looks (no emoji, per house rules) ----------
@@ -789,8 +1490,28 @@ const HOTSPOT_GLYPHS = {
   url: '<path d="M15 25L25 15M25 15h-7M25 15v7" stroke="#F2F2F7" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>',
 };
 
-const DEFAULT_SHAPE = { link: 'square', info: 'circle', url: 'circle' };
+const DEFAULT_SHAPE = { link: 'square', info: 'circle', url: 'circle', defect: 'circle' };
 const DEFAULT_SIZE = 40;
+
+/* A defect is not a place you can go, and at a glance across a busy soffit it
+   must never be mistaken for one. It keeps the dark badge — that is what stays
+   readable over bright concrete and over shadow alike — and adds a red ring
+   plus its own register code, the way the mark reads on a field sketch. The
+   code on the marker means a reviewer walking the tour can call out "D7"
+   without opening anything.
+
+   Fixed hex, not var(--defect): this is painted onto a photograph, and a
+   photograph is the same in both themes. */
+const DEFECT_INK = '#FF6B5E';
+function defectMark(code) {
+  const text = String(code || '').slice(0, 4);
+  /* 4 characters at 15px overflow a 40px badge; step down once rather than
+     clip, so D100 still reads */
+  const size = text.length > 3 ? 11 : text.length > 2 ? 13 : 15;
+  return `<circle cx="20" cy="20" r="18.6" fill="none" stroke="${DEFECT_INK}" stroke-width="2.4"/>` +
+    (text ? `<text x="20" y="${20 + size * 0.36}" text-anchor="middle" fill="${DEFECT_INK}"` +
+      ` font-family="ui-monospace,Consolas,monospace" font-size="${size}" font-weight="700">${text}</text>` : '');
+}
 
 const hotspotShape = h => {
   const shape = h.shape && HOTSPOT_SHAPES[h.shape] !== undefined ? h.shape : (DEFAULT_SHAPE[h.type] || 'circle');
@@ -814,7 +1535,9 @@ function hotspotIcon(h, forceShape) {
   const shape = forceShape || hotspotShape(h);
   const body = HOTSPOT_SHAPES[shape];
   if (!body) return null;
-  const glyph = shape === 'dot' ? '' : (HOTSPOT_GLYPHS[h.type] || '');
+  const glyph = shape === 'dot' ? ''
+    : h.type === 'defect' ? defectMark(h.code)
+      : (HOTSPOT_GLYPHS[h.type] || '');
   const fade = hotspotOpacity(h);
   const open = fade < 1 ? `<g opacity="${fade}">` : '';
   return 'data:image/svg+xml;utf8,' + encodeURIComponent(
@@ -854,9 +1577,138 @@ const ARROW_PREVIEW = 'data:image/svg+xml;utf8,' + encodeURIComponent(
 
 const SAFE_URL = u => /^https?:\/\//i.test(u || '');
 
+/* The seven phases of one capture walk, from docs/bridge-capture-paths.html.
+   Shown in the editor's empty state because "add a photo" teaches nothing, and
+   the order of the walk is the one thing that decides whether the reconstruction
+   and the photo record both come out usable. */
+const CAPTURE_PHASES = [
+  ['Deck loop', 'both curbs, end to end'],
+  ['Corner ties', 'four corners, tying the deck to the ground'],
+  ['Elevation passes', 'near at ~3 m, then far at 8–12 m'],
+  ['Bearing line', 'every beam, every support'],
+  ['Underside lattice', 'each span, each bay'],
+  ['Channel arcs', 'upstream and downstream'],
+  ['Loop closure', 'back to the start, overlapping the opening frames'],
+];
+
+/* ---------- what an inspection walk has to photograph ----------
+
+   The eleven stops are the NBIS photo checklist as set out in
+   docs/bridge-capture-paths.html, which grounds them in SNBI 2022, BIRM and
+   AASHTO MBEI. They are stored as one field per scene rather than a set,
+   because a scene either is or is not the bearing-line shot, and one <select>
+   is a thousand times lighter than a tag editor.
+
+   What this can and cannot know is worth being blunt about: ticking a stop
+   means a photo has been FILED against it, not that the photo shows what it
+   claims. The app cannot see a bearing. 360 capture supplements the inspection
+   record; it does not replace hands-on NBIS judgement. */
+const NBIS_STOPS = [
+  'Approach roadway',
+  'Deck wearing surface',
+  'Expansion joints',
+  'Barriers',
+  'Full elevations',
+  'Fascia and obliques',
+  'Wing walls',
+  'Bearings',
+  'Pier faces',
+  'Underside',
+  'Channel, up and downstream',
+];
+
+/* Suggestions only — the input stays free text, because element naming is a
+   local dialect and a closed list would be wrong somewhere on the first day. */
+const ELEMENT_SUGGESTIONS = [
+  'Deck', 'Wearing surface', 'Approach slab', 'Expansion joint', 'Barrier', 'Sidewalk', 'Curb',
+  'Girder', 'Beam line', 'Diaphragm', 'Cross-frame', 'Soffit', 'Fascia', 'Bay',
+  'Bearing, elastomeric pad', 'Bearing, rocker', 'Bearing, fixed', 'Bearing, expansion',
+  'Beam seat', 'Sole plate', 'Masonry plate', 'Pier cap',
+  'Pier, column', 'Pier, wall', 'Pier, hammerhead', 'Pier, pile bent',
+  'Abutment, stub', 'Abutment, full-height cantilever', 'Abutment, gravity',
+  'Abutment, spill-through', 'Abutment, integral',
+  'Wing wall, straight', 'Wing wall, flared', 'Wing wall, U-return', 'Wing wall toe',
+  'Footing', 'Pile', 'Slope protection', 'Embankment', 'Channel upstream', 'Channel downstream',
+];
+
+const NAV_REGISTER_SVG = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/><path d="M9 12h6M9 16h6"/></svg>';
+const NAV_PRINT_SVG = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M7 9V3h10v6"/><path d="M7 18H5a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M7 14h10v7H7z"/></svg>';
 const NAV_PLANET_SVG = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="6.5"/><ellipse cx="12" cy="12" rx="10.5" ry="3.6" transform="rotate(-18 12 12)"/></svg>';
 const NAV_AUDIO_ON_SVG = '<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16 8.5a5 5 0 0 1 0 7" stroke="currentColor" stroke-width="1.8" fill="none"/><path d="M18.5 6a8.5 8.5 0 0 1 0 12" stroke="currentColor" stroke-width="1.8" fill="none"/></svg>';
 const NAV_AUDIO_OFF_SVG = '<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16 9l6 6M22 9l-6 6" stroke="currentColor" stroke-width="1.8" fill="none"/></svg>';
+
+/* ---------- the two paper deliverables ----------
+
+   Top level, not inside renderEditor, because the artefact an inspector hands
+   over is the standalone export — which only ever runs renderViewer. Leaving
+   these in the editor meant the zip a bridge owner archives contained neither
+   the defect register nor the photo log, while the docs said it did. Both are
+   built in the browser from the tour document, so they work with no server. */
+function tourDefects(tour) {
+  return (tour?.scenes || []).flatMap(s => (s.hotspots || [])
+    .filter(h => h.type === 'defect').map(h => ({ h, s })));
+}
+
+const slugName = v => (v || '').toLowerCase().replace(/[^a-z0-9]+/g, '-')
+  .replace(/^-|-$/g, '').slice(0, 40) || 'tour';
+
+function downloadText(name, mime, text) {
+  const url = URL.createObjectURL(new Blob([text], { type: mime }));
+  const a = Object.assign(document.createElement('a'), { href: url, download: name });
+  document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+function downloadRegister(tour) {
+  if (!tourDefects(tour).length) { toast('No defects recorded in this tour'); return; }
+  /* The BOM is the difference between Excel reading this as UTF-8 and Excel
+     reading it as the local code page and mangling every degree sign. */
+  downloadText(`${slugName(tour.inspection?.structureId || tour.name)}-defects.csv`,
+    'text/csv;charset=utf-8', '﻿' + registerCsv(tour));
+}
+
+/* Browser print-to-PDF, no PDF library. Built on demand and removed again, so
+   it can never disagree with the document it came from. */
+async function printPhotoLog(tour) {
+  const found = tourDefects(tour);
+  if (!found.length) { toast('No defects to log in this tour'); return; }
+  const i = tour.inspection || {};
+  const head = [['Structure', i.structureId], ['Inspected', i.date], ['By', i.by], ['Sheet', i.sheet]]
+    .filter(([, v]) => v).map(([k, v]) => `<div><dt>${k}</dt><dd>${esc(v)}</dd></div>`).join('');
+  const rows = found
+    .sort((a, b) => (parseInt(a.h.code?.slice(1), 10) || 0) - (parseInt(b.h.code?.slice(1), 10) || 0))
+    .map(({ h, s }) => {
+      const img = h.image || s.thumb || s.file;
+      const where = [s.name, s.station && `Station ${s.station}`, s.element].filter(Boolean).join(' · ');
+      const measure = defectMeasure(h);
+      return `<section class="pl-row">
+        <img src="${fileUrl(tour.id, img)}" alt="">
+        <div class="pl-body">
+          <h2><span class="pl-code">${esc(h.code || '')}</span> ${esc(h.defect || '')}</h2>
+          ${measure ? `<p class="pl-measure">${esc(measure)}</p>` : '<p class="pl-measure pl-none">No measurement recorded</p>'}
+          ${where ? `<p class="pl-where">${esc(where)}</p>` : ''}
+          ${h.note ? `<p class="pl-note">${esc(h.note)}</p>` : ''}
+        </div></section>`;
+    }).join('');
+  document.querySelector('.print-log')?.remove();
+  const log = el(`<div class="print-log">
+    <header class="pl-head"><h1>${esc(tour.name)}</h1><dl>${head}</dl>
+      <p class="pl-sub">Photo log &mdash; ${found.length} defect${found.length > 1 ? 's' : ''}.
+      360&deg; capture supplements the inspection record; it does not replace hands-on judgement.</p>
+    </header>${rows}</div>`);
+  document.body.append(log);
+  /* The preferred image is the defect's close-up, which is the ONE image the
+     editor never renders and is therefore always cold. A rAF is not an
+     image-load wait, so the row a photo log exists for printed as a gap.
+     decode() is; the race is a backstop so a broken file cannot hang the
+     print dialog forever. */
+  await Promise.race([
+    Promise.all([...log.querySelectorAll('img')].map(im => im.decode().catch(() => {}))),
+    new Promise(r => setTimeout(r, 4000)),
+  ]);
+  print();
+  log.remove();
+}
 
 /* ---------- router ---------- */
 
@@ -931,7 +1783,14 @@ async function renderHome() {
   list.className = 'tour-grid';
   list.innerHTML = '';
   if (!tours.length) {
-    list.append(el(`<div class="empty-card">No tours yet.<br>Create one, then drop in 360&deg; photos exported from the Insta360 app.</div>`));
+    list.append(el(`<div class="empty-card">
+      <h2>No tours yet</h2>
+      <p>A tour is one structure walked as a set of 360&deg; photos, linked so a
+      reviewer can step through it, with defects marked where they are.</p>
+      <p class="ec-next">Start with <strong>New tour</strong>, then drop in the
+      photos from the walk. A 2:1 equirectangular export from the Insta360 app is
+      the ideal case; a phone panorama or an ordinary photo works too.</p>
+    </div>`));
     return;
   }
   for (const t of tours) {
@@ -1029,7 +1888,7 @@ function sceneToNode(tour, scene) {
           },
         };
       }),
-    markers: hotspots.filter(h => h.type === 'info' || h.type === 'url').map(h => {
+    markers: hotspots.filter(h => h.type === 'info' || h.type === 'url' || h.type === 'defect').map(h => {
       const px = hotspotSize(h);
       const common = {
         id: h.id,
@@ -1043,6 +1902,20 @@ function sceneToNode(tour, scene) {
           ...common,
           tooltip: esc(h.label || h.url || 'Open link'),
           data: SAFE_URL(h.url) ? { url: h.url } : {},
+        };
+      }
+      if (h.type === 'defect') {
+        const measure = defectMeasure(h);
+        const rows = [];
+        if (h.image) rows.push(`<img src="${fileUrl(tour.id, h.image)}" alt="${esc(h.defect || 'Defect')} at ${esc(h.code || '')}" style="max-width:100%;border-radius:8px">`);
+        if (measure) rows.push(`<p><strong>${esc(measure)}</strong></p>`);
+        if (h.note) rows.push(`<p style="white-space:pre-wrap">${esc(h.note)}</p>`);
+        const where = [scene.station && `Station ${scene.station}`, scene.element].filter(Boolean).join(' · ');
+        if (where) rows.push(`<p style="opacity:.7">${esc(where)}</p>`);
+        return {
+          ...common,
+          tooltip: esc([h.code, h.defect, measure].filter(Boolean).join(' · ')),
+          content: `<h2>${esc(h.code || 'Defect')} &mdash; ${esc(h.defect || '')}</h2>${rows.join('')}`,
         };
       }
       const parts = [];
@@ -1117,9 +1990,18 @@ async function renderViewer(tourId) {
   }
 
   const nodes = tour.scenes.map(s => sceneToNode(tour, s));
-  const startNodeId = tour.scenes.some(s => s.id === settings.startScene)
-    ? settings.startScene
-    : tour.scenes[0].id;
+  /* A link to one exact scene, so "look at the bearing at 2+12" can be sent as
+     a URL instead of "open the tour and walk to the third arrow". The fragment
+     wins over the tour's own start scene when it names a real one; an id from a
+     different tour simply loses. (Scene ids survive both export and duplicate
+     byte-for-byte — handle_tour_export inlines the document verbatim — so a
+     deep link shared from the editor keeps working inside the exported site.) */
+  const linkedScene = sceneIdFromHash();
+  const startNodeId = tour.scenes.some(s => s.id === linkedScene)
+    ? linkedScene
+    : tour.scenes.some(s => s.id === settings.startScene)
+      ? settings.startScene
+      : tour.scenes[0].id;
 
   /* reduced motion: no planet intro, no self-starting rotation — manual controls stay.
      A partial panorama has no nadir to look down into, so the planet intro would
@@ -1152,6 +2034,19 @@ async function renderViewer(tourId) {
         /* .content is getter-only on AbstractButton — write the DOM directly */
         viewer.navbar.getButton('audio').container.innerHTML = audioWanted ? NAV_AUDIO_ON_SVG : NAV_AUDIO_OFF_SVG;
       },
+    });
+  }
+  /* The register and the photo log belong to whoever is HOLDING the record,
+     which for a standalone export is a reviewer in the viewer, not the
+     inspector in the editor. Shown only when the tour actually carries
+     defects, so an ordinary 360 tour is unchanged. */
+  if (tourDefects(tour).length) {
+    navbar.push({
+      id: 'register', title: 'Download the defect register (CSV)', content: NAV_REGISTER_SVG,
+      onClick: () => downloadRegister(tour),
+    }, {
+      id: 'photolog', title: 'Print the photo log', content: NAV_PRINT_SVG,
+      onClick: () => printPhotoLog(tour),
     });
   }
   navbar.push('gallery', 'caption', 'gyroscope', 'stereo', 'fullscreen');
@@ -1188,7 +2083,7 @@ async function renderViewer(tourId) {
         /* rotation: the camera swinging round to face the link before the
            crossfade, which lands as a spin. Off — you walk forward, you do
            not pirouette. */
-        transitionOptions: { effect: 'fade', rotation: false, speed: '20rpm', showLoader: true },
+        transitionOptions: { effect: REDUCED_MOTION ? 'none' : 'fade', rotation: false, speed: '20rpm', showLoader: true },
         nodes,
         startNodeId,
       }],
@@ -1215,6 +2110,45 @@ async function renderViewer(tourId) {
   viewer.getPlugin(MarkersPlugin).addEventListener('select-marker', ({ marker }) => {
     if (SAFE_URL(marker.data?.url)) open(marker.data.url, '_blank', 'noopener');
   });
+
+  /* ----- which way am I facing -----
+     Only when at least one photo recorded a compass heading, because a compass
+     that is guessing is worse than no compass. GPSImgDirection is already
+     parsed at upload; this just adds the live viewer yaw to it.
+     Shown as a bearing and a cardinal rather than a spinning rose: on a
+     structure the useful sentence is "the fascia faces 118°", and a bearing is
+     what gets written down. */
+  if (tour.scenes.some(s => Number.isFinite(s.geo?.heading))) {
+    const compass = el(`<div class="compass" role="img">
+      <svg viewBox="0 0 40 40" width="34" height="34" aria-hidden="true">
+        <circle cx="20" cy="20" r="17" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="1.5"/>
+        <g id="cmp-needle" style="transform-origin:20px 20px">
+          <path d="M20 5 L24.6 21 L20 18.2 L15.4 21 Z" fill="#FF6B5E"/>
+          <path d="M20 35 L15.4 19 L20 21.8 L24.6 19 Z" fill="rgba(255,255,255,.6)"/>
+        </g>
+      </svg><span class="cmp-read num"></span></div>`);
+    stage.append(compass);
+    const needle = compass.querySelector('#cmp-needle');
+    const read = compass.querySelector('.cmp-read');
+    const CARDINALS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+    const updateCompass = () => {
+      let nodeId;
+      try { nodeId = virtualTour.getCurrentNode()?.id; } catch { nodeId = null; }
+      const scene = tour.scenes.find(s => s.id === (nodeId || startNodeId));
+      const h = scene?.geo?.heading;
+      /* a scene with no heading in a tour that has some: say nothing rather
+         than show the previous scene's bearing as if it were this one's */
+      compass.hidden = !Number.isFinite(h);
+      if (compass.hidden) return;
+      const facing = (((h + viewer.getPosition().yaw / DEG) % 360) + 360) % 360;
+      needle.style.transform = `rotate(${-facing}deg)`;
+      read.textContent = `${Math.round(facing)}° ${CARDINALS[Math.round(facing / 45) % 8]}`;
+      compass.setAttribute('aria-label', `Facing ${Math.round(facing)} degrees, ${CARDINALS[Math.round(facing / 45) % 8]}`);
+    };
+    viewer.addEventListener('position-updated', updateCompass);
+    virtualTour.addEventListener('node-changed', updateCompass);
+    viewer.addEventListener('ready', updateCompass, { once: true });
+  }
 
   /* little planet intro: unfold to normal view once loaded */
   let introPending = littlePlanet;
@@ -1254,8 +2188,23 @@ async function renderViewer(tourId) {
     if (e.target.closest?.('.psv-virtual-tour-link')) stage.classList.add('stepping');
   }, true);
 
+  if (!embed) {
+    addEventListener('hashchange', () => {
+      const id = sceneIdFromHash();
+      let current;
+      try { current = virtualTour.getCurrentNode()?.id; } catch { current = null; }
+      if (id && id !== current && tour.scenes.some(s => s.id === id)) virtualTour.setCurrentNode(id);
+    });
+  }
+
   virtualTour.addEventListener('node-changed', ({ node }) => {
     stage.classList.remove('stepping');
+    /* replaceState, not pushState: this viewer runs inside an iframe both for
+       Start tour and for every ?embed=1 on someone else's page, and pushing
+       from a frame writes into the PARENT's history — so Back would step
+       through scenes instead of leaving the page it is embedded on. The
+       plugin also fires this once on init, which replaceState makes harmless. */
+    if (!embed) history.replaceState(null, '', `#s=${encodeURIComponent(node.id)}`);
     const scene = tour.scenes.find(s => s.id === node.id);
     /* each scene brings its own sky and ground for the parts it does not cover */
     viewer.setOption('canvasBackground', sceneBackground(scene));
@@ -1384,6 +2333,10 @@ async function preparePano(file) {
 
   let geo = null;
   try { geo = readGps(head); } catch { geo = null; }
+  /* read separately from the GPS, because a photo can carry a timestamp and no
+     fix and readGps returns null for the whole thing when there is no fix */
+  let shot = null;
+  try { shot = readShotTime(head); } catch { shot = null; }
   /* a photo sphere usually records its compass heading in XMP and not in EXIF */
   if (geo && !Number.isFinite(geo.heading) && Number.isFinite(stated?.heading)) {
     geo.heading = +stated.heading.toFixed(2);
@@ -1407,7 +2360,7 @@ async function preparePano(file) {
       if (!jpeg) throw new Error('it could not be converted to a JPEG this browser can share.');
       upload = new File([jpeg], `${file.name.replace(/\.[^.]+$/, '')}.jpg`, { type: 'image/jpeg' });
     }
-    return { thumb, pano, geo, ways, upload, width, height, converted: upload !== file, fill: edgeColours(bmp, aspect) };
+    return { thumb, pano, geo, shot, ways, upload, width, height, converted: upload !== file, fill: edgeColours(bmp, aspect) };
   } finally {
     bmp.close();
   }
@@ -1427,8 +2380,18 @@ async function renderEditor(tourId) {
   document.title = `Editing ${doc.name} — Orbit Tour`;
   doc.settings = doc.settings || {};
 
-  /* ----- state ----- */
-  let curSceneId = doc.scenes[0]?.id || null;
+  /* ----- state -----
+     The tour already has a URL (/tour?edit=<id>), so a refresh keeps you in the
+     editor. What it did not keep was WHICH photo you were on, which on a
+     forty-scene bridge is most of the cost of a reload. The scene rides in the
+     fragment: it never reaches the server, so no route has to learn about it,
+     and the standalone export keeps scene ids byte-for-byte, so a link shared
+     from the editor still resolves inside the exported site. */
+  const sceneFromHash = () => {
+    const want = sceneIdFromHash();
+    return doc.scenes.some(s => s.id === want) ? want : null;
+  };
+  let curSceneId = sceneFromHash() || doc.scenes[0]?.id || null;
   let placing = null;        // 'info' | 'url' | {move: hotspotId} | {link: sceneId} | null
   /* Never test `placing?.link` directly: when `placing` is the STRING 'link',
      `'link'.link` resolves to String.prototype.link — a legacy method that
@@ -1444,6 +2407,8 @@ async function renderEditor(tourId) {
   let markers = null;
 
   const curScene = () => doc.scenes.find(s => s.id === curSceneId) || null;
+  /* which scene groups the user has folded away, so a re-render keeps them shut */
+  const collapsedStops = new Set();
   const newId = p => `${p}${Date.now().toString(36)}${Math.floor(Math.random() * 1e4).toString(36)}`;
 
   /* ----- undo -----
@@ -1457,11 +2422,16 @@ async function renderEditor(tourId) {
   let lastState = stateStr();
   let lastPushAt = -Infinity;
 
-  function undo() {
-    const prev = undoStack.pop();
-    if (!prev) { toast('Nothing to undo'); return; }
-    Object.assign(doc, JSON.parse(prev));
-    lastState = prev; /* so scheduleSave below does not re-push what we just undid */
+  /* Redo rides the same snapshot stack. It matters more than it sounds: undo
+     alone means a mistaken Ctrl+Z is unrecoverable, which is the scarier half.
+     The redo stack is cleared by a genuine new edit only — see scheduleSave,
+     where the clear sits inside the `now !== lastState` branch, so replaying
+     history does not wipe the future. */
+  const redoStack = [];
+
+  function applyState(str, message) {
+    Object.assign(doc, JSON.parse(str));
+    lastState = str; /* so scheduleSave below does not re-push what we just replayed */
     if (!doc.scenes.some(s => s.id === curSceneId)) curSceneId = doc.scenes[0]?.id || null;
     closeHotspotPanel();
     setPlacing(null);
@@ -1474,20 +2444,37 @@ async function renderEditor(tourId) {
     showCurrentScene();
     updateUndoButton();
     setLinkSummary('');
-    toast('Undone');
+    toast(message);
+  }
+
+  function undo() {
+    const prev = undoStack.pop();
+    if (!prev) { toast('Nothing to undo'); return; }
+    redoStack.push(stateStr());
+    applyState(prev, 'Undone');
+  }
+
+  function redo() {
+    const next = redoStack.pop();
+    if (!next) { toast('Nothing to redo'); return; }
+    undoStack.push(stateStr());
+    applyState(next, 'Redone');
   }
 
   function updateUndoButton() {
-    const btn = document.getElementById('undo-btn');
-    if (btn) btn.disabled = !undoStack.length;
+    const u = document.getElementById('undo-btn');
+    if (u) u.disabled = !undoStack.length;
+    const r = document.getElementById('redo-btn');
+    if (r) r.disabled = !redoStack.length;
   }
 
   document.addEventListener('keydown', e => {
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !e.shiftKey) {
-      if (/^(INPUT|TEXTAREA)$/.test(e.target.tagName)) return; /* let fields undo their own text */
-      e.preventDefault();
-      undo();
-    }
+    if (!(e.ctrlKey || e.metaKey)) return;
+    const k = e.key.toLowerCase();
+    if (k !== 'z' && k !== 'y') return;
+    if (isTextField(e)) return; /* let text fields undo their own text */
+    e.preventDefault();
+    if (k === 'y' || e.shiftKey) redo(); else undo();
   });
 
   /* ----- autosave ----- */
@@ -1505,6 +2492,14 @@ async function renderEditor(tourId) {
         lastPushAt = at;
       }
       lastState = now;
+      /* preflight is derived from the whole document, and measuring a defect or
+         deleting one only calls scheduleSave — so this is the choke point that
+         keeps the check honest between structural re-renders */
+      renderPreflight();
+      /* Inside this branch on purpose: a real edit invalidates the future, but
+         undo() and redo() both set lastState before calling here, so replaying
+         history lands outside it and the stacks survive. */
+      redoStack.length = 0;
       updateUndoButton();
     }
     dirty = true;
@@ -1524,6 +2519,19 @@ async function renderEditor(tourId) {
       setStatus('', 'Saved');
       return true;
     } catch (err) {
+      /* Someone else saved this tour since we loaded it. Retrying would just
+         lose one of the two sets of edits, so stop the loop and hand the
+         decision over — nothing local is discarded either way. Adopting the
+         server's stamp means the NEXT save goes through, so "save again" is a
+         deliberate overwrite rather than a fight with the retry timer. */
+      if (err.status === 409) {
+        const fresh = await api('GET', `/api/tours/${doc.id}`).catch(() => null);
+        if (fresh) doc.updated = fresh.updated;
+        clearTimeout(saveTimer); saveTimer = null;
+        setStatus('error', 'Changed in another tab — your edits are safe. Save again to overwrite.');
+        toast('This tour was edited somewhere else. Your changes are still here — press S to overwrite, or reload to take theirs.', true);
+        return false;
+      }
       setStatus('error', `Save failed: ${err.message} — retrying`);
       clearTimeout(saveTimer);
       saveTimer = setTimeout(saveNow, 3000);
@@ -1537,21 +2545,43 @@ async function renderEditor(tourId) {
   });
   function setStatus(cls, txt) {
     const s = document.getElementById('save-status');
-    if (s) { s.className = `save-status ${cls}`; s.textContent = txt; }
+    /* Guarded: scheduleSave fires per keystroke and writing the identical
+       string back still mutates the node, so a polite live region announced
+       "Unsaved changes…" once per character typed. */
+    if (s && s.textContent !== txt) { s.className = `save-status ${cls}`; s.textContent = txt; }
+    else if (s) s.className = `save-status ${cls}`;
   }
 
   /* ----- layout ----- */
   app.innerHTML = `
     <div class="editor">
-      <div class="side">
+      <a class="skip" href="#main-pane">Skip to the panorama</a>
+      <button class="btn drawer-toggle" id="drawer-toggle" aria-expanded="false" aria-controls="side-panel">Panels</button>
+      <div class="drawer-scrim" id="drawer-scrim"></div>
+      <div class="side" id="side-panel">
         <div class="side-head">
           <a class="back" href="/tour">&larr; All tours</a>
           <input class="name-input" id="tour-name" value="${esc(doc.name)}" maxlength="80" aria-label="Tour name">
-          <div class="save-status" id="save-status">Saved</div>
+          <div class="save-status" id="save-status" role="status" aria-live="polite">Saved</div>
         </div>
+        <details class="side-section insp" id="insp-section">
+          <summary>Inspection<span class="insp-tally num" id="insp-tally"></span></summary>
+          <div class="frow"><label for="insp-structure">Structure ID</label>
+            <input type="text" id="insp-structure" maxlength="60" placeholder="e.g. 12-0034-0250-1234"></div>
+          <div class="frow"><label for="insp-date">Inspection date</label>
+            <input type="date" id="insp-date"></div>
+          <div class="frow"><label for="insp-by">Inspected by</label>
+            <input type="text" id="insp-by" maxlength="80"></div>
+          <div class="frow"><label for="insp-sheet">Sheet</label>
+            <input type="text" id="insp-sheet" maxlength="20" placeholder="1 of 1"></div>
+          <h4 class="cov-head">Required photo stops</h4>
+          <ul class="cov" id="cov-list"></ul>
+          <p class="scene-note">A tick means a photo is <em>filed</em> against that stop — not that it
+            shows it. This supplements the inspection record; it does not replace hands-on judgement.</p>
+        </details>
         <div class="side-section">
           <h3>Scenes</h3>
-          <div id="scene-list"></div>
+          <div id="scene-list" role="navigation" aria-label="Scenes"></div>
           <p class="scene-note" id="reach-notice"></p>
           <div class="drop-zone" id="drop-zone" role="button" tabindex="0">
             <span id="drop-label">Drop photos here<br>or click to choose</span>
@@ -1559,12 +2589,20 @@ async function renderEditor(tourId) {
           </div>
           <p class="scene-note" id="drop-notice"></p>
           <button class="btn" id="auto-link" style="width:100%;margin-top:10px">Connect scenes for me</button>
+          <button class="btn" id="sort-shot" style="width:100%;margin-top:8px" hidden>Order by capture time</button>
           <p class="scene-note" id="link-summary"></p>
+          <details class="plan" id="plan-section">
+            <summary>Plan view<span class="plan-span num" id="plan-span"></span></summary>
+            <div class="plan-box" id="plan-box"></div>
+            <p class="scene-note" id="plan-note"></p>
+          </details>
         </div>
         <div class="side-section" id="scene-section" hidden>
           <h3>This scene</h3>
+          <div id="scene-meta"></div>
           <div id="scene-shape"></div>
         </div>
+        <datalist id="element-list">${ELEMENT_SUGGESTIONS.map(x => `<option value="${esc(x)}">`).join('')}</datalist>
         <div class="side-section">
           <h3>Tour settings</h3>
           <div class="field"><label for="set-autorotate">Autorotate</label><input type="checkbox" id="set-autorotate"></div>
@@ -1576,6 +2614,10 @@ async function renderEditor(tourId) {
         </div>
         <div class="side-section">
           <h3>Share</h3>
+          <details class="preflight" id="preflight">
+            <summary>Check before sharing<span class="pf-count num" id="pf-count"></span></summary>
+            <ul class="pf-list" id="pf-list"></ul>
+          </details>
           <button class="btn" id="preview-btn">Preview tour</button>
           <div class="share-row">
             <label for="share-link">Link</label>
@@ -1594,10 +2636,96 @@ async function renderEditor(tourId) {
           <div class="share-row">
             <a class="btn" id="export-btn" href="/api/tours/${esc(doc.id)}/export.zip" download>Download standalone site</a>
           </div>
+          <div class="share-row">
+            <button class="btn" id="register-btn">Download defect register (CSV)</button>
+            <p class="scene-note" id="register-note"></p>
+          </div>
+          <div class="share-row">
+            <button class="btn" id="print-btn">Print photo log</button>
+          </div>
         </div>
       </div>
-      <div class="main-pane" id="main-pane"></div>
+      <div class="main-pane" id="main-pane" tabindex="-1"></div>
     </div>`;
+
+  /* ----- the sidebar becomes a drawer on a tablet -----
+     Deliberately a class rather than the popover attribute. The UA sheet for
+     [popover] sets height, margin, padding, border and color unconditionally
+     at every width, so keeping the desktop layout would mean re-resetting all
+     of them; and `querySelector(':popover-open')` throws SyntaxError on an
+     engine that lacks it — an iPad on iOS 16, which is exactly the tablet this
+     is for, and it would take Escape and Undo down with it. Eight lines and a
+     class work everywhere. */
+  const editorRoot = app.querySelector('.editor');
+  const drawerBtn = document.getElementById('drawer-toggle');
+  /* Gated on the toggle being on screen. The class alone outlived the
+     breakpoint — open the drawer on a tablet, attach a keyboard or rotate to a
+     width where the toggle is display:none, and every shortcut stayed dead with
+     no way left to clear it. */
+  const drawerOpen = () => editorRoot.classList.contains('panels-open')
+    && getComputedStyle(drawerBtn).display !== 'none';
+  function setDrawer(open) {
+    editorRoot.classList.toggle('panels-open', open);
+    drawerBtn.setAttribute('aria-expanded', String(open));
+  }
+  drawerBtn.addEventListener('click', () => setDrawer(!drawerOpen()));
+
+  /* Pasting a colleague's deep link into an already-open tab changes only the
+     fragment, which fires no navigation — without this the address bar updated
+     and the editor stayed where it was. Guarded on a real change so the
+     replaceState in selectScene cannot loop back through here. */
+  addEventListener('hashchange', () => {
+    const id = sceneFromHash();
+    if (id && id !== curSceneId) selectScene(id);
+  });
+  document.getElementById('drawer-scrim').addEventListener('click', () => setDrawer(false));
+
+  /* Shared keyboard guards. Split rather than one selector list on purpose:
+     a single querySelector('dialog[open], .side:popover-open') raises on an
+     engine missing either component and kills every shortcut at once. */
+  const isField = e => !!e?.target?.closest?.('input, textarea, select, [contenteditable]');
+  /* Narrower on purpose. A <select> belongs in isField — a bare letter there is
+     type-ahead, not a shortcut — but it has no text undo of its own, so
+     blocking Ctrl+Z inside one just makes Undo dead with a dropdown focused. */
+  const isTextField = e => !!e?.target?.closest?.('input, textarea, [contenteditable]');
+  const modalOpen = () => !!document.querySelector('dialog[open]');
+
+  /* ----- the title block, and the coverage it drives -----
+     Same four fields the field-sketch tool asks for in its title modal, so the
+     two deliverables for one structure carry the same header. */
+  doc.inspection = doc.inspection || {};
+  for (const [id, key] of [['insp-structure', 'structureId'], ['insp-date', 'date'],
+    ['insp-by', 'by'], ['insp-sheet', 'sheet']]) {
+    const input = document.getElementById(id);
+    input.value = doc.inspection[key] || '';
+    input.addEventListener('input', () => {
+      doc.inspection[key] = input.value.trim() || undefined;
+      scheduleSave();
+      renderPreflight();
+    });
+  }
+
+  /* Free, because a stop is one field on a scene rather than a set: the tally
+     is a derivation, not a second thing to keep in step. */
+  function renderCoverage() {
+    const list = document.getElementById('cov-list');
+    if (!list) return;
+    let covered = 0;
+    list.innerHTML = NBIS_STOPS.map(stop => {
+      const n = doc.scenes.filter(s => s.stop === stop).length;
+      if (n) covered++;
+      return `<li class="${n ? 'on' : ''}">
+        <span class="cov-mark" aria-hidden="true">${n ? '&check;' : ''}</span>
+        <span class="cov-name">${esc(stop)}</span>
+        <span class="sr-only">${n ? `covered by ${n} photo${n > 1 ? 's' : ''}` : 'no photo yet'}</span>
+        <span class="cov-n num" aria-hidden="true">${n || ''}</span></li>`;
+    }).join('');
+    const tally = document.getElementById('insp-tally');
+    if (tally) {
+      tally.textContent = `${covered}/${NBIS_STOPS.length}`;
+      tally.className = `insp-tally num${covered === NBIS_STOPS.length ? ' done' : ''}`;
+    }
+  }
 
   /* ----- tour name ----- */
   const nameInput = document.getElementById('tour-name');
@@ -1638,6 +2766,141 @@ async function renderEditor(tourId) {
   };
   wireCopy('copy-link', 'share-link');
   wireCopy('copy-embed', 'embed-code');
+
+  /* ----- the two paper deliverables -----
+     CSV rather than a real .xlsx: xlsx from the Python stdlib is a zipfile of
+     XML and about sixty lines, and buys nothing here — Excel, Numbers, Sheets
+     and every asset-management system read CSV, and this way the file is built
+     in the browser, so it works from a standalone export where there is no
+     server at all. */
+  const allDefects = () => tourDefects(doc);
+
+  /* ----- what is worth knowing before this becomes the record -----
+     Every finding is ADVISORY. Nothing here blocks an export, and that is a
+     decision rather than an omission: a tour is often shared deliberately
+     half-finished — mid-inspection, or to ask a colleague about one bearing —
+     and a tool that refused would be wrong more often than it was right. It
+     also cannot know whether a missing measurement was an oversight or a
+     defect that does not take one. So it counts, it does not gate. */
+  function preflight() {
+    const out = [];
+    if (!doc.scenes.length) return ['There are no photos in this tour yet.'];
+    const linked = new Set();
+    for (const s of doc.scenes) {
+      for (const h of s.hotspots || []) if (h.type === 'link' && h.target) linked.add(h.target);
+    }
+    const startId = doc.settings?.startScene || doc.scenes[0]?.id;
+    const stranded = doc.scenes.filter(s => s.id !== startId && !linked.has(s.id));
+    if (stranded.length) {
+      out.push(`${stranded.length} scene${stranded.length > 1 ? 's' : ''} nothing links to — ` +
+        `${stranded.length > 1 ? 'they' : 'it'} cannot be reached in the finished tour.`);
+    }
+    const dangling = doc.scenes.reduce((n, s) =>
+      n + (s.hotspots || []).filter(h => h.type === 'link' && !doc.scenes.some(x => x.id === h.target)).length, 0);
+    if (dangling) out.push(`${dangling} link hotspot${dangling > 1 ? 's have' : ' has'} no destination chosen.`);
+
+    const noView = doc.scenes.filter(s => !s.view).length;
+    if (noView) out.push(`${noView} scene${noView > 1 ? 's open' : ' opens'} facing wherever the photo happened to start.`);
+
+    const unmeasured = allDefects().filter(({ h }) => defectNeedsMeasure(h));
+    if (unmeasured.length) {
+      out.push(`${unmeasured.length} defect${unmeasured.length > 1 ? 's' : ''} with no measurement ` +
+        `(${unmeasured.map(({ h }) => h.code).filter(Boolean).slice(0, 6).join(', ')}${unmeasured.length > 6 ? '…' : ''}).`);
+    }
+    const untagged = doc.scenes.filter(s => !s.stop).length;
+    if (untagged) out.push(`${untagged} photo${untagged > 1 ? 's are' : ' is'} not assigned to a required stop.`);
+
+    const missingHeader = [['structure ID', 'structureId'], ['inspection date', 'date'], ['inspector', 'by']]
+      .filter(([, k]) => !doc.inspection?.[k]).map(([label]) => label);
+    if (missingHeader.length) {
+      /* "a structure ID" joined behind "has no " read "has no a structure ID" */
+      const last = missingHeader.pop();
+      const list = missingHeader.length ? `${missingHeader.join(', ')} or ${last}` : last;
+      out.push(`The title block has no ${list}.`);
+    }
+    return out;
+  }
+
+  function renderPreflight() {
+    const list = document.getElementById('pf-list');
+    const count = document.getElementById('pf-count');
+    if (!list || !count) return;
+    const found = preflight();
+    count.textContent = found.length ? String(found.length) : '✓';
+    count.className = `pf-count num${found.length ? '' : ' clear'}`;
+    list.innerHTML = found.length
+      ? found.map(f => `<li>${esc(f)}</li>`).join('')
+      : '<li class="pf-ok">Nothing outstanding. Every scene is reachable, every link goes somewhere, ' +
+        'and the title block is filled in.</li>';
+  }
+
+  /* Past this many dots the plate is a dartboard, not a map: the dots stay so
+     the shape of the walk still reads, but picking moves to Ctrl+K, where a
+     target is a word instead of a four-pixel gap. */
+  const PLAN_PICKABLE_MAX = 24;
+  /* Wide enough for a long viaduct and its approaches, far short of a bad fix. */
+  const PLAN_MAX_SPAN_M = 5000;
+
+  function renderPlan() {
+    const box = document.getElementById('plan-box');
+    const note = document.getElementById('plan-note');
+    const spanEl = document.getElementById('plan-span');
+    if (!box || !note || !spanEl) return;
+    box.innerHTML = '';
+    const pts = planPositions(doc.scenes);
+    if (!pts.length) {
+      spanEl.textContent = '';
+      note.textContent = 'No positions yet. Photos carrying a GPS fix place themselves here; '
+        + 'nothing is drawn from guesswork.';
+      return;
+    }
+    const span = Math.round(pts[0].span);
+    /* readGps only checks Number.isFinite, and zeroed EXIF rationals parse as
+       lat 0 / lon 0 — a fix in the Gulf of Guinea. One of those makes the span
+       thousands of kilometres, stacks every real photo into a single pixel, and
+       prints the distance as a stated fact. That is exactly the confident wrong
+       map the header comment refuses to draw, arriving through the one input
+       this did not sanity-check. */
+    if (span > PLAN_MAX_SPAN_M) {
+      spanEl.textContent = '';
+      note.textContent = `These photos claim to be ${span.toLocaleString()} m apart, which is not one `
+        + 'structure — most likely a photo carrying a zeroed or stale GPS fix. No plan drawn.';
+      return;
+    }
+    spanEl.textContent = `${span} m`;
+    const pickable = pts.length <= PLAN_PICKABLE_MAX;
+    for (const p of pts) {
+      const s = doc.scenes.find(x => x.id === p.id);
+      const on = p.id === curSceneId;
+      const label = [s?.name, s?.station && `Sta ${s.station}`].filter(Boolean).join(' — ');
+      const dot = el(pickable
+        ? `<button class="plan-dot${on ? ' on' : ''}" title="${esc(label)}" aria-label="Go to ${esc(label)}"
+             aria-current="${on}" style="left:${(p.u * 100).toFixed(2)}%;top:${(p.v * 100).toFixed(2)}%"></button>`
+        : `<span class="plan-dot${on ? ' on' : ''}" aria-hidden="true"
+             style="left:${(p.u * 100).toFixed(2)}%;top:${(p.v * 100).toFixed(2)}%"></span>`);
+      if (pickable) dot.addEventListener('click', () => selectScene(p.id));
+      box.append(dot);
+    }
+    const missing = doc.scenes.length - pts.length;
+    note.textContent = [
+      `${pts.length} of ${doc.scenes.length} photos located, about ${span} m across.`,
+      missing > 0 ? `${missing} without a fix ${missing > 1 ? 'are' : 'is'} not shown.` : '',
+      pickable ? '' : 'Too many to click at this size — use Ctrl+K to jump.',
+      'Phone GPS is good to a few metres, so treat this as a sketch.',
+    ].filter(Boolean).join(' ');
+  }
+
+  function refreshRegisterNote() {
+    const note = document.getElementById('register-note');
+    if (!note) return;
+    const n = allDefects().length;
+    const unmeasured = allDefects().filter(({ h }) => defectNeedsMeasure(h)).length;
+    note.textContent = !n ? 'No defects recorded yet.'
+      : `${n} defect${n > 1 ? 's' : ''}${unmeasured ? `, ${unmeasured} with no measurement` : ''}.`;
+  }
+
+  document.getElementById('register-btn').addEventListener('click', () => downloadRegister(doc));
+  document.getElementById('print-btn').addEventListener('click', () => printPhotoLog(doc));
 
   document.getElementById('export-btn').addEventListener('click', async e => {
     e.preventDefault();
@@ -1685,11 +2948,20 @@ async function renderEditor(tourId) {
     const dropLabel = document.getElementById('drop-label');
     const failures = [];
     const arrivedAt = doc.scenes.length;
+    const total = files.length;
+    let done = 0;
     setDropNotice([]);
     for (const file of files) {
-      dropLabel.textContent = `Uploading ${file.name}…`;
+      /* A bridge walk arrives as one drop of thirty or forty photos, and each
+         one costs a decode, a re-encode and two uploads. "Uploading IMG_0312"
+         with no count reads as stuck. <progress> is the native answer. */
+      dropLabel.innerHTML = total > 1
+        ? `Uploading <span class="num">${done + 1}</span> of <span class="num">${total}</span>` +
+          `<br><span class="up-name">${esc(file.name)}</span>` +
+          `<progress max="${total}" value="${done}"></progress>`
+        : `Uploading ${esc(file.name)}…`;
       try {
-        const { thumb, pano, geo, ways, upload, width, height, converted, fill } = await preparePano(file);
+        const { thumb, pano, geo, shot, ways, upload, width, height, converted, fill } = await preparePano(file);
         const panoName = await uploadFile(doc.id, upload);
         const thumbName = await uploadFile(doc.id, new File([thumb], 'thumb.jpg', { type: 'image/jpeg' }));
         const scene = {
@@ -1702,6 +2974,7 @@ async function renderEditor(tourId) {
         };
         if (pano) scene.pano = pano;
         if (geo) scene.geo = geo;
+        if (shot) scene.shot = shot;
         scene.size = { w: width, h: height }; /* so the coverage note can do its arithmetic */
         if (converted) scene.converted = true;
         scene.fill = fill; /* what the empty part of the sphere wears */
@@ -1718,6 +2991,7 @@ async function renderEditor(tourId) {
       } catch (err) {
         failures.push({ name: file.name, reason: uploadReason(err) });
       }
+      done++;
     }
     dropLabel.innerHTML = 'Drop photos here<br>or click to choose';
     setDropNotice(failures);
@@ -1730,10 +3004,39 @@ async function renderEditor(tourId) {
     const arrived = doc.scenes.slice(arrivedAt);
     const stranded = arrived.some(s => !(s.hotspots || []).some(h => h.type === 'link'));
     if (doc.scenes.length > 1 && stranded) autoLink();
+    /* The date the shutter fired is the inspection date, and it is already in
+       the file. Only filled when the field is still empty, so it can never
+       overwrite a date somebody typed on purpose. */
+    if (!doc.inspection.date) {
+      const earliest = doc.scenes.map(s => s.shot).filter(Boolean).sort()[0];
+      if (earliest) {
+        doc.inspection.date = earliest.slice(0, 10);
+        const input = document.getElementById('insp-date');
+        if (input) input.value = doc.inspection.date;
+        renderPreflight();
+        scheduleSave();
+      }
+    }
+    syncSortButton();
+  }
+
+  /* A bridge walk is a sequence — deck loop, elevations, then the underside —
+     so capture order IS the walk order. A folder drop arrives in whatever order
+     the OS felt like, which is only sometimes the same thing. */
+  function syncSortButton() {
+    const b = document.getElementById('sort-shot');
+    if (b) b.hidden = doc.scenes.filter(s => s.shot).length < 2;
   }
 
   /* ----- scene list ----- */
   function renderSceneList() {
+    /* both are derived from the scenes, so they are refreshed wherever the
+       scenes are — one call here beats one at each of add / delete / undo / redo */
+    renderCoverage();
+    refreshRegisterNote();
+    renderPreflight();
+    renderPlan();
+    syncSortButton();
     const list = document.getElementById('scene-list');
     list.innerHTML = '';
     if (!doc.scenes.length) {
@@ -1746,6 +3049,48 @@ async function renderEditor(tourId) {
     for (const s of doc.scenes) {
       for (const h of s.hotspots || []) if (h.type === 'link') reachable.add(h.target);
     }
+    /* ----- grouping -----
+       A flat rail is right for an apartment and a scroll for a bridge. Grouped
+       by the photo stop each scene is already tagged with, so this is a pure
+       derivation and there is no second field to keep in step. Native
+       <details>, so open/closed, keyboard and screen reader all come free.
+       Only past eight scenes, and only once something is tagged: below that the
+       grouping is more chrome than the list it organises. Order within a group
+       still follows doc.scenes, so the up/down buttons keep meaning what they
+       have always meant. */
+    const grouped = doc.scenes.length >= 8 && doc.scenes.some(s => s.stop);
+    /* renderSceneList runs on fifteen different actions, and every one rebuilt
+       these from scratch. Collapsing "Deck" then clicking a scene in
+       "Underside" reopened it — the grouping's one interaction undone by its
+       most adjacent action. */
+    for (const d of list.querySelectorAll('details.sgroup')) {
+      if (!d.open) collapsedStops.add(d.dataset.stop || '');
+      else collapsedStops.delete(d.dataset.stop || '');
+    }
+    const groups = new Map();
+    if (grouped) {
+      const used = [...NBIS_STOPS.filter(stop => doc.scenes.some(s => s.stop === stop))];
+      /* A hand-edited or older tour.json can carry a stop that is not on the
+         list. Without this it belonged to no group and rendered bare after all
+         of them, under no heading at all. */
+      for (const s of doc.scenes) {
+        if (s.stop && !NBIS_STOPS.includes(s.stop) && !used.includes(s.stop)) used.push(s.stop);
+      }
+      if (doc.scenes.some(s => !s.stop)) used.push('');
+      for (const stop of used) {
+        const n = doc.scenes.filter(s => (s.stop || '') === stop).length;
+        const box = el(`<details class="sgroup" data-stop="${esc(stop)}"${collapsedStops.has(stop) ? '' : ' open'}>
+          <summary>${esc(stop || 'Not assigned')}<span class="sg-n num">${n}</span></summary>
+          <div class="sg-body"></div></details>`);
+        box.addEventListener('toggle', () => {
+          if (box.open) collapsedStops.delete(stop); else collapsedStops.add(stop);
+        });
+        groups.set(stop, box.querySelector('.sg-body'));
+        list.append(box);
+      }
+    }
+    const hostFor = s => (grouped ? groups.get(s.stop || '') || list : list);
+
     doc.scenes.forEach((s, i) => {
       const isStart = doc.settings.startScene === s.id;
       const orphan = doc.scenes.length > 1 && !reachable.has(s.id);
@@ -1822,7 +3167,7 @@ async function renderEditor(tourId) {
         clearTimeout(delTimer);
         deleteScene(s.id);
       });
-      list.append(row);
+      hostFor(s).append(row);
     });
     if (armedTarget()) renderBuildChips(); /* same list, second view of it */
     /* the red dot is easy to miss, and half a disconnected tour is worth saying
@@ -1844,8 +3189,16 @@ async function renderEditor(tourId) {
     const copy = JSON.parse(JSON.stringify(src));
     copy.id = newId('s');
     copy.name = `${src.name} copy`;
+    /* A defect code is the register's primary key. Cloning it would put two
+       different defects — separately movable, retypable and remeasurable —
+       under one number in the CSV, the print log and manifest.json. Each copied
+       defect takes the next free code. Spliced in first so nextDefectCode()
+       already counts the copy it is numbering. */
     copy.hotspots = (copy.hotspots || []).map(h => ({ ...h, id: newId('h') }));
     doc.scenes.splice(i + 1, 0, copy);
+    for (const h of copy.hotspots) {
+      if (h.type === 'defect') h.code = nextDefectCode(doc.scenes);
+    }
     scheduleSave();
     renderSceneList();
     toast(`Duplicated "${src.name}"`);
@@ -1878,6 +3231,14 @@ async function renderEditor(tourId) {
   async function selectScene(sid) {
     if (sid === curSceneId) return;
     curSceneId = sid;
+    /* on a tablet the scene list IS the drawer, so picking a scene has to get
+       out of the way — otherwise you pick a panorama and keep staring at a list */
+    setDrawer(false);
+    /* replaceState, never pushState: the editor runs inside a same-origin frame
+       during Start tour, and pushing there writes into the PARENT's history, so
+       Back would walk scenes instead of leaving. It also keeps one Back press
+       meaning "leave the editor" rather than "undo forty scene changes". */
+    history.replaceState(null, '', `?edit=${encodeURIComponent(doc.id)}#s=${encodeURIComponent(sid)}`);
     /* build mode survives the move — walking scene to scene laying arrows is
        the whole point — but its armed target cannot be the scene we just
        opened, so re-aim it at something reachable */
@@ -1927,7 +3288,7 @@ async function renderEditor(tourId) {
     if (doc.settings[key]) {
       const clear = el(`<button class="icon-btn" title="Remove ${esc(label)}" aria-label="Remove ${esc(label)}">&times;</button>`);
       clear.addEventListener('click', () => { doc.settings[key] = null; scheduleSave(); renderFileSetting(lineId, key, accept, label); });
-      line.append(el(`<span style="font-size:12px;color:var(--text-2)">set</span>`), clear);
+      line.append(el(`<span style="font-size:12px;color:var(--ink-2)">set</span>`), clear);
     } else {
       const btn = el(`<button class="btn" style="padding:4px 10px;font-size:12px" aria-label="Upload ${esc(label)}">Upload</button>`);
       const input = el(`<input type="file" accept="${accept}" hidden>`);
@@ -1951,12 +3312,21 @@ async function renderEditor(tourId) {
       editorViewer?.destroy(); editorViewer = null; markers = null;
       setPlacing(null); /* the build bar goes with the toolbar we are about to drop */
       pane.innerHTML = `<div class="editor-empty">
-        <div style="font-size:18px;font-weight:600;color:var(--text)">Add your first photo</div>
-        <div>Drop photos into the panel on the left — a 360&deg; shot, a phone panorama,<br>
-          or an ordinary picture. Each one works out how much of the view it covers.<br>
-          Drop two or more and they get connected for you.</div>
-        <button class="btn" id="undo-btn" title="Undo (Ctrl+Z)" disabled>Undo</button>
+        <h2>Drop the walk in</h2>
+        <p>Every photo becomes a scene, whatever its shape — a 360&deg; export, a phone
+          panorama, or an ordinary picture. Each one works out how much of the sphere
+          it covers, and two or more get connected to each other automatically.</p>
+        <p class="ee-lead">One walk covers the whole structure, in this order:</p>
+        <ol class="ee-phases">${CAPTURE_PHASES.map(([name, what]) =>
+          `<li><span class="ee-name">${esc(name)}</span><span class="ee-what">${esc(what)}</span></li>`).join('')}</ol>
+        <div class="ee-actions">
+          <button class="btn primary" id="pick-photos">Choose photos</button>
+          <button class="btn" id="undo-btn" title="Undo (Ctrl+Z)" disabled>Undo</button>
+        </div>
       </div>`;
+      /* the drop zone lives in the sidebar, which on a tablet is a closed
+         drawer — so the empty state needs its own way to the file picker */
+      document.getElementById('pick-photos').addEventListener('click', () => fileInput.click());
       // deleting the last scene removes the toolbar — the moment undo is needed most
       document.getElementById('undo-btn').addEventListener('click', undo);
       updateUndoButton();
@@ -1965,14 +3335,17 @@ async function renderEditor(tourId) {
     if (!editorViewer) {
       pane.innerHTML = `
         <div class="toolbar">
-          <button class="btn" id="add-link">+ Link hotspot</button>
-          <button class="btn" id="add-info">+ Info hotspot</button>
-          <button class="btn" id="add-url">+ URL hotspot</button>
+          <button class="btn" id="add-link" title="Place a link hotspot (L)">+ Link</button>
+          <button class="btn" id="add-info" title="Place an info hotspot (I)">+ Info</button>
+          <button class="btn" id="add-url" title="Place a URL hotspot (U)">+ URL</button>
+          <button class="btn defect" id="add-defect" title="Record a defect at a point in this photo (D)">+ Defect</button>
           <button class="btn" id="build-links" aria-pressed="false"
                   title="Pick where each link goes first, then click doorway after doorway">Build links</button>
           <button class="btn" id="set-view">Set start view from here</button>
           <button class="btn" id="undo-btn" title="Undo (Ctrl+Z)" disabled>Undo</button>
-          <button class="btn primary" id="start-tour">Start tour</button>
+          <button class="btn" id="redo-btn" title="Redo (Ctrl+Shift+Z)" disabled>Redo</button>
+          <button class="btn primary" id="start-tour" title="Walk your own tour (T)">Start tour</button>
+          <button class="btn" id="help-btn" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts">?</button>
           <span class="hint" id="hint"></span>
         </div>
         <div class="build-bar" id="build-bar">
@@ -1986,8 +3359,11 @@ async function renderEditor(tourId) {
       document.getElementById('add-link').addEventListener('click', () => startPlacing('link'));
       document.getElementById('add-info').addEventListener('click', () => startPlacing('info'));
       document.getElementById('add-url').addEventListener('click', () => startPlacing('url'));
+      document.getElementById('add-defect').addEventListener('click', () => startPlacing('defect'));
       document.getElementById('start-tour').addEventListener('click', startTour);
       document.getElementById('undo-btn').addEventListener('click', undo);
+      document.getElementById('redo-btn').addEventListener('click', redo);
+      document.getElementById('help-btn').addEventListener('click', showHelpSheet);
       updateUndoButton();
       document.getElementById('set-view').addEventListener('click', () => {
         const s = curScene();
@@ -2070,6 +3446,7 @@ async function renderEditor(tourId) {
         tooltip: esc(h.type === 'link'
           ? (h.label || doc.scenes.find(x => x.id === h.target)?.name || 'Not connected yet — click to choose a scene')
           : h.type === 'url' ? (h.label || h.url || 'Link')
+          : h.type === 'defect' ? [h.code, h.defect, defectMeasure(h)].filter(Boolean).join(' · ')
           : (h.title || 'Info')),
       };
     }));
@@ -2173,10 +3550,191 @@ async function renderEditor(tourId) {
   }
   document.addEventListener('keydown', e => {
     if (e.key !== 'Escape') return;
+    /* A <dialog> closes itself on Escape, and the keydown still bubbles here.
+       Without this, closing the help sheet would ALSO drop you out of build
+       mode and silently discard the armed target. */
+    if (modalOpen()) return;
+    if (drawerOpen()) { setDrawer(false); return; }
     if (document.querySelector('.tryout')) { closeTryout(); return; }
     if (armedTarget()) exitBuildMode();
     else if (placing) setPlacing(null);
-    else closeHotspotPanel();
+    else closeHotspotPanel({ restore: true });
+  });
+
+  /* ----- keyboard shortcuts -----
+     Letters and brackets only: PSV binds ArrowUp/Down/Left/Right, PageUp,
+     PageDown, + and - on window with preventDefault (psv-core.module.js
+     keyboardActions), and `keyboard: 'always'` means it owns them while the
+     editor is open. Letters are free.
+     Every placement key is gated on a viewer existing — on a tour with no
+     scenes, startPlacing() would append a ghost to document.body whose move
+     and hide handlers live on a viewer container that was never built, leaving
+     an invisible, unplaceable element behind. */
+  const SHORTCUTS = [
+    ['L', 'Place a link hotspot'],
+    ['I', 'Place an info hotspot'],
+    ['D', 'Place a defect'],
+    ['U', 'Place a URL hotspot'],
+    ['[  ]', 'Previous / next scene'],
+    ['T', 'Start the tour'],
+    ['S', 'Save now'],
+    ['Ctrl+Z', 'Undo'],
+    ['Ctrl+Shift+Z', 'Redo'],
+    ['Esc', 'Cancel placing, or close a panel'],
+    ['Ctrl+K', 'Jump to a scene or defect'],
+    ['?', 'This list'],
+  ];
+  function stepScene(delta) {
+    if (doc.scenes.length < 2) return;
+    const i = doc.scenes.findIndex(s => s.id === curSceneId);
+    const next = doc.scenes[(i + delta + doc.scenes.length) % doc.scenes.length];
+    if (next) selectScene(next.id);
+  }
+  /* ----- jump to anything -----
+     Editor only, on purpose: the viewer already ships the gallery plugin, and a
+     second way to pick a scene there would be two answers to one question. In
+     the editor there is no gallery — only a flat rail that is fine at six
+     scenes and a scroll at forty.
+     Searches what a bridge is actually filed under: scene name, station,
+     element, photo stop, and every defect code and type. */
+  function paletteRows(q) {
+    const needle = q.trim().toLowerCase();
+    const rows = [];
+    for (const s of doc.scenes) {
+      rows.push({
+        kind: 'scene', sceneId: s.id, label: s.name || 'Untitled',
+        detail: [s.stop, s.element, s.station && `Sta ${s.station}`].filter(Boolean).join(' · '),
+      });
+      for (const h of s.hotspots || []) {
+        if (h.type !== 'defect') continue;
+        rows.push({
+          kind: 'defect', sceneId: s.id, hotspotId: h.id,
+          label: `${h.code || 'Defect'} — ${h.defect || ''}`.trim(),
+          detail: [defectMeasure(h), s.name].filter(Boolean).join(' · '),
+        });
+      }
+    }
+    if (!needle) return rows.slice(0, 40);
+    return rows.filter(r => `${r.label} ${r.detail}`.toLowerCase().includes(needle)).slice(0, 40);
+  }
+
+  function showPalette() {
+    if (!doc.scenes.length) { toast('Nothing to jump to yet — drop some photos in first'); return; }
+    document.getElementById('palette')?.remove();
+    const dlg = el(`<dialog class="palette" id="palette" aria-label="Jump to a scene or defect">
+      <input type="text" id="pal-q" placeholder="Jump to a scene, a station, or a defect code…"
+             autocomplete="off" spellcheck="false" role="combobox" aria-expanded="true"
+             aria-controls="pal-list" aria-autocomplete="list">
+      <ul class="pal-list" id="pal-list" role="listbox"></ul>
+    </dialog>`);
+    document.body.append(dlg);
+    const q = dlg.querySelector('#pal-q');
+    const list = dlg.querySelector('#pal-list');
+    let rows = [];
+    let active = 0;
+
+    const draw = () => {
+      rows = paletteRows(q.value);
+      active = Math.min(active, Math.max(0, rows.length - 1));
+      /* innerHTML rewrites on every keypress, which also resets scrollTop, so
+         the active row has to be brought back after each draw or arrowing past
+         the eleventh row highlights something off screen. */
+      list.innerHTML = rows.length
+        ? rows.map((r, i) => `<li id="pal-opt-${i}" role="option" aria-selected="${i === active}" class="${i === active ? 'on' : ''}">
+            <span class="pal-kind ${r.kind}">${r.kind === 'defect' ? 'Defect' : 'Scene'}</span>
+            <span class="pal-label">${esc(r.label)}</span>
+            <span class="pal-detail">${esc(r.detail)}</span></li>`).join('')
+        /* the query is user text and goes through esc(); a long paste would
+           otherwise stretch the dialog, so it is trimmed for display too */
+        : `<li class="pal-none">Nothing matches “${esc(q.value.trim().slice(0, 40))}”</li>`;
+      list.children[active]?.scrollIntoView({ block: 'nearest' });
+      /* without this a screen reader is told a listbox exists and never which
+         row is current, so arrowing through it announces nothing at all */
+      q.setAttribute('aria-activedescendant', rows.length ? `pal-opt-${active}` : '');
+    };
+
+    const go = () => {
+      const r = rows[active];
+      if (!r) return;
+      dlg.close();
+      const jump = () => {
+        if (!r.hotspotId) return;
+        /* selectScene restores the scene's stored start view, so without this a
+           jump to D7 can land 180 degrees behind the defect it just opened. */
+        const target = doc.scenes.find(x => x.id === r.sceneId)
+          ?.hotspots?.find(x => x.id === r.hotspotId);
+        if (target && editorViewer) {
+          editorViewer.rotate({ yaw: (target.yaw || 0) * DEG, pitch: (target.pitch || 0) * DEG });
+        }
+        openHotspotPanel(r.hotspotId);
+      };
+      if (r.sceneId === curSceneId) jump();
+      else Promise.resolve(selectScene(r.sceneId)).then(jump);
+    };
+
+    q.addEventListener('input', draw);
+    dlg.addEventListener('keydown', e => {
+      /* PSV binds keydown on WINDOW in the bubble phase (psv-core.module.js:
+         `window.addEventListener("keydown", this, {passive:false})`) and
+         preventDefaults every arrow while keyboard:'always' is set — which
+         would steal them from this input. Stopping propagation here beats it
+         to them, because a dialog is a descendant of body and bubbles first.
+         Deliberately NOT stopKeyboardControl()/startKeyboardControl(): that
+         needs the state put back on close, and hanging a dead-arrow-keys bug
+         on one event firing is a worse trade than one line here. Escape still
+         closes the dialog — that is a UA close request, not a listener. */
+      e.stopPropagation();
+      if (e.key === 'ArrowDown') { active = Math.min(active + 1, rows.length - 1); draw(); e.preventDefault(); }
+      else if (e.key === 'ArrowUp') { active = Math.max(active - 1, 0); draw(); e.preventDefault(); }
+      else if (e.key === 'Enter') { go(); e.preventDefault(); }
+    });
+    list.addEventListener('click', e => {
+      const li = e.target.closest('li');
+      if (!li || li.classList.contains('pal-none')) return;
+      active = [...list.children].indexOf(li);
+      go();
+    });
+
+    /* Tidy-up only — nothing here is load-bearing, so a browser that never
+       delivered this event would still leave a working editor behind. */
+    dlg.addEventListener('close', () => dlg.remove());
+
+    draw();
+    dlg.showModal();
+  }
+
+  function showHelpSheet() {
+    document.getElementById('help-sheet')?.remove();
+    const dlg = el(`<dialog class="help-sheet" id="help-sheet" aria-label="Keyboard shortcuts">
+      <h4>Keyboard shortcuts</h4>
+      <dl>${SHORTCUTS.map(([k, what]) => `<dt><kbd>${esc(k)}</kbd></dt><dd>${esc(what)}</dd>`).join('')}</dl>
+      <form method="dialog"><button class="btn" autofocus>Close</button></form>
+    </dialog>`);
+    document.body.append(dlg);
+    dlg.addEventListener('close', () => dlg.remove());
+    dlg.showModal();
+  }
+  document.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+      e.preventDefault();
+      if (!modalOpen()) showPalette();
+      return;
+    }
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (isField(e) || modalOpen() || drawerOpen()) return;
+    if (e.key === '?') { e.preventDefault(); showHelpSheet(); return; }
+    if (!doc.scenes.length) return;
+    const k = e.key.toLowerCase();
+    if (k === 'l' && editorViewer) startPlacing('link');
+    else if (k === 'i' && editorViewer) startPlacing('info');
+    else if (k === 'd' && editorViewer) startPlacing('defect');
+    else if (k === 'u' && editorViewer) startPlacing('url');
+    else if (e.key === '[') stepScene(-1);
+    else if (e.key === ']') stepScene(1);
+    else if (k === 't') startTour();
+    else if (k === 's') saveNow();
+    else return;
+    e.preventDefault();
   });
 
   /* ----- drag a hotspot to where you want it -----
@@ -2503,12 +4061,46 @@ async function renderEditor(tourId) {
      knob: an equirectangular projection shares one degrees-per-pixel scale
      across both axes, so the height follows from it and cannot disagree. */
 
+  /* ----- what this photo is OF -----
+     Three fields, all optional and all additive, so every tour.json written
+     before today still loads. `stop` is a closed list because it drives the
+     coverage tally; `element` is free text with suggestions because element
+     naming is a local dialect and a closed list would be wrong somewhere on
+     the first day; `station` is free text because 2+50 is not a number. */
+  function renderSceneMeta() {
+    const box = document.getElementById('scene-meta');
+    if (!box) return;
+    const s = curScene();
+    if (!s) { box.innerHTML = ''; return; }
+    box.innerHTML = `
+      <div class="frow"><label for="sc-stop">Required photo stop</label>
+        <select id="sc-stop"><option value="">Not assigned</option>${NBIS_STOPS.map(x =>
+          `<option value="${esc(x)}"${x === s.stop ? ' selected' : ''}>${esc(x)}</option>`).join('')}</select></div>
+      <div class="frow"><label for="sc-element">Element</label>
+        <input type="text" id="sc-element" list="element-list" maxlength="60"
+               value="${esc(s.element || '')}" placeholder="e.g. Bearing, elastomeric pad"></div>
+      <div class="frow"><label for="sc-station">Station</label>
+        <input type="text" id="sc-station" maxlength="20"
+               value="${esc(s.station || '')}" placeholder="e.g. 2+50"></div>`;
+    box.querySelector('#sc-stop').addEventListener('change', e => {
+      s.stop = e.target.value || undefined; scheduleSave(); renderCoverage(); renderSceneList();
+    });
+    box.querySelector('#sc-element').addEventListener('input', e => {
+      s.element = e.target.value.trim() || undefined; scheduleSave();
+    });
+    box.querySelector('#sc-station').addEventListener('input', e => {
+      s.station = e.target.value.trim() || undefined; scheduleSave();
+    });
+  }
+
   function renderSceneShape() {
     const section = document.getElementById('scene-section');
     const host = document.getElementById('scene-shape');
     if (!section || !host) return;
     const s = curScene();
     section.hidden = !s;
+    /* rendered from here so every existing caller picks it up for free */
+    renderSceneMeta();
     if (!s) return;
     const hFov = isPartial(s) ? s.pano.hFov : 360;
     const pitch = isPartial(s) ? (s.pano.pitch || 0) : 0;
@@ -2525,7 +4117,7 @@ async function renderEditor(tourId) {
       </div>
       <div class="range-row">
         <label for="sc-tilt">Tilt</label>
-        <input type="range" id="sc-tilt" min="-80" max="80" step="1" value="${Math.round(pitch)}">
+        <input type="range" id="sc-tilt" min="-80" max="80" step="1" value="${Math.round(pitch)}" aria-describedby="sc-note">
         <span class="val num" id="sc-tilt-val"></span>
       </div>
       <p class="scene-note" id="sc-note"></p>`;
@@ -2538,6 +4130,10 @@ async function renderEditor(tourId) {
       const h = Number(hEl.value);
       host.querySelector('#sc-hfov-val').textContent = `${h}°`;
       host.querySelector('#sc-tilt-val').textContent = `${Number(tEl.value)}°`;
+      /* written from here rather than a second listener: this already runs on
+         every input, and "200" on its own tells a screen-reader user nothing */
+      hEl.setAttribute('aria-valuetext', `${h} degrees across`);
+      tEl.setAttribute('aria-valuetext', `${Number(tEl.value)} degrees of tilt`);
       const v = s.size?.w ? Math.round(vFovOf(h, s.size.w, s.size.h)) : null;
       const coverage = h >= 359.5
         ? 'Wraps all the way round — a full 360° photo.'
@@ -2589,7 +4185,9 @@ async function renderEditor(tourId) {
     const h = styled(
       type === 'link' ? { id: newId('h'), type: 'link', yaw, pitch, target: '', label: '' }
         : type === 'url' ? { id: newId('h'), type: 'url', yaw, pitch, url: '', label: '' }
-          : { id: newId('h'), type: 'info', yaw, pitch, title: '', text: '' });
+          : type === 'defect'
+            ? { id: newId('h'), type: 'defect', yaw, pitch, code: nextDefectCode(doc.scenes), defect: DEFECT_TYPES[0], note: '' }
+            : { id: newId('h'), type: 'info', yaw, pitch, title: '', text: '' });
     s.hotspots.push(h);
     scheduleSave();
     refreshMarkers();
@@ -2597,12 +4195,23 @@ async function renderEditor(tourId) {
     openHotspotPanel(h.id);
   }
 
-  function closeHotspotPanel() {
-    document.querySelector('.hs-panel')?.remove();
+  /* Focus goes back to whatever opened the panel, but ONLY when the panel is
+     what the user just dismissed. closeHotspotPanel is also called from Build
+     links, Undo, Start tour, deleting a scene and opening a different hotspot —
+     restoring there would snatch focus off the control they just pressed. */
+  let panelOpener = null;
+  function closeHotspotPanel({ restore = false } = {}) {
+    const panel = document.querySelector('.hs-panel');
+    if (!panel) return;
+    panel.remove();
+    if (restore && panelOpener?.isConnected) panelOpener.focus();
+    panelOpener = null;
   }
 
   function openHotspotPanel(hid) {
+    const opener = document.activeElement;
     closeHotspotPanel();
+    panelOpener = opener && opener !== document.body ? opener : null;
     const s = curScene();
     const h = s?.hotspots?.find(x => x.id === hid);
     if (!h) return;
@@ -2631,6 +4240,16 @@ async function renderEditor(tourId) {
           <span class="field-note" id="hs-url-note"></span></div>
         <div class="frow"><label for="hs-label">Label (optional)</label>
           <input type="text" id="hs-label" value="${esc(h.label || '')}" maxlength="80"></div>`;
+    } else if (h.type === 'defect') {
+      inner = `
+        <h4>Defect <span class="num code-chip">${esc(h.code || '')}</span></h4>
+        <div class="frow"><label for="hs-defect">Type</label>
+          <select id="hs-defect">${DEFECT_TYPES.map(t =>
+            `<option value="${esc(t)}"${t === h.defect ? ' selected' : ''}>${esc(t)}</option>`).join('')}</select></div>
+        <div id="hs-measure"></div>
+        <div class="frow"><label for="hs-note">Note (location, extent, detail)</label>
+          <textarea id="hs-note" maxlength="2000">${esc(h.note || '')}</textarea></div>
+        <div class="frow"><label>Close-up photo (optional)</label><span id="hs-image-line"></span></div>`;
     } else {
       inner = `
         <h4>Info hotspot</h4>
@@ -2691,6 +4310,8 @@ async function renderEditor(tourId) {
     const showVals = () => {
       panel.querySelector('#hs-size-val').textContent = `${sizeEl.value}px`;
       panel.querySelector('#hs-opacity-val').textContent = `${opacityEl.value}%`;
+      sizeEl.setAttribute('aria-valuetext', `${sizeEl.value} pixels`);
+      opacityEl.setAttribute('aria-valuetext', `${opacityEl.value} per cent opaque`);
     };
     showVals();
     sizeEl.addEventListener('input', () => { showVals(); applyStyle('size', Number(sizeEl.value)); });
@@ -2710,6 +4331,58 @@ async function renderEditor(tourId) {
       urlInput.addEventListener('input', e => { h.url = e.target.value.trim(); checkUrl(); scheduleSave(); refreshMarkers(); });
       checkUrl();
       panel.querySelector('#hs-label').addEventListener('input', e => { h.label = e.target.value; scheduleSave(); refreshMarkers(); });
+    } else if (h.type === 'defect') {
+      const measure = panel.querySelector('#hs-measure');
+      /* The measurement fields depend on the type, so they are redrawn rather
+         than shown/hidden — a hidden depth input that still holds 2 in after
+         you switch to Crack is how a register acquires a number nobody typed. */
+      const drawMeasure = () => {
+        const kind = DEFECT_MEASURE[h.defect] || '';
+        const steps = kind === 'depth' ? DEPTH_STEPS : WIDTH_STEPS;
+        const field = kind === 'depth' ? 'depthIn' : 'widthIn';
+        measure.innerHTML = kind
+          ? `<div class="frow"><label id="hs-measure-lbl">${kind === 'depth' ? 'Depth' : 'Width'}</label>
+               <div class="seg" role="group" aria-labelledby="hs-measure-lbl">${steps.map(([v, label]) =>
+                 `<button type="button" class="seg-btn${h[field] === v ? ' on' : ''}" data-v="${v}"
+                    aria-pressed="${h[field] === v}">${esc(label)}</button>`).join('')}</div></div>
+             <div class="range-row"><label for="hs-exact">Exact</label>
+               <input type="number" id="hs-exact" min="0" max="99" step="${kind === 'depth' ? '0.25' : '0.0625'}"
+                      value="${h[field] ?? ''}"><span class="val">in</span></div>`
+          : `<p class="scene-note">Recorded by note and photo. The field sketch does not
+             measure this type either, so neither does this.</p>`;
+        if (h.defect === 'Spall') {
+          measure.insertAdjacentHTML('beforeend',
+            `<div class="field"><label for="hs-rebar">Reinforcement exposed</label>
+               <input type="checkbox" id="hs-rebar"${h.rebar ? ' checked' : ''}></div>`);
+          measure.querySelector('#hs-rebar').addEventListener('change', e => {
+            h.rebar = e.target.checked; scheduleSave(); refreshMarkers();
+          });
+        }
+        const exact = measure.querySelector('#hs-exact');
+        const commit = v => {
+          h[field] = v > 0 ? v : undefined;
+          for (const b of measure.querySelectorAll('.seg-btn')) {
+            const on = Number(b.dataset.v) === h[field];
+            b.classList.toggle('on', on);
+            b.setAttribute('aria-pressed', String(on));
+          }
+          if (exact && Number(exact.value) !== h[field]) exact.value = h[field] ?? '';
+          scheduleSave(); refreshMarkers();
+        };
+        measure.querySelectorAll('.seg-btn').forEach(b =>
+          b.addEventListener('click', () => commit(Number(b.dataset.v))));
+        exact?.addEventListener('input', () => commit(Number(exact.value)));
+      };
+      drawMeasure();
+      panel.querySelector('#hs-defect').addEventListener('change', e => {
+        h.defect = e.target.value;
+        /* switching Spall -> Crack must not leave a depth behind in the register */
+        if (DEFECT_MEASURE[h.defect] !== 'depth') { delete h.depthIn; delete h.rebar; }
+        if (DEFECT_MEASURE[h.defect] !== 'width') delete h.widthIn;
+        drawMeasure(); scheduleSave(); refreshMarkers();
+      });
+      panel.querySelector('#hs-note').addEventListener('input', e => { h.note = e.target.value; scheduleSave(); });
+      wireFileRow(panel.querySelector('#hs-image-line'), h, 'image', 'image/jpeg,image/png,image/webp', 'close-up photo');
     } else {
       panel.querySelector('#hs-title').addEventListener('input', e => { h.title = e.target.value; scheduleSave(); refreshMarkers(); });
       panel.querySelector('#hs-text').addEventListener('input', e => { h.text = e.target.value; scheduleSave(); });
@@ -2736,9 +4409,9 @@ async function renderEditor(tourId) {
       s.hotspots = s.hotspots.filter(x => x.id !== h.id);
       scheduleSave();
       refreshMarkers();
-      closeHotspotPanel();
+      closeHotspotPanel({ restore: true });
     });
-    panel.querySelector('#hs-done').addEventListener('click', closeHotspotPanel);
+    panel.querySelector('#hs-done').addEventListener('click', () => closeHotspotPanel({ restore: true }));
   }
 
   function wireFileRow(line, obj, key, accept, label = key) {
@@ -2748,7 +4421,7 @@ async function renderEditor(tourId) {
       if (obj[key]) {
         const clear = el(`<button class="icon-btn" title="Remove ${esc(label)}" aria-label="Remove ${esc(label)}">&times;</button>`);
         clear.addEventListener('click', () => { obj[key] = null; scheduleSave(); refreshMarkers(); render(); });
-        line.append(el(`<span style="font-size:12px;color:var(--text-2)">set</span>`), clear);
+        line.append(el(`<span style="font-size:12px;color:var(--ink-2)">set</span>`), clear);
       } else {
         const btn = el(`<button class="btn" style="padding:3px 10px;font-size:12px" aria-label="Upload ${esc(label)}">Upload</button>`);
         const input = el(`<input type="file" accept="${accept}" hidden>`);
@@ -2766,10 +4439,24 @@ async function renderEditor(tourId) {
     render();
   }
 
+  document.getElementById('sort-shot').addEventListener('click', () => {
+    const timed = doc.scenes.filter(s => s.shot).length;
+    /* Array#sort is stable, so photos with no timestamp keep their order
+       relative to each other and sink to the end rather than leading the walk. */
+    doc.scenes = [...doc.scenes].sort((a, b) =>
+      (a.shot ? 0 : 1) - (b.shot ? 0 : 1) || String(a.shot).localeCompare(String(b.shot)));
+    scheduleSave();
+    renderSceneList();
+    toast(`${timed} photo${timed > 1 ? 's' : ''} put back in capture order`);
+  });
+
   /* ----- boot ----- */
+  syncSortButton();
   renderSceneList();
   renderMain();
   renderSceneShape();
+  renderCoverage();
+  renderPreflight();
   updateHint();
 }
 </script>
