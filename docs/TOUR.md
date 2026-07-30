@@ -132,10 +132,11 @@ the button turns into **Confirm delete?** (a scene or hotspot just says
    page (opened in a new tab) for URL. Click any hotspot — a link arrow
    included — to reopen this same panel and choose its look: a row of shapes
    (Circle, Square, Diamond, Ring, Dot, and, for a link only, Arrow on the
-   floor — the viewer's own floor arrow, and the default for links; Circle is
-   the default for the rest), a Size slider, and an Opacity slider. A link's
-   own badge arrow points up — forward, the way you'd walk — rather than
-   sideways. Leave all three untouched and a hotspot looks exactly as it
+   floor — the viewer's own arrow, which is the one shape that lies flat on
+   the ground; Square is the default for links, Circle for the rest), a Size
+   slider, and an Opacity slider. Hotspots stand upright facing you rather
+   than lying on the path, and a link's arrow points up — forward, the way
+   you'd walk. Leave all three untouched and a hotspot looks exactly as it
    always did. The next hotspot you place — by hand or
    via Connect scenes for me — inherits whatever the last one was styled as,
    so a look gets chosen once rather than forty times.

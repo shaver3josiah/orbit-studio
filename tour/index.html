@@ -102,6 +102,13 @@
     position: absolute; left: 16px; bottom: 56px; z-index: 20; display: block;
   }
   .tour-logo img { max-height: 56px; max-width: 160px; display: block; }
+  /* stepping to the next scene: lean forward, then settle */
+  .stage .psv-canvas-container { transition: transform 620ms cubic-bezier(0.32, 0, 0.24, 1); }
+  .stage.stepping .psv-canvas-container { transform: scale(1.14); }
+  @media (prefers-reduced-motion: reduce) {
+    .stage .psv-canvas-container { transition: none; }
+    .stage.stepping .psv-canvas-container { transform: none; }
+  }
   .load-error {
     position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 30;
     background: var(--surface); border: 1px solid var(--danger); color: var(--text);
@@ -782,7 +789,7 @@ const HOTSPOT_GLYPHS = {
   url: '<path d="M15 25L25 15M25 15h-7M25 15v7" stroke="#F2F2F7" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>',
 };
 
-const DEFAULT_SHAPE = { link: 'arrow', info: 'circle', url: 'circle' };
+const DEFAULT_SHAPE = { link: 'square', info: 'circle', url: 'circle' };
 const DEFAULT_SIZE = 40;
 
 const hotspotShape = h => {
@@ -830,9 +837,10 @@ const arrowColour = h => `rgba(255,255,255,${(0.8 * hotspotOpacity(h)).toFixed(3
 const sceneBackground = scene =>
   scene?.fill ? `linear-gradient(${scene.fill.top}, ${scene.fill.bottom})` : '#000';
 
-/* The viewer's floor arrow is 80px where a marker is 40px, so the same stored
-   number has to mean the same apparent size on both. */
-const ARROW_SCALE = 2;
+/* Standing upright, a link arrow lives in the same visual space as a marker
+   and one stored number means the same size on both. This was 2 while arrows
+   lay on the floor at 80px against a marker's 40px. */
+const ARROW_SCALE = 1;
 
 const SHAPE_NAMES = {
   arrow: 'Arrow on the floor', circle: 'Circle', square: 'Square',
@@ -1171,8 +1179,16 @@ async function renderViewer(tourId) {
       StereoPlugin,
       [VirtualTourPlugin, {
         positionMode: 'manual',
-        renderMode: '3d',
+        /* '3d' lays each arrow flat on the ground, which reads as a sticker
+           stuck to the path and skews with the floor. '2d' stands them up
+           facing the viewer, the way Street View does, so an arrow saying
+           "forward" actually points up the screen. */
+        renderMode: '2d',
         preload: true,
+        /* rotation: the camera swinging round to face the link before the
+           crossfade, which lands as a spin. Off — you walk forward, you do
+           not pirouette. */
+        transitionOptions: { effect: 'fade', rotation: false, speed: '20rpm', showLoader: true },
         nodes,
         startNodeId,
       }],
@@ -1228,15 +1244,26 @@ async function renderViewer(tourId) {
   }
 
   /* face each scene's stored initial view on entry (the intro owns the start pose) */
+  /* Street View pushes forward into the way you picked rather than turning to
+     look at it. Done as a CSS scale on the canvas rather than the viewer's own
+     zoom animation: it rides the compositor, so it cannot be starved by the
+     render loop the crossfade is already using, and it costs nothing when the
+     browser would rather not animate. The class comes off on arrival and the
+     same transition eases it back, which reads as settling into the new spot. */
+  stage.addEventListener('click', e => {
+    if (e.target.closest?.('.psv-virtual-tour-link')) stage.classList.add('stepping');
+  }, true);
+
   virtualTour.addEventListener('node-changed', ({ node }) => {
-    const entered = tour.scenes.find(s => s.id === node.id);
+    stage.classList.remove('stepping');
+    const scene = tour.scenes.find(s => s.id === node.id);
     /* each scene brings its own sky and ground for the parts it does not cover */
-    viewer.setOption('canvasBackground', sceneBackground(entered));
+    viewer.setOption('canvasBackground', sceneBackground(scene));
     if (introPending && node.id === startNodeId) return;
-    const scene = entered;
+    /* always settle the zoom, or the push above would accumulate scene by scene */
+    viewer.zoom(scene?.view?.zoom ?? 50);
     if (scene?.view) {
       viewer.rotate({ yaw: (scene.view.yaw || 0) * DEG, pitch: (scene.view.pitch || 0) * DEG });
-      if (scene.view.zoom != null) viewer.zoom(scene.view.zoom);
     }
   });
 }
