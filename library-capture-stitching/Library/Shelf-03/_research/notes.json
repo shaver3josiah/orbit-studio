@@ -1,0 +1,1907 @@
+{
+  "shelf": 3,
+  "sources": [
+    {
+      "title": "New Features in 2.0 - Spark",
+      "url": "https://sparkjs.dev/docs/new-features-2.0/",
+      "date": "2026-04",
+      "key_claims": [
+        "Spark 2.0 introduces a Level-of-Detail (LoD) Splat Tree traversed in O(N log N) time for steady frame rate on huge scenes",
+        "Handles scenes with 100M or 1G+ splats via a default 16M-splat GPU memory pool",
+        "Adds a .RAD streamable LoD format for HTTP Range-request loading and a SparkXr WebXR wrapper with hand tracking"
+      ],
+      "quotes": [
+        "can traverse the tree in O(N log N) time",
+        "100 M or 1 G+ splats"
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "Releases · sparkjsdev/spark",
+      "url": "https://github.com/sparkjsdev/spark/releases",
+      "date": "2026-05-18",
+      "key_claims": [
+        "v2.1.0 released May 18, 2026 with PLY point-cloud enhancements and a Chrome 149 compatibility fix",
+        "v2.0.0 released April 14, 2026 introducing the LOD system",
+        "v0.1.10 (Oct 25, 2025) added SOGSv2 compression support; v0.1.9 (Sep 22, 2025) added SPZ v3 compatibility"
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "PlayCanvas Open Sources SOG: The WebP of Gaussian Splatting",
+      "url": "https://blog.playcanvas.com/playcanvas-open-sources-sog-format-for-gaussian-splatting/",
+      "date": "2025-09",
+      "key_claims": [
+        "SOG stores splat data as WebP images in Morton order for GPU-ready decoding without post-load processing",
+        "A showcase scene compresses 1GB of PLY data (4M gaussians) down to 42MB, a ~95% reduction, roughly 2-3x better than compressed PLY",
+        "Engine support landed in PlayCanvas Engine 2.11.0; spec and reference implementation are open-sourced"
+      ],
+      "quotes": [
+        "The WebP of Gaussian Splatting"
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "splat-transform README",
+      "url": "https://github.com/playcanvas/splat-transform/blob/main/README.md",
+      "date": "2026-05",
+      "key_claims": [
+        "Reads PLY, Compressed PLY, SOG, Streamed SOG, SPZ, SPLAT, KSPLAT, LCC, LCC2; writes PLY, Compressed PLY, SOG, Streamed SOG, SPZ, GLB, CSV, HTML Viewer, LOD, Voxel, WebP",
+        "Supports Morton reordering, NaN/Inf stripping, box/sphere/harmonic-band/floater filters, and sparse voxel octree generation for collision",
+        "Installable via npm as @playcanvas/splat-transform, or usable browser-side via WebAssembly at superspl.at/convert"
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "SPZ 4 is here: leaner, faster, and more future-proof",
+      "url": "https://www.nianticspatial.com/blog/spz4",
+      "date": "2026-05-05",
+      "key_claims": [
+        "SPZ 4 compresses ~3-5x faster and loads ~1.5-2.1x faster than SPZ3, e.g. 1min8s vs 3min26s encoding a 34M-point dataset",
+        "Replaces the single GZip stream with six parallel ZSTD streams for multi-core compression, removes the old 10M-point cap, and raises SH support to degree 4 with configurable 3/5/8-bit quantization",
+        "Files remain roughly 10x smaller than uncompressed PLY"
+      ],
+      "quotes": [
+        "SPZ 4 compresses about 3-5x faster, loads roughly 1.5-2x faster end-to-end"
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "GaussianSplats3D (mkkellogg) — GitHub repository",
+      "url": "https://github.com/mkkellogg/GaussianSplats3D",
+      "date": "2025-01-25",
+      "key_claims": [
+        "Latest tagged release is v0.4.7 (Jan 25, 2025), adding PlayCanvas export and SPZ compression support",
+        "Supports .ply, .splat, and .ksplat formats with built-in orbit camera controls",
+        "README states the project is no longer in active development and directs users to Spark instead"
+      ],
+      "quotes": [
+        "this repo is no longer in active development"
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "Babylon.js V9.0: 3DGS Gets Shadows, SOGs, and Triangle Splatting Support Announced",
+      "url": "https://radiancefields.com/babylon.js-v9.0-3dgs-gets-shadows-sogs-and-triangle-splatting-support-announced",
+      "date": "2026-03-26",
+      "key_claims": [
+        "Babylon.js v9.0 (March 26, 2026) adds shadow-casting for Gaussian splat meshes and native loading of the SOG/SOGS format from Fraunhofer HHI",
+        "Adds experimental 'Triangle Splatting' (Univ. of Liège/UCLouvain technique) replacing gaussian ellipsoids with opaque triangles for sort-free depth-correct rendering",
+        "Unifies loading of .splat, .ply, .spz, and .sog through one pipeline; adds orthographic-camera support for splats"
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "SuperSplat 2.0 lets you create flythroughs of 3D Gaussian Splats",
+      "url": "https://www.cgchannel.com/2025/02/supersplat-2-0-lets-you-create-flythroughs-of-3dgs-scans/",
+      "date": "2025-02",
+      "key_claims": [
+        "SuperSplat 2.0's Timeline panel lets users set per-frame camera keyframes to build smooth flythrough animations",
+        "SuperSplat can import COLMAP camera poses to auto-generate timeline keyframes recreating the original scan path"
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "Render Your Gaussian Splats to Video with SuperSplat 2.2",
+      "url": "https://blog.playcanvas.com/render-your-gaussian-splats-to-video-with-supersplat/",
+      "date": "2025-2026",
+      "key_claims": [
+        "SuperSplat's Render menu exports high-quality video directly from Timeline camera animations, with resolution/bitrate controls and vertical-video export",
+        "Rendering happens entirely locally in-browser; no splat or render data is uploaded to any server"
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "Khronos Announces glTF Gaussian Splatting Extension (press release)",
+      "url": "https://www.khronos.org/news/press/gltf-gaussian-splatting-press-release",
+      "date": "2026-02-03",
+      "key_claims": [
+        "KHR_gaussian_splatting release candidate announced Feb 3, 2026 for glTF 2.0, extending mesh primitives with per-gaussian position, orientation, scale, color and opacity",
+        "Ratification expected Q2 2026; contributors include Autodesk, Bentley Systems/Cesium, Esri, Huawei, Niantic Spatial, NVIDIA, and XGRIDS",
+        "Design allows graceful fallback to point-cloud rendering in viewers lacking splat support"
+      ],
+      "quotes": [
+        "helping ensure this powerful new rendering technique can scale across tools, platforms, and the web"
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "nianticlabs/spz — GitHub repository (license)",
+      "url": "https://github.com/nianticlabs/spz",
+      "date": "2024-2026",
+      "key_claims": [
+        "SPZ file format library is dual-licensed Apache-2.0 OR MIT",
+        "Originally open-sourced by Niantic in late 2024 as a ~10x-smaller-than-PLY compressed splat format"
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "SparkRenderer docs - Spark",
+      "url": "https://sparkjs.dev/docs/spark-renderer/",
+      "date": "2026",
+      "key_claims": [
+        "SparkRenderer requires a THREE.WebGLRenderer (WebGL2) instance and disables antialiasing since it doesn't help splat rendering; no WebGPU path documented",
+        "Offers radial vs Z-depth splat sorting and configurable target splat counts: ~500K-750K for WebXR, 1-1.5M mobile, 2.5M desktop via lodSplatScale"
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "facebookresearch/vggt (README, LICENSE)",
+      "url": "https://github.com/facebookresearch/vggt",
+      "date": "2026-05-18",
+      "key_claims": [
+        "VGGT is a feed-forward transformer inferring camera poses, depth maps, point maps and 3D point tracks from one, a few, or hundreds of views within seconds",
+        "Base VGGT-1B checkpoint is CC-BY-NC-4.0 (non-commercial); a separate VGGT-1B-Commercial checkpoint released 2025-07-29 permits commercial use excluding military applications",
+        "A 2026-05 update lets VGGT run on roughly 2-3x more input frames at the same GPU memory budget after a memory fix",
+        "VGGT provides a script exporting predictions to COLMAP format, usable downstream with gsplat/Brush",
+        "No native panorama/equirectangular ingestion is documented"
+      ],
+      "quotes": [
+        "a non-exclusive, worldwide, non-transferable and royalty-free limited license"
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "VGGT-Omega project page / facebookresearch/vggt-omega",
+      "url": "https://vggt-omega.github.io/",
+      "date": "2026-05",
+      "key_claims": [
+        "VGGT-Omega is a CVPR 2026 Oral successor to VGGT, using ~30% of VGGT's training memory and running 1.6x faster at inference",
+        "Trained with 20x more supervised data and 100x more unsupervised data than prior work via a new dynamic-scene annotation pipeline and self-supervised protocol",
+        "Improves camera estimation accuracy by 77% on Sintel versus prior best",
+        "Checkpoints are gated (request access required); a Hugging Face demo is public"
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "π³ (Pi3): Permutation-Equivariant Visual Geometry Learning (arXiv + yyfz/Pi3)",
+      "url": "https://arxiv.org/abs/2507.13347",
+      "date": "2025-07-17",
+      "key_claims": [
+        "Pi3 is fully permutation-equivariant: it predicts affine-invariant poses and scale-invariant point maps without any fixed reference view, robust to input ordering",
+        "Accepts unordered images, video, or static/dynamic scenes",
+        "Inference speed: 57.4 FPS vs VGGT 43.2 FPS vs DUSt3R 1.25 FPS",
+        "Code (yyfz/Pi3) is BSD-3-Clause; model weights are CC BY-NC 4.0 (non-commercial only)",
+        "Pi3X upgrade released 2025-12-28 adds smoother point clouds, optional pose/intrinsics/depth conditioning, and approximate metric scale",
+        "Accepted at ICLR 2026 (last revised 2026-03-07); outputs points/local_points/conf/camera_poses only -- no direct Gaussian splat output"
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "MapAnything: Universal Feed-Forward Metric 3D Reconstruction (facebookresearch/map-anything)",
+      "url": "https://github.com/facebookresearch/map-anything",
+      "date": "2026-07-17",
+      "key_claims": [
+        "Developed by Meta Reality Labs and CMU; end-to-end transformer regressing factored metric 3D geometry from images with optional poses/intrinsics/depth",
+        "Code is Apache-2.0; two checkpoint variants exist -- 'facebook/map-anything' (CC-BY-NC-4.0) and 'facebook/map-anything-apache' (Apache-2.0, fully permissive)",
+        "Supports over 12 reconstruction tasks (SfM, MVS, camera localization, depth completion) and wraps VGGT, DUSt3R, MASt3R, MUSt3R, Pi3-X interchangeably behind one interface",
+        "Memory-efficient mode processes up to 2000 views on 140GB GPU memory",
+        "Exported COLMAP-format files can be used directly with gsplat for Gaussian Splatting training",
+        "Latest release v1.1.3 dated 2026-07-17; no native panorama/equirectangular ingestion documented"
+      ],
+      "quotes": [
+        "the exported COLMAP files can be directly used with gsplat for Gaussian Splatting training"
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "AnySplat: Feed-forward 3D Gaussian Splatting from Unconstrained Views",
+      "url": "https://github.com/InternRobotics/AnySplat",
+      "date": "2025-05",
+      "key_claims": [
+        "SIGGRAPH Asia 2025 (ACM TOG) paper; single feed-forward pass predicts 3D Gaussian primitives plus camera intrinsics/extrinsics directly from uncalibrated images -- no COLMAP or poses required",
+        "Trained without 3D SfM or MVS supervision, relying solely on uncalibrated images",
+        "License is MIT (fully permissive)",
+        "Processes standard perspective images (448x448); no panorama/equirectangular support documented",
+        "Renders novel views within seconds of inference"
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "Depth Anything 3 (ByteDance-Seed/Depth-Anything-3)",
+      "url": "https://github.com/ByteDance-Seed/Depth-Anything-3",
+      "date": "2025-11-14",
+      "key_claims": [
+        "Handles single-image and multi-view input; predicts spatially consistent geometry with or without known camera poses",
+        "Outputs include camera extrinsics/intrinsics in COLMAP-style format plus a '3D Gaussian prediction' capability, similar in scope to VGGT",
+        "DA3-BASE/SMALL/METRIC-LARGE/MONO-LARGE are Apache-2.0; the recommended '-1.1' Giant/Large/Nested variants are CC-BY-NC-4.0 (research only)",
+        "DA3-Streaming supports long video sequences under 12GB GPU memory via sliding window",
+        "PyPI package (depth-anything-3) published 2026-03-04; claims to outperform VGGT on multi-view depth and pose estimation",
+        "No panorama/360 support documented; perspective imagery only"
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "SPAG-4D: 360° Panorama to 3D Gaussian Splats (cedarconnor/SPAG4d)",
+      "url": "https://github.com/cedarconnor/SPAG4d",
+      "date": "2026-02-21",
+      "key_claims": [
+        "Converts a single equirectangular panorama into a 3D Gaussian splat PLY using one of four backends (DA360, DAP, PaGeR, SHARP 360); no camera poses or SfM required",
+        "Single-image only -- no multi-view/multi-panorama fusion across a photo set",
+        "VRAM needs 6-48GB depending on backend and optional refinement",
+        "Core license is MIT; DA360/DAP MIT; SHARP/PaGeR are research/non-commercial; optional OmniRoam refinement uses an Adobe Research License",
+        "Optional ArtiFixer3D path bridges internally to COLMAP for novel-view consistency but is not exposed to the user",
+        "Portable release 2026-02-21; ~215 GitHub stars, ~247 commits at time of check"
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "PanoVGGT: Feed-Forward 3D Reconstruction from Panoramic Imagery",
+      "url": "https://arxiv.org/html/2603.17571v1",
+      "date": "2026-03",
+      "key_claims": [
+        "Takes an unordered set of 2-24 equirectangular panoramas (512x1024) and predicts camera poses, dense depth maps, and 3D point clouds in world/camera coordinates in one feed-forward pass",
+        "Uses a DINOv2 ViT-B/14 encoder with spherical-aware positional embeddings and a 24-block alternating-attention Geometry Aggregator",
+        "On the outdoor PanoCity dataset: pose AUC@30 = 0.949, median translation error 0.873 degrees, depth Abs Rel 0.0196, described as robust across diverse urban scenes and weather",
+        "Accepted at CVPR 2026; paper states 'Code and dataset will be released' but availability was not confirmed as of this check"
+      ],
+      "quotes": [
+        "Code and dataset will be released"
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "Global Structure-from-Motion Meets Feedforward Reconstruction (GLUEMAP)",
+      "url": "https://arxiv.org/abs/2605.26103",
+      "date": "2026-05",
+      "key_claims": [
+        "Authored by Linfei Pan, Johannes Schönberger (COLMAP's original author), and Marc Pollefeys; accepted CVPR 2026",
+        "Proposes a hybrid SfM pipeline combining classical global SfM with feed-forward models specifically to overcome COLMAP failure modes: low texture, limited overlap, and symmetric scenes",
+        "Implementation (colmap/gluemap) vendors Pi3, SALAD, a VGGSfM tracker, and Doppelgangers++ as feed-forward components alongside a C++/Ceres/Eigen backend",
+        "Signals that even COLMAP's own authors treat feed-forward models as complementary patches for classical SfM's weak spots rather than a full replacement at scale"
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "DUSt3R / MASt3R license and MASt3R-SfM scalability",
+      "url": "https://github.com/naver/mast3r",
+      "date": "2024-09",
+      "key_claims": [
+        "DUSt3R and MASt3R remain licensed CC BY-NC-SA 4.0 (non-commercial, share-alike) as of this check, restricting use in a permissively-licensed open pipeline without separate permission from Naver",
+        "MASt3R-SfM extends MASt3R with a frozen-encoder retrieval step, achieving quasi-linear complexity in image count versus MASt3R's pairwise-only scaling",
+        "PanoSplatt3R (arXiv 2507.21960, 2025-07) adapts MASt3R/DUSt3R perspective pretraining via transfer learning for wide-baseline panorama reconstruction, showing the lineage is being extended toward panoramic inputs"
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "Tencent-Hunyuan/HunyuanWorld-1.0 (GitHub)",
+      "url": "https://github.com/Tencent-Hunyuan/HunyuanWorld-1.0",
+      "date": "2025-07-26",
+      "key_claims": [
+        "Generates immersive, explorable, interactive 360 3D worlds from text or images via panoramic world proxies + semantically layered 3D mesh representation",
+        "Two-stage pipeline: panorama generation then world scene construction with foreground object layering (labels_fg1/fg2)",
+        "Outputs Draco-compressed mesh for graphics-pipeline import; lite version (Aug 15, 2025) runs on consumer 4090 GPUs with fp8 quantization",
+        "Licensed under the Tencent HunyuanWorld-1.0 Community License Agreement"
+      ],
+      "quotes": [
+        "Generating Immersive, Explorable, and Interactive 3D Worlds from Words or Pixels"
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "tencent/HunyuanWorld-1 README (Hugging Face) + license text",
+      "url": "https://huggingface.co/tencent/HunyuanWorld-1/blob/main/README.md",
+      "date": "2025-07",
+      "key_claims": [
+        "License Territory is defined as worldwide excluding the European Union, United Kingdom, and South Korea",
+        "Products/services exceeding 1,000,000 monthly active users in the prior calendar month must obtain separate written approval from Tencent",
+        "License forbids using outputs to train or improve competing AI models; Tencent claims no rights over user-generated outputs"
+      ],
+      "quotes": [
+        "Worldwide territory, excluding the territory of the European Union, United Kingdom and South Korea.",
+        "Tencent claims no rights in Outputs You generate."
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "Nice model, but strange license. You are not allowed to use it in EU, UK... (Hacker News discussion)",
+      "url": "https://news.ycombinator.com/item?id=43420870",
+      "date": "2025",
+      "key_claims": [
+        "Community discussion independently corroborates the HunyuanWorld license's EU/UK/South Korea territorial exclusion and criticizes it as non-standard/non-OSI-open"
+      ],
+      "quotes": [
+        "You are not allowed to use it in EU, UK, and So..."
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "Tencent-Hunyuan/HY-World-2.0 (GitHub) + License.txt",
+      "url": "https://github.com/Tencent-Hunyuan/HY-World-2.0",
+      "date": "2026-04-16",
+      "key_claims": [
+        "HY-World 2.0 released April 16, 2026 as a multi-modal world model producing real 3DGS/mesh/point-cloud assets importable into Unity/Unreal (not pixel video)",
+        "Four-stage panorama-to-3DGS pipeline: trajectory planning, world expansion, Gaussian splatting optimization",
+        "Companion releases: HY-Pano 2.0 (May 11, 2026) and WorldStereo 2.0 (May 18, 2026); WorldMirror 2.0 does multi-view/video to 3D reconstruction in one pass",
+        "Uses the same 'Tencent HY-WORLD 2.0 Community License Agreement' with identical EU/UK/South Korea exclusion and 1M MAU cap, plus added prohibitions on military use and high-stakes automated decisions"
+      ],
+      "quotes": [
+        "A Multi-Modal World Model for Reconstructing, Generating, and Simulating 3D Worlds"
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "ZiYang-xie/WorldGen (GitHub)",
+      "url": "https://github.com/ZiYang-xie/WorldGen",
+      "date": "2026-04-12",
+      "key_claims": [
+        "Apache-2.0 licensed; accepts text prompts, single images, or a user-supplied 360 equirectangular panorama directly via a pano_image parameter",
+        "Outputs 3D Gaussian Splatting or mesh as PLY files with 360-degree free exploration and loop closure",
+        "Low-VRAM mode needs ~10GB (fits a free-tier T4); standard mode recommends 24GB+",
+        "April 2026 updates replaced UniK3D with DA-2 depth estimation and reworked the ml-sharp cubemap pipeline from 8+ views down to 6 faces; background inpainting for occluded regions is still experimental"
+      ],
+      "quotes": [
+        "WorldGen - Generate Any 3D Scene in Seconds"
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "ShijieZhou-UCLA/DreamScene360 (GitHub)",
+      "url": "https://github.com/ShijieZhou-UCLA/DreamScene360",
+      "date": "2024 (ECCV 2024 paper; repo shows 6 commits, no tagged releases)",
+      "key_claims": [
+        "Explicitly supports feeding in the user's own real 360 panorama image of any resolution (not just text-generated ones), placed directly into the data folder",
+        "Lifts a single panorama into 3D Gaussians using aligned monocular depth as initialization, with semantic/geometric regularization specifically to reconstruct unseen/occluded regions from single-view input",
+        "Inherits the original 3D Gaussian Splatting codebase's license (Inria/MPII), which grants rights for research purposes only and prohibits commercial use without explicit consent"
+      ],
+      "quotes": [
+        "Unconstrained Text-to-3D Scene Generation with Panoramic Gaussian Splatting"
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "3DTopia/LayerPano3D (GitHub)",
+      "url": "https://github.com/3DTopia/LayerPano3D",
+      "date": "2025 (SIGGRAPH 2025)",
+      "key_claims": [
+        "Apache-2.0 licensed; generates panoramic 3D scenes from a single text prompt only — no support for a real user photo/panorama as input",
+        "Introduces 'Layered 3D Panorama' representation: decomposes a reference panorama into multiple depth layers, each revealing occluded space via diffusion prior, lifted into 3D Gaussians",
+        "Uses a new Upright360 dataset (9k panoramas) and a finetuned Flux model; requires downloading multiple separate checkpoints (SAM ViT-H, Depth-Anything-V2, panorama LoRA)"
+      ],
+      "quotes": [
+        "Layered 3D Panorama for Hyper-Immersive Scene Generation"
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "KovenYu/WonderWorld (GitHub) + CVPR 2025 paper",
+      "url": "https://github.com/KovenYu/WonderWorld",
+      "date": "2024-06 (arXiv); 2025 (CVPR)",
+      "key_claims": [
+        "Interactive single-image 3D scene generation using 'Fast Layered Gaussian Surfels' (FLAGS), generating each connected scene extension in under 10 seconds on an A6000 GPU",
+        "Requires roughly 48GB GPU memory to run, far beyond a free-tier T4; optional (non-required) OpenAI GPT-4 API call for scene descriptions",
+        "No LICENSE file was found in the repository at the time of checking — license status is undocumented/unclear"
+      ],
+      "quotes": [
+        "Code release for https://kovenyu.com/WonderWorld/"
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "Tencent-Hunyuan/HunyuanWorld-Mirror (GitHub) / WorldMirror technical report",
+      "url": "https://github.com/Tencent-Hunyuan/HunyuanWorld-Mirror",
+      "date": "2025-10 (announced as Hunyuan World 1.1); accepted ICML 2026",
+      "key_claims": [
+        "Feed-forward (single forward pass, no iterative optimization) universal 3D reconstruction model taking multi-view images, video, or partial priors (poses/intrinsics/depth) as input",
+        "Simultaneously predicts point clouds, multi-view depth, camera parameters, surface normals, and 3D Gaussians in one pass on a single A100",
+        "Positioned as an alternative to optimization-based multi-view reconstruction (i.e., a possible pycolmap alternative), distinct from generative world-from-scratch models; its specific license terms were not independently confirmed in this research pass"
+      ],
+      "quotes": [
+        "Fast and Universal 3D reconstruction model for versatile tasks"
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "Announcing the World API (World Labs blog)",
+      "url": "https://www.worldlabs.ai/blog/announcing-the-world-api",
+      "date": "2026-01-21",
+      "key_claims": [
+        "World Labs launched a public 'World API' on January 21, 2026 for generating explorable 3D worlds via its Marble multimodal world model, accepting text, single/multiple images, panoramas, video, and coarse 3D structure as input",
+        "Marble itself is closed-weight and proprietary; generated-world commercial use requires an eligible paid World Labs plan governed by their Terms of Service"
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "neilsonnn/image-blaster (GitHub)",
+      "url": "https://github.com/neilsonnn/image-blaster",
+      "date": "2026 (mid-2026)",
+      "key_claims": [
+        "MIT-licensed open-source Claude Code skillset that turns a single image into a full 3D environment (meshes, physics colliders, lighting, ambient audio) in under 5 minutes",
+        "Generation itself is not self-hosted: it calls paid third-party APIs — World Labs Marble for the environment splat (.spz), Hunyuan3D (via fal) for object meshes, and ElevenLabs for audio — so the MIT license covers only orchestration glue, not the underlying models"
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "COLMAP GitHub Releases",
+      "url": "https://github.com/colmap/colmap/releases",
+      "date": "2024-06",
+      "key_claims": [
+        "Release (labeled 4.1.0 in one fetch, conflicting dates seen) added Caspar, a GPU-accelerated bundle adjustment backend selectable as an alternative to the default Ceres solver, claimed 1-2 orders of magnitude faster than Ceres CUDA for medium-to-large problems.",
+        "Added native spherical (equirectangular) camera models enabling reconstruction of 360 panoramic images without first rendering perspective views.",
+        "panorama_sfm example extended to convert perspective cameras back to equirectangular and added global mapping support."
+      ],
+      "quotes": [
+        "GPU-accelerated bundle adjustment backend, selectable as an alternative",
+        "enables native reconstruction of 360 panoramic images"
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "Spherical Camera Support on COLMAP GUI · Issue #3595 · colmap/colmap",
+      "url": "https://github.com/colmap/colmap/issues/3595",
+      "date": "",
+      "key_claims": [
+        "Spherical/equirectangular camera model support exists in COLMAP but is not exposed as an option in the COLMAP GUI as of this issue; it is reachable via CLI / panorama_sfm example script only."
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "Gaussian Splatting from 360 Video: From Insta360 Capture to 3D (Mikhail Mokrushin)",
+      "url": "https://www.linkedin.com/pulse/gaussian-splatting-from-360-video-insta360-capture-3d-mokrushin-7kdnf",
+      "date": "",
+      "key_claims": [
+        "Recommends exporting equirectangular from Insta360 Studio, extracting keyframes every 1-2 seconds, then converting each 360 image into 6 cubemap faces with ~10% overlap and exporting in COLMAP format.",
+        "Compares local training (Nerfstudio, Brush, Postshot -- max control, needs powerful GPU) vs cloud semi-automatic (Teleport/Polycam/KIRI, frame-limited) vs fully automatic (Splatica).",
+        "States current splatting algorithms cannot ingest raw 360/fisheye footage directly, so preprocessing is mandatory."
+      ],
+      "quotes": [
+        "Gaussian Splatting creation algorithms currently don't know how to work with raw 360 video or fisheye lens footage."
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "Using 360 Video for 3D Gaussian Splatting (and NeRFs) - Jonathan Stephens (LinkedIn post)",
+      "url": "https://www.linkedin.com/posts/jonathanstephens_how-to-use-360-video-for-3d-gaussian-splatting-activity-7106131828138283008-zvBk",
+      "date": "",
+      "key_claims": [
+        "Demonstrates splitting 360 images horizontally into standard 2D perspective slices because COLMAP does not natively handle spherical/cylindrical projections.",
+        "Author frames this as 'the easiest but not the best way,' implying better methods exist.",
+        "A commenter reported a COLMAP run taking 1008 minutes and producing a 30GB database.db with no output, illustrating processing-scale pitfalls."
+      ],
+      "quotes": [
+        "the EASIEST but not the BEST way",
+        "after 1008 minutes i have 30 gb of database.db and no output"
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "I Built My Own Tools to Turn 360 Footage Into Clean Gaussian Splatting Data (realitystack Substack)",
+      "url": "https://realitystack.substack.com/p/i-built-my-own-tools-to-turn-360",
+      "date": "2026-05-26",
+      "key_claims": [
+        "Built '3DGaussianTools': extracts frames (every-N or target fps), scores sharpness via Laplacian variance, and selects frames by best-n/batched/outlier strategies for spatial coverage.",
+        "Reprojects equirectangular images to 18 virtual perspective cameras (16 ring cameras across 8 yaw x 2 pitch, plus 2 polar cameras) to run YOLO+SAM masking, because YOLO/SAM fail directly on equirectangular polar distortion.",
+        "Dilates masks by roughly 15% coverage to catch loose hair, backpack shadows, and motion blur left by tighter segmentation.",
+        "Reduced a 2-minute, 6000-frame 8K walkthrough down to ~40 selected sharp frames, trained via LichtFeld Studio/Nerfstudio, yielding an 8.5 million-splat scene running at 40fps on a budget Android phone."
+      ],
+      "quotes": [
+        "the step that actually makes it work"
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "360 Gaussian Splatting Plugins & Tools (2026 Guide) - RadianceFields.com",
+      "url": "https://radiancefields.com/360-gaussian-splatting-plugins",
+      "date": "2026",
+      "key_claims": [
+        "360 Splat Pro (Ronski, Windows, paid) converts equirectangular video to perspective tiles/cubemap, supports Insta360 .INS and DJI .OSV, includes SAM3 text-prompt masking and SphereSfM alignment; positioned as the explicit Insta360 recommendation.",
+        "360 Video Stills Prep Tool (Ronski, Windows, paid) does SAM2 masking and perspective splitting for photogrammetry-style batch workflows.",
+        "360 Gaussian (Laskos Virtuals, Windows, free) is described as a free end-to-end trainer from 360 video supporting multiple SfM backends (SphereSfM, COLMAP, Metashape, RealityScan).",
+        "Metashape 360 to COLMAP Converter (kotohibi) converts Metashape 360 SfM results into a COLMAP cubemap format with a GUI."
+      ],
+      "quotes": [
+        "End-to-end 360° prep pipeline with AI masking and bundled alignment."
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "Convert Insta360 .insp files to equirectangular projection on Ubuntu with FFmpeg (ARJ)",
+      "url": "https://www.arj.no/2025/12/19/insta360-to-equirectangular/",
+      "date": "2025-12-19",
+      "key_claims": [
+        "Demonstrates that Insta360 .insp files are dual-fisheye JPEGs that can be renamed .jpg and processed directly by ffmpeg's v360 filter.",
+        "Uses ffmpeg v360=input=dfisheye:output=e:ih_fov=204:iv_fov=204:w=8000:h=4000 to convert dual-fisheye stills to 8000x4000 equirectangular, with 204 degree FOV found via iterative testing against Insta360 X2 source images.",
+        "Notes minor stitching artifacts persisting near the bottom (nadir) edge of the output."
+      ],
+      "quotes": [
+        "those cryptic .insp files are just JPEGs"
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "Introducing Gaussian Splats for AEC - AEC Magazine",
+      "url": "https://aecmag.com/technology/introducing-gaussian-splats-for-aec/",
+      "date": "2025-12-02",
+      "key_claims": [
+        "Frames gaussian-splat capture for construction/infrastructure as resembling filmmaking rather than laser scanning -- walk with a phone or drone, process into a navigable scene in minutes.",
+        "Lists AEC-specific tools integrating splats: Gauzilla Pro, XGRIDS (SLAM + Revit), Autodesk (ReCap/Civil 3D/InfraWorks/Construction Cloud), Bentley iTwin Capture, ESRI ArcGIS Reality, Pix4D.",
+        "Explicitly cautions that splats excel at appearance rather than precise geometry and should be anchored to LiDAR/SLAM as the metrical backbone for infrastructure work, not used as a standalone survey deliverable."
+      ],
+      "quotes": [
+        "splats excel at appearance rather than precise geometry"
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "Insta360 Studio: File Export (Insta360 Online Manual)",
+      "url": "https://onlinemanual.insta360.com/studio/en-us/operation-guide/file-management/file-export-instructions",
+      "date": "",
+      "key_claims": [
+        "Insta360 Studio supports batch export via File > Batch Export (or Ctrl+B / Cmd+B) across selected footage.",
+        "Export formats include JPG, MP4, DNG, MOV, and INSV; Equirectangular can be selected as the output projection type for a seamless 360 panorama, with field-of-view/angle adjustment available pre-export for leveling."
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "Insta360, Splatica Partner to Democratize 360-to-3D Gaussian Splatting (Insta360 blog)",
+      "url": "https://www.insta360.com/blog/enterprise/insta360-splatica-gaussian-splatting-partnership.html",
+      "date": "2026-04-24",
+      "key_claims": [
+        "Insta360 and Splatica announced a partnership turning consumer 360 VIDEO into 3D Gaussian Splats via a cloud pipeline: capture, upload, and receive a production-ready splat in hours with browser/VR viewing and simulation-environment export.",
+        "Positioned as a video-input pipeline (capture a short 360 video), not a discrete-stills workflow, making it a poor structural match for a 20-still-photo bridge capture even though it is Insta360's own official recommended path."
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "Release 4.1.0 · colmap/colmap",
+      "url": "https://github.com/colmap/colmap/releases/tag/4.1.0",
+      "date": "2026-06-26",
+      "key_claims": [
+        "Added the spherical (equirectangular) camera models enabling native reconstruction of 360 panoramic images",
+        "Native approach is generally faster but less accurate than rendering perspective views",
+        "Extended panorama_sfm example to convert perspective cameras back to equirectangular and added global mapping support",
+        "Added Enhanced Unified Camera Model (EUCM)",
+        "Added Caspar, a GPU-accelerated bundle adjustment backend, 1-2 orders of magnitude faster than Ceres CUDA backend"
+      ],
+      "quotes": [
+        "generally faster but less accurate than rendering perspective views",
+        "1-2 orders of magnitude faster than the Ceres CUDA backend"
+      ],
+      "code_refs": [
+        "examples/panorama_sfm"
+      ]
+    },
+    {
+      "title": "Changelog — COLMAP",
+      "url": "https://colmap.github.io/changelog.html",
+      "date": "2026-07-17",
+      "key_claims": [
+        "COLMAP 4.0.0 (2026-03-14): Integrated GLOMAP global SfM pipeline as first-class alternative with view graph calibration",
+        "COLMAP 4.0.0 added ALIKED feature extraction via ONNX with vocabulary tree matching and LightGlue ONNX matching for SIFT and ALIKED",
+        "COLMAP 4.0.0 replaced FreeImage with OpenImageIO, dropped Python 3.9 support",
+        "COLMAP 4.1.0 (2026-06-26) added rotation averaging options to GlobalMapper and robustified gravity-aligned rotation averaging against 180-degree flips"
+      ],
+      "quotes": [
+        "Integrated GLOMAP global SfM pipeline as first-class alternative"
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "COLMAP 4.1.0 Ships Caspar GPU Bundle Adjustment and Native 360 Reconstruction - Radiance Fields",
+      "url": "https://radiancefields.com/colmap-4.1.0-ships-caspar-gpu-bundle-adjustment-and-native-360-reconstruction",
+      "date": "2026-06",
+      "key_claims": [
+        "4.1.0 eliminates the perspective cropping and re-stitching step that previously stood between a panoramic capture and a COLMAP reconstruction",
+        "Caspar functions as an optional alternative rather than mandatory replacement for the Ceres solver",
+        "Release also fixes Blackwell GPU compatibility and SIFT/LightGlue integration bugs"
+      ],
+      "quotes": [
+        "perspective cropping and re-stitching step that previously stood between a panoramic capture and a COLMAP reconstruction"
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "colmap/glomap GitHub repository (archive notice)",
+      "url": "https://github.com/colmap/glomap",
+      "date": "2026-03-09",
+      "key_claims": [
+        "Repository archived by owner on 2026-03-09 and made read-only",
+        "Notice states the project is no longer maintained and has been fully migrated to COLMAP, exposed as the 'global' mapper",
+        "Had 2.3k stars, ~180 forks at time of archiving"
+      ],
+      "quotes": [
+        "This project is no longer maintained and has been fully migrated to COLMAP, where GLOMAP functionality is exposed as the 'global' mapper."
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "Global Structure-from-Motion Revisited (GLOMAP paper, arXiv)",
+      "url": "https://arxiv.org/abs/2407.20219",
+      "date": "2024-07",
+      "key_claims": [
+        "GLOMAP is a general-purpose global SfM system on-par or superior to COLMAP's incremental mapper while being orders of magnitude faster",
+        "Merges translation averaging and triangulation into a single global positioning step",
+        "Originally presented at ECCV 2024, later merged directly into COLMAP as its global mapper"
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "SphereSfM (json87) GitHub repository",
+      "url": "https://github.com/json87/SphereSfM",
+      "date": "2025-08-18",
+      "key_claims": [
+        "SfM engine specialized for ERP (equirectangular) spherical images, built on top of the COLMAP codebase",
+        "Adds a dedicated SPHERE camera model and spatial matching optimized for equirectangular imagery",
+        "Latest release dated 2025-08-18 with 32 commits on main branch"
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "Adding Equirectangular Camera Support; correct approach? · Issue #1045 · openMVG/openMVG",
+      "url": "https://github.com/openMVG/openMVG/issues/1045",
+      "date": "unknown",
+      "key_claims": [
+        "OpenMVG's existing 'Spherical' camera model is not actually equirectangular; likely closer to a rectilinear/other projection",
+        "Discussion concludes OpenMVG needs a distinct 'Spherical_Equirectangular' camera because the projection formula differs",
+        "Issue remains open with no confirmed resolution found in 2025-2026 searches"
+      ],
+      "quotes": [
+        "the 'Spherical' Camera in OpenMVG is in fact not equirectangular"
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "Releases · cvg/Hierarchical-Localization (hloc)",
+      "url": "https://github.com/cvg/Hierarchical-Localization/releases",
+      "date": "2024-07-20",
+      "key_claims": [
+        "Latest tagged release is v1.4, dated 2024-07-20, adding LightGlue as a new sparse matching front end",
+        "No newer tagged release exists as of the 2026 search; ALIKED/XFeat support (e.g. PR #441 adding xfeat+lighterglue) lives only on the unreleased master branch"
+      ],
+      "quotes": [],
+      "code_refs": [
+        "hloc/match_features.py"
+      ]
+    },
+    {
+      "title": "ns-process-data equirect_utils.py (nerfstudio source) via GitHub search",
+      "url": "https://github.com/nerfstudio-project/nerfstudio/blob/main/nerfstudio/process_data/process_data_utils.py",
+      "date": "2026",
+      "key_claims": [
+        "ns-process-data supports --camera-type equirectangular with --images-per-equirect set to 8 or 14",
+        "8-face mode uses 120-degree FOV; 14-face mode uses 110-degree FOV, both sampled at pitches [-45, 0, 45]",
+        "Per-face resolution derived from equirect resolution divided by number of faces (res_squared = h*w/num_images)",
+        "--crop-factor (top,bottom,left,right) lets users exclude polar regions before splitting"
+      ],
+      "quotes": [],
+      "code_refs": [
+        "nerfstudio/process_data/equirect_utils.py"
+      ]
+    },
+    {
+      "title": "Planar output from ns-process-data equirect mode has image artifacts, doesn't respect crop parameters · Issue #3445 · nerfstudio-project/nerfstudio",
+      "url": "https://github.com/nerfstudio-project/nerfstudio/issues/3445",
+      "date": "2024-09-26",
+      "key_claims": [
+        "Issue reported artifacts and ignored --crop-bottom parameter when splitting 8k equirect images, opened 2024-09-26",
+        "Issue status is now closed, indicating the equirect-to-perspective splitting bug has been fixed"
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "What are best practises to use equirectangular image frames from a 360 video as input? · Issue #2529 · colmap/colmap",
+      "url": "https://github.com/colmap/colmap/issues/2529",
+      "date": "2024-04-20",
+      "key_claims": [
+        "User reports using AliceVision split360Images with --equirectangularNbSplits 8 --fov 90.0 as one common community workaround before COLMAP had native spherical support",
+        "Issue documents inconsistent feature-matching results splitting equirect video frames, left unanswered by maintainers in the fetched content"
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "InstantSplat: Sparse-view Gaussian Splatting in Seconds",
+      "url": "https://arxiv.org/abs/2403.20309",
+      "date": "2024-03",
+      "key_claims": [
+        "Self-supervised framework unprojects 2D pixels into 3D using DUSt3R geometric priors and eliminates Structure-from-Motion entirely.",
+        "Reconstruction is >30x faster than SfM+3DGS and improves SSIM from 0.3755 to 0.7624 on sparse-view benchmarks.",
+        "Official repo (NVlabs/InstantSplat) supports 3D-GS, 2D-GS, and Mip-Splatting; 33 commits, README does not pin an exact minimum view count."
+      ],
+      "quotes": [
+        "Unbounded Sparse-view Pose-free Gaussian Splatting in 40 Seconds"
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "FSGS: Real-Time Few-shot View Synthesis using Gaussian Splatting",
+      "url": "https://arxiv.org/abs/2312.00451",
+      "date": "2023-12",
+      "key_claims": [
+        "Works with as few as 3 training views using a Gaussian Unpooling process that adds new Gaussians near representative locations to infill vacant areas.",
+        "Benchmarked on both indoor (LLFF) and outdoor unbounded (Mip-NeRF360) scenes plus Blender."
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "CoR-GS: Sparse-View 3D Gaussian Splatting via Co-regularization",
+      "url": "https://link.springer.com/chapter/10.1007/978-3-031-73232-4_19",
+      "date": "2024",
+      "key_claims": [
+        "Trains dual Gaussian radiance fields simultaneously and uses co-pruning plus co-regularization between the two fields to improve accuracy of Gaussian primitives under sparse views."
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "Pi-GS: Sparse-View Gaussian Splatting with Dense π3 Initialization",
+      "url": "https://arxiv.org/abs/2602.03327",
+      "date": "2026-02",
+      "key_claims": [
+        "Uses π3, a reference-free point-cloud estimation network, for dense initialization instead of COLMAP, combined with confidence-aware Pearson-correlation depth loss, normal-consistency loss, and depth-warped pseudo-views generated by circle interpolation between camera pairs.",
+        "On Tanks&Temples 3-view PSNR: Pi-GS 22.87 vs Intern-GS 22.67, FSGS 22.31, InstantSplat 22.20, DNGaussian 20.69.",
+        "Also evaluated at 12-view and 24-view settings on MipNeRF360 (real outdoor 360-degree scenes).",
+        "Code public at github.com/Mango0000/Pi-GS."
+      ],
+      "quotes": [
+        "reduces floaters and view inconsistencies"
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "Dropping Anchor and Spherical Harmonics for Sparse-view Gaussian Splatting (DropAnSH-GS)",
+      "url": "https://arxiv.org/abs/2602.20933",
+      "date": "2026-02",
+      "key_claims": [
+        "Accepted CVPR 2026; identifies that prior random-Gaussian dropout regularizers suffer a 'neighbor compensation effect' where dropped Gaussians get compensated by neighbors, weakening regularization.",
+        "Proposes anchor-based dropout that removes whole spatial neighbor clusters at once, plus dropping higher-degree spherical-harmonic coefficients to reduce color-based overfitting.",
+        "Official code at github.com/Fangkang515/DropAnSH-GS."
+      ],
+      "quotes": [
+        "neighbor compensation effect"
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "MS-GS: Multi-Appearance Sparse-View 3D Gaussian Splatting in the Wild",
+      "url": "https://arxiv.org/abs/2509.15548",
+      "date": "2025-09",
+      "key_claims": [
+        "Targets in-the-wild photo collections with limited images taken at different times of day or seasons (multi-appearance), built on monocular-depth-estimation geometric priors.",
+        "Adds geometry-guided supervision at virtual (interpolated) views at both pixel and feature levels to reduce overfitting.",
+        "Accepted at NeurIPS 2025."
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "Sparse-View 3D Gaussian Splatting in the Wild (SaveWildGS)",
+      "url": "https://arxiv.org/html/2604.27422v1",
+      "date": "2026-04-30",
+      "key_claims": [
+        "Handles sparse (3/6/9-view) real-world outdoor landmark photos with transient distractors (people, vehicles) via a one-step diffusion reference-guided view refinement, sparsity-aware Gaussian replication (SAGR), and LoRA test-time training with score-distillation loss.",
+        "Reports 17.2% PSNR, 10.8% SSIM, 4.0% LPIPS improvement over prior sparse-view baselines on NeRF On-the-go and Photo Tourism (outdoor) plus LLFF.",
+        "Explicitly documents two failure modes: difficulty separating static distractors (parked cars, standing pedestrians) from real background, and that overlapped camera perspectives reduce available reference regions, degrading reconstruction."
+      ],
+      "quotes": [
+        "overlapped camera perspectives reduce available reference regions"
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "ODGS: 3D Scene Reconstruction from Omnidirectional Images with 3D Gaussian Splattings",
+      "url": "https://arxiv.org/abs/2410.20686",
+      "date": "2024-10 (NeurIPS 2024)",
+      "key_claims": [
+        "Decomposes each omnidirectional (360) image into six perspective cubemap-face images and rasterizes them directly rather than warping a single equirectangular projection, avoiding the distortion a naive perspective rasterizer produces on 360 images.",
+        "Achieves 100x faster optimization/rendering than NeRF-based omnidirectional methods; evaluated on OmniBlender, Ricoh360, OmniPhotos, 360Roam, OmniScenes, 360VO.",
+        "Official repo (esw0116/ODGS) is MIT-licensed; last updated 2024-12-26."
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "Splatter-360: Generalizable 360-degree Gaussian Splatting for Wide-baseline Panoramic Images",
+      "url": "https://arxiv.org/abs/2412.06250",
+      "date": "2024-12 (CVPR 2025)",
+      "key_claims": [
+        "Feed-forward 3DGS for wide-baseline panorama pairs; performs multi-view matching directly in the spherical domain via a spherical sweep algorithm building a spherical cost volume.",
+        "Uses a bi-projection encoder combining equirectangular projection (ERP) and cube-map projection features through multi-view transformers, addressing distortion that naive independent cubemap-face processing introduces."
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "PanoImager: Geometry-Guided Novel View Synthesis and Reconstruction from Sparse Panoramic Views",
+      "url": "https://arxiv.org/pdf/2606.27071",
+      "date": "2026-06",
+      "key_claims": [
+        "States directly that sparse panoramic observations 'can degrade geometric completeness, cross-view consistency, and extrapolation to unseen viewpoints' for sphere-native 3DGS extensions."
+      ],
+      "quotes": [
+        "sparse observations can degrade geometric completeness, cross-view consistency, and extrapolation to unseen viewpoints"
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "LighthouseGS: Indoor Structure-aware 3D Gaussian Splatting for Panorama-Style Mobile Captures",
+      "url": "https://arxiv.org/pdf/2507.06109",
+      "date": "2025-07",
+      "key_claims": [
+        "Targets exactly a 'panorama-style' multi-station capture pattern (indoor), i.e. a small number of 360-style stations rather than a dense video walkthrough — structurally the closest existing analog to a 20-station outdoor shoot, though scoped to indoor scenes."
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "Seam360GS: Seamless 360-degree Gaussian Splatting from Real-World Omnidirectional Images",
+      "url": "https://arxiv.org/abs/2508.20080",
+      "date": "2025-08-27 (ICCV 2025)",
+      "key_claims": [
+        "Addresses lens-separation seams and angular distortion artifacts specific to consumer dual-fisheye 360 cameras (the Insta360 X4 Air's own capture hardware) by jointly optimizing a dual-fisheye camera calibration model together with the Gaussian parameters.",
+        "Licensed CC BY 4.0."
+      ],
+      "quotes": [
+        "lens separation and angular distortions"
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "TIDI-GS: Floater Suppression in 3D Gaussian Splatting for Enhanced Indoor Scene Fidelity",
+      "url": "https://arxiv.org/html/2601.09291",
+      "date": "2026-01",
+      "key_claims": [
+        "Combines a temporally accumulated evidence log, conservative detail-preserving guards, isolation-aware removal policy, and an uncertainty-guided monocular depth regularizer to suppress floaters without architecture changes.",
+        "Scoped and evaluated on indoor scenes; outdoor/unbounded transfer is not confirmed in the available abstract."
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "Sparse-View 3D Reconstruction: Recent Advances and Open Challenges",
+      "url": "https://arxiv.org/abs/2507.16406",
+      "date": "2025-07",
+      "key_claims": [
+        "Survey covering explicit point-cloud-based approaches including 3D Gaussian Splatting, framing geometric regularization, explicit shape modeling, and generative inference as the three main strategies against floaters and pose ambiguities in sparse-view reconstruction."
+      ],
+      "quotes": [
+        "floaters and pose ambiguities"
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "World Labs Announces New Funding",
+      "url": "https://www.worldlabs.ai/blog/funding-2026",
+      "date": "2026-02-18",
+      "key_claims": [
+        "World Labs raised $1 billion in new funding announced Feb 18, 2026",
+        "Investors included AMD, Autodesk ($200M), Emerson Collective, Fidelity, NVIDIA, and Sea",
+        "Funding announcement coincided with Marble's formal commercial launch"
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "Marble: A Multimodal World Model",
+      "url": "https://www.worldlabs.ai/blog/marble-world-model",
+      "date": "2025-11",
+      "key_claims": [
+        "Marble's multi-image mode accepts photos/video of a real place and generates a 3D world 'with elements' of that space, not a precise reconstruction",
+        "Users can specify directional positioning (Front/Back/Left/Right) or use Auto Layout for multi-image input",
+        "Uploading a 360 panorama is offered as the most accurate/controlled spatial input option"
+      ],
+      "quotes": [
+        "combine them to generate a 3D world with elements of the real-world space"
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "Fei-Fei Li's World Labs speeds up the world model race with Marble, its first commercial product",
+      "url": "https://techcrunch.com/2025/11/12/fei-fei-lis-world-labs-speeds-up-the-world-model-race-with-marble-its-first-commercial-product/",
+      "date": "2025-11-12",
+      "key_claims": [
+        "Marble launched Nov 12, 2025 as World Labs' first commercial product",
+        "Pricing at launch: Free (4 generations), Standard $20/mo (12 generations), Pro $35/mo (25 generations), Max $95/mo (75 generations)",
+        "Marble creates persistent, downloadable 3D environments rather than on-the-fly generation while exploring"
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "World Labs Releases Marble 1.1 and Marble 1.1 Plus",
+      "url": "https://radiancefields.com/world-labs-releases-marble-1.1-and-marble-1.1-plus",
+      "date": "2026-04-02",
+      "key_claims": [
+        "Marble 1.1 became the new default model at the same 1,500-credit cost per world",
+        "Marble 1.1 Plus auto-expands spatial coverage to produce larger worlds in a single pass without manual boundary expansion",
+        "1.1 Plus pricing: 1,500 base credits plus 300 credits per additional 'dynamic cube'"
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "Niantic Spatial Releases Major Scaniverse Update",
+      "url": "https://radiancefields.com/niantic-releases-major-scaniverse-update",
+      "date": "2026-04-07",
+      "key_claims": [
+        "Scaniverse added 360-camera-to-splat processing gated to the paid Plus tier ($20/mo)",
+        "New web-based workspace scales processing to industrial and city-scale environments",
+        "Multi-scan collaborative captures can be fused into a single unified, incrementally-updating model",
+        "Export formats: mesh as FBX, splats as PLY and SPZ"
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "Niantic Spatial 360 Camera Scanning Guide (docs)",
+      "url": "https://www.nianticspatial.com/docs/scaniverse/360camera/",
+      "date": "2026-04",
+      "key_claims": [
+        "Scaniverse's 360-camera pipeline requires video only: .insv (Insta360 X5/X4/X3/One RS) or equirectangular .mp4 (Ricoh Theta X/Z1, GoPro Max 2, DJI Osmo 360, Antigravity A1, DJI Avata 360)",
+        "Still panoramic images in .jpg/.png are explicitly not supported",
+        "Free tier gets no 360-asset generation; Plus tier allows up to 5-minute videos, Pro up to 15-minute videos",
+        "Output: splat as .ply/.spz/.usdz, mesh as .glb/.usdz"
+      ],
+      "quotes": [
+        "Still panoramic images (.jpg, .png, etc.) are not supported",
+        "Scaniverse processes 360 video files only"
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "Loading Gsplats (Spark docs)",
+      "url": "https://sparkjs.dev/docs/loading-splats/",
+      "date": "2026",
+      "key_claims": [
+        "Spark (used by Orbit Studio's viewer) auto-detects and loads .ply, .splat, .ksplat, .spz, .sog, .zip and .rad splat formats",
+        "Spark can pre-build an LoD tree stored as 'extended SPZ', only ~30% larger than the original SPZ file"
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "Splatica platform profile",
+      "url": "https://radiancefields.com/platforms/splatica",
+      "date": "2026",
+      "key_claims": [
+        "Splatica pricing: Basic $49.95/mo (300 points, ~1 scene from a 5-min video), Pro $149.95/mo (900 points), Studio $299.95/mo (2100 points)",
+        "No free trial available; monthly subscriptions cancellable anytime"
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "Meta Horizon Hyperscape Capture (Beta): Getting Started and Best Practices",
+      "url": "https://www.meta.com/help/quest/1088536553019177/",
+      "date": "2026",
+      "key_claims": [
+        "Hyperscape Capture is exclusively a live Quest headset walkthrough capture (walk the room's edge, inspect objects close up); no file/photo import path is documented",
+        "Minimum capture space is roughly 3x3 meters; no outdoor/large-scale guidance given",
+        "No panorama or 360-photo import, and no file export/output formats documented on this help page"
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "Updates to Your Meta Quest Experience in 2026 (Meta Community Forums)",
+      "url": "https://communityforums.atmeta.com/blog/AnnouncementsBlog/updates-to-your-meta-quest-experience-in-2026/1369435",
+      "date": "2026-03",
+      "key_claims": [
+        "Effective March 24, 2026, viewing/sharing Hyperscape captures moves out of Horizon Worlds into a standalone Hyperscape Capture/Preview app",
+        "Publishing Hyperscape captures as a Horizon world is being removed; existing captures migrate to the standalone app",
+        "Horizon Worlds is being pulled from Quest headsets entirely by June 2026, becoming mobile-only"
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "Take home listings to new heights with Zillow SkyTour",
+      "url": "https://www.zillow.com/news/take-home-listings-to-new-heights-with-skytour/",
+      "date": "2025-07-15",
+      "key_claims": [
+        "Zillow's SkyTour, an exterior 3D flyover built on gaussian splatting, launched July 15, 2025 as part of a features rollout",
+        "Limited to exteriors on Showcase Listings; users can fly around and orbit the structure, adjusting altitude"
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "Apartments.com Unveils Matterport 3D Exterior",
+      "url": "https://radiancefields.com/apartments-com-unveils-matterport-3d-exterior",
+      "date": "2026",
+      "key_claims": [
+        "Apartments.com (CoStar) added Matterport 3D Exterior, a gaussian-splatting-based drone flyover viewer for apartment complexes",
+        "An 'Enter Building' control links the exterior splat flyover to Matterport's existing interior tour",
+        "Bundled into Platinum/Diamond ad tiers alongside interior tours and photography"
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "Releases · ArthurBrussee/brush",
+      "url": "https://github.com/ArthurBrussee/brush/releases",
+      "date": "2025-09-14",
+      "key_claims": [
+        "Latest tagged release is v0.3.0, published 2025-09-14; earlier tags are 0.2.0 (2025-01-30) and brush-0.0.1 (2024-11-12)",
+        "Cargo.toml on main still reads version 0.3.0; repo license is Apache-2.0",
+        "Main branch received commits as recently as 2026-07-20 and 2026-07-01, so development continues without a new version tag",
+        "x64 Windows builds are provided as release assets"
+      ],
+      "quotes": [
+        "3D Reconstruction for all"
+      ],
+      "code_refs": [
+        "ArthurBrussee/brush releases/tag/v0.3.0"
+      ]
+    },
+    {
+      "title": "Brush — Cross-Platform Local Gaussian Splatting Trainer",
+      "url": "https://radiancefields.com/platforms/brush",
+      "date": "2026",
+      "key_claims": [
+        "Brush runs on NVIDIA, AMD, and Apple Silicon GPUs and can train directly in a WebGPU-compatible browser, so it needs no CUDA install",
+        "Brush takes in COLMAP data or Nerfstudio-format datasets rather than estimating poses itself, so it is not COLMAP-free",
+        "Page itself describes Brush as 'currently a proof of concept' with no published VRAM minimums or benchmark comparisons to gsplat/LichtFeld/Postshot"
+      ],
+      "quotes": [
+        "3D Reconstruction for all"
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "GitHub - MrNeRF/LichtFeld-Studio releases",
+      "url": "https://github.com/MrNeRF/LichtFeld-Studio",
+      "date": "2026-06-24",
+      "key_claims": [
+        "Latest release v0.5.3 (2026-06-24) titled 'Vulkan viewer, VRAM improvements, Asset Manager, and countless other things', merging 316 commits",
+        "v0.5.0 (2026-03-18) introduced plugins, an embedded Python runtime, MCP integration, rmlui, and a sequencer",
+        "v0.5.1 (2026-03-31) added viewport splitting and USD import/export; v0.5.2 released 2026-04-21; v0.4.2 (2026-02-03) added undistort and alpha-as-mask",
+        "Repo license is GPL-3.0; training requires CUDA and an NVIDIA GPU (CUDA 12.8+)"
+      ],
+      "quotes": [
+        "Train, inspect, edit, automate, and export 3D Gaussian Splatting scenes from a single native application."
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "Core11 Extends Support for LichtFeld Studio Through 2026",
+      "url": "https://radiancefields.com/core11-extends-support-for-lichtfeld-studio-through-2026",
+      "date": "2026",
+      "key_claims": [
+        "Core11 GmbH extended sponsorship of LichtFeld Studio through end of 2026, bringing total sponsorship to €36,500 as a Foundational Sponsor"
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "Moshpit360 Brings One-Click 360° Video to 3DGS Plugin to LichtFeld Studio",
+      "url": "https://radiancefields.com/moshpit360-brings-one-click-360%C2%B0-video-to-3dgs-plugin-to-lichtfeld-studio",
+      "date": "2026-05-23",
+      "key_claims": [
+        "Moshpit360 is a free, open-source LichtFeld Studio plugin accepting already-stitched equirectangular 360 video, raw Insta360 .insv files, standard flat video, or a folder of still images",
+        "It replaces COLMAP's incremental SfM pipeline with GLOMAP for faster alignment, auto-detects camera models and lens parameters, checks capture density, then hands off directly to LichtFeld Studio training with no manual configuration"
+      ],
+      "quotes": [
+        "without requiring the user to touch stitching software, COLMAP, or any training configuration"
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "Releases · nerfstudio-project/gsplat",
+      "url": "https://github.com/nerfstudio-project/gsplat/releases",
+      "date": "2025-07-04",
+      "key_claims": [
+        "Latest tagged/pip release is v1.5.3 (2025-07-04); no newer version has been tagged as of 2026-07-23",
+        "Main branch commits continue through 2026-07-20; license is Apache-2.0",
+        "2026 main-branch additions include 3DGUT distorted-camera extensions and per-ray gradients (March), LiDAR rasterization (March), PPISP bilateral-grid alternative (January), and a ~30% 3DGUT speedup on A100 (June)"
+      ],
+      "quotes": [
+        "CUDA accelerated rasterization of gaussian splatting"
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "GitHub - pierotofy/OpenSplat",
+      "url": "https://github.com/pierotofy/OpenSplat",
+      "date": "2024-08-22",
+      "key_claims": [
+        "Latest tagged release is v1.1.4 (2024-08-22); repo license is AGPL-3.0",
+        "Main branch still received commits as recently as 2026-05-31, i.e. maintained but not re-tagged in nearly two years",
+        "Documented as supporting Windows, Mac and Linux with CPU/GPU (CUDA) builds"
+      ],
+      "quotes": [
+        "Production-grade 3D gaussian splatting with CPU/GPU support for Windows, Mac and Linux"
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "GitHub - nerfstudio-project/nerfstudio",
+      "url": "https://github.com/nerfstudio-project/nerfstudio",
+      "date": "2024-11-11",
+      "key_claims": [
+        "Latest tagged release is v1.1.5 (2024-11-11); most recent commit on main is 2025-07-29 -- no activity in the last year",
+        "License is Apache-2.0",
+        "Splatfacto (nerfstudio's 3DGS method) cannot render fisheye or equirectangular images because its gsplat-based rasterizer assumes a pinhole camera"
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "Postshot User Guide - Release Notes",
+      "url": "https://www.jawset.com/docs/d/Postshot+User+Guide/Release+Notes",
+      "date": "2026-05-13",
+      "key_claims": [
+        "Latest version is v1.1, released 2026-05-13",
+        "Postshot is closed-source and accepts JPG/PNG/TIF/EXR/DNG/RAW photos plus MOV/MP4/MKV video with automatic frame extraction",
+        "No explicit equirectangular/360 input mode was found documented on the release-notes page itself"
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "RealityScan 2.0 Announced",
+      "url": "https://radiancefields.com/realityscan-2-0-announced",
+      "date": "2026",
+      "key_claims": [
+        "RealityScan (Epic Games) is free for commercial use for individuals/companies under $1M USD annual gross revenue",
+        "RealityScan added Radiance Field (gaussian splat) export starting at v1.5; v2.1 added support for handheld SLAM-based scanners and higher-quality default feature detection",
+        "Typical workflow uses RealityScan for alignment/point-cloud generation and Postshot downstream to actually produce the trained gaussian splat"
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "Release Meshroom 2025.1.0 (2025/08/18) · alicevision/Meshroom",
+      "url": "https://github.com/alicevision/Meshroom/releases/tag/v2025.1.0",
+      "date": "2025-08-19",
+      "key_claims": [
+        "mrGSplat listed as an experimental MeshroomHub plugin providing Gaussian Splat optimization and rendering, requiring developer setup, not installable via the UI yet.",
+        "Meshroom 2025.1.0 introduced an 'Advanced Plugin Architecture' with sub-process isolation for Python nodes and independent local environments.",
+        "MeshroomHub (github.com/meshroomHub) hosts mrGSplat, mrDepthEstimation, mrDenseMotion, mrRoma, mrIntrinsicImageDecomposition, mrDeblurring, mrGeolocation, and a new MrSegmentation AI plugin.",
+        "AliceVision plugin now includes an equirectangular camera model in CameraInit."
+      ],
+      "quotes": [
+        "Advanced Plugin Architecture: Dedicated sub-process isolation for Python nodes",
+        "mrGSplat: Gaussian Splat optimization and rendering"
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "Meshroom/CHANGES.md at develop · alicevision/Meshroom",
+      "url": "https://raw.githubusercontent.com/alicevision/meshroom/develop/CHANGES.md",
+      "date": "2025-08-18",
+      "key_claims": [
+        "The equirectangular camera model in CameraInit was actually added in Meshroom 2023.3.0 (2023-12-07), two releases before mrGSplat appeared.",
+        "Meshroom 2020.1.0 (2020-10-09) already displayed equirectangular images as environment maps in Viewer3D, showing spherical handling predates 2025.1 by years.",
+        "mrGSplat and the other MeshroomHub ML plugins are new in the 2025.1.0 entry, framed as showcasing future workflow capability rather than production-ready."
+      ],
+      "quotes": [
+        "Add equirectangular camera model in CameraInit"
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "Meshroom 2025.1: Templates, Plugins and Photometric Stereo",
+      "url": "https://digitalproduction.com/2025/08/20/meshroom-2025-1-templates-plugins-and-photometric-stereo/",
+      "date": "2025-08-20",
+      "key_claims": [
+        "Meshroom 2025.1 ships 24 predefined pipeline templates.",
+        "MeshroomHub plugins currently require cloning, dependency installation, and environment-variable setup by hand -- no one-click install."
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "GitHub - meshroomHub/mrGSplat",
+      "url": "https://github.com/meshroomHub/mrGSplat",
+      "date": "2026-07",
+      "key_claims": [
+        "mrGSplat wraps nerfstudio's gsplat implementation inside Meshroom nodes: PrepareImagesForGSPlat, GaussianSplattingOptim, GaussianSplattingRender, ConvertGSplatModel, ImageCompo, ImportAlembicCamera, MeshViz.",
+        "Repo has 57 commits and 4 open issues as of the check date, with no pull requests.",
+        "README states pose optimization 'didn't really work' for some experimental nodes.",
+        "No mention of equirectangular/spherical camera handling anywhere in the mrGSplat documentation -- it consumes whatever poses/images the upstream AliceVision SfM node produces."
+      ],
+      "quotes": [
+        "Collection of nodes to run gsplat in meshroom"
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "Meshroom/LICENSE-MPL2.md at develop · alicevision/Meshroom",
+      "url": "https://github.com/alicevision/meshroom/blob/develop/LICENSE-MPL2.md",
+      "date": "",
+      "key_claims": [
+        "Meshroom is licensed under the Mozilla Public License Version 2.0."
+      ],
+      "quotes": [
+        "Mozilla Public License Version 2.0"
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "AliceVision/COPYING.md at develop · alicevision/AliceVision",
+      "url": "https://github.com/alicevision/AliceVision/blob/develop/COPYING.md",
+      "date": "",
+      "key_claims": [
+        "AliceVision core is MPL-2.0, matching Meshroom's license.",
+        "Optional/bundled dependencies carry other licenses: Ceres-Solver (New BSD), Eigen (MPL2), cxsparse (LGPL), CCTag (MPL2, optional), Clp/CoinUtils (EPL).",
+        "Parts of the multiview and robustEstimation modules derive from libmv (MIT); kvld in src/aliceVision/matching/kvld is BSD-2-Clause."
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "OpenSfM doc/source/using.rst",
+      "url": "https://github.com/mapillary/OpenSfM/blob/main/doc/source/using.rst",
+      "date": "",
+      "key_claims": [
+        "OpenSfM supports a 'spherical' (legacy name 'equirectangular') projection type for 360 images, configured via camera_models_overrides.json.",
+        "Docs point to a full worked example: the 'spherical 360 images dataset'.",
+        "export_colmap is listed as a built-in command to 'Export reconstruction to colmap format', but its scope for spherical cameras is not documented at this doc level (verified separately in source)."
+      ],
+      "quotes": [
+        "projection_type\": \"equirectangular\", \"width\": 2000, \"height\": 1000"
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "OpenSfM LICENSE",
+      "url": "https://github.com/mapillary/OpenSfM/blob/main/LICENSE",
+      "date": "2014",
+      "key_claims": [
+        "OpenSfM is BSD-2-Clause (Simplified BSD), copyright 2014 mapillary."
+      ],
+      "quotes": [
+        "Copyright (c) 2014, mapillary"
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "OpenSfM opensfm/actions/export_colmap.py (via io.py camera mapping)",
+      "url": "https://github.com/mapillary/OpenSfM/blob/main/opensfm/actions/export_colmap.py",
+      "date": "",
+      "key_claims": [
+        "The COLMAP export only maps 'brown'->FULL_OPENCV, 'perspective'->RADIAL, 'fisheye'->RADIAL_FISHEYE, 'fisheye_opencv'->OPENCV_FISHEYE.",
+        "Spherical/panorama projection types are not in the mapping table and trigger a raised ValueError instead of a silent skip or a COLMAP SPHERE mapping.",
+        "There is therefore no automatic OpenSfM-spherical-to-COLMAP converter available for feeding Brush/gsplat."
+      ],
+      "quotes": [
+        "Can't convert {camera.projection_type} to COLMAP"
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "OpenSfM Issues #1116 and #1119 (2026 activity sample)",
+      "url": "https://github.com/mapillary/OpenSfM/issues/1116",
+      "date": "2026-02-12",
+      "key_claims": [
+        "Feb 12 2026 issue #1116 is about a deprecated matplotlib.cm.get_cmap() call in bin/import_colmap.py and bin/plot_matches.py, unrelated to the spherical camera model.",
+        "Apr 2 2026 issue #1119 concerns build/debug-symbol stripping, also unrelated to spherical support.",
+        "Spherical-titled issues in the tracker are all from 2018-2022 (#145, #319, #793, #794, #856, #898), with #856 and #898 still open and unresolved, indicating low ongoing maintenance attention specifically to the spherical camera model."
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "SphereSfM README (json87/SphereSfM)",
+      "url": "https://github.com/json87/SphereSfM/blob/main/README.md",
+      "date": "2026",
+      "key_claims": [
+        "SphereSfM is built on top of COLMAP specifically to reconstruct spherical/ERP-format images end-to-end, staying in COLMAP's own format.",
+        "No explicit license file/statement found in the README.",
+        "No stated minimum-image-count guidance or wide-baseline-specific caveats for small panorama sets like 20 images."
+      ],
+      "quotes": [
+        "SfM for sphere images in the ERP format within the framework of ColMap"
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "GitHub - nv-tlabs/Difix3D: [CVPR 2025 Oral & Best Paper Finalist] Difix3D+",
+      "url": "https://github.com/nv-tlabs/Difix3D",
+      "date": "2025-03",
+      "key_claims": [
+        "Difix is used as 'the final post-processing step at render time', compatible with nerfstudio and gsplat pipelines",
+        "Pretrained checkpoints released on HuggingFace as nvidia/difix and nvidia/difix_ref",
+        "Licensed under a custom NVIDIA License (non-commercial, research/evaluation only) plus a Stability AI Community License component; GitHub reports license as 'Other/NOASSERTION'"
+      ],
+      "quotes": [
+        "use our Difix model as the final post-processing step at render time",
+        "used or intended for use non-commercially"
+      ],
+      "code_refs": [
+        "nv-tlabs/Difix3D README.md",
+        "nv-tlabs/Difix3D LICENSE.txt"
+      ]
+    },
+    {
+      "title": "GSFixer: Improving 3D Gaussian Splatting with Reference-Guided Video Diffusion Priors (ICML 2026)",
+      "url": "https://github.com/GVCLab/GSFixer",
+      "date": "2025-08-13",
+      "key_claims": [
+        "Uses a DiT-based video diffusion model (CogVideoX-5b-I2V) fine-tuned on 1,000 DL3DV-10K scenes with 8x NVIDIA H20 GPUs for ~4 days",
+        "Requires 50 denoising steps at inference, noted by authors as an efficiency limitation",
+        "On the new DL3DV-Res benchmark: PSNR 16.72 vs GenFusion 14.56 and Difix3D+ 14.14",
+        "GitHub API reports license: null -- no LICENSE file present in the repository",
+        "Weights hosted at huggingface.co/flow666/GSFixer; benchmark dataset huggingface.co/datasets/flow666/DL3DV-Res_Benchmark"
+      ],
+      "quotes": [
+        "requires 50 denoising steps"
+      ],
+      "code_refs": [
+        "GVCLab/GSFixer README.md"
+      ]
+    },
+    {
+      "title": "GSFix3D: Diffusion-Guided Repair of Novel Views in Gaussian Splatting",
+      "url": "https://arxiv.org/abs/2508.14717",
+      "date": "2025-08-20",
+      "key_claims": [
+        "Authors: Jiaxin Wei, Stefan Leutenegger, Simon Schaefer",
+        "Combines a fine-tuned latent diffusion model (also called 'GSFixer' in this paper, distinct from the GVCLab ICML repo) with random mask augmentation for inpainting",
+        "Code repo (GSFix3D/GSFix3D) tested on Ubuntu 22.04, CUDA 12.1, NVIDIA RTX 4500 Ada (24GB-class)",
+        "Requires per-scene fine-tuning of the diffusion model before inference",
+        "License stack: Gaussian-Splatting-License (non-commercial) + Apache 2.0 for parts of the codebase + RAIL++-M License for models"
+      ],
+      "quotes": [
+        "Our code and data will be made publicly available"
+      ],
+      "code_refs": [
+        "GSFix3D/GSFix3D README",
+        "arXiv:2508.14717"
+      ]
+    },
+    {
+      "title": "VidSplat: Gaussian Splatting Reconstruction with Geometry-Guided Video Diffusion Priors",
+      "url": "https://arxiv.org/abs/2605.11424",
+      "date": "2026-05-12",
+      "key_claims": [
+        "Training-free framework built on pretrained Wan2.1 I2V video diffusion, no per-scene fine-tuning required",
+        "Uses visibility-based camera pose sampling plus stage-wise denoising to keep generated views 3D-consistent",
+        "DL3DV novel-view synthesis at 6 views: outdoor PSNR 17.49, SSIM 0.561, LPIPS 0.376",
+        "Paper licensed CC BY 4.0; project page at tangjm24.github.io/VidSplat, no confirmed populated GitHub code repo found"
+      ],
+      "quotes": [
+        "training-free, stage-wise denoising strategy"
+      ],
+      "code_refs": [
+        "arXiv:2605.11424"
+      ]
+    },
+    {
+      "title": "OracleGS: Grounding Generative Priors for Sparse-View Gaussian Splatting",
+      "url": "https://arxiv.org/abs/2509.23258",
+      "date": "2025-09-27",
+      "key_claims": [
+        "Authors: Atakan Topaloglu, Kunyi Li, Michael Niemeyer, Nassir Navab, A. Murat Tekalp, Federico Tombari; accepted WACV 2026",
+        "Uses a 'propose-and-validate' strategy: a 3D-aware diffusion model proposes novel views, a repurposed multi-view-stereo model acts as an 'oracle' producing uncertainty maps that weight the 3DGS loss",
+        "Evaluated on Mip-NeRF 360 and NeRF Synthetic; no GitHub code repository was found in searches"
+      ],
+      "quotes": [
+        "Regressive models are geometrically faithful but incomplete, whereas generative models can complete scenes but often introduce structural inconsistencies"
+      ],
+      "code_refs": [
+        "arXiv:2509.23258"
+      ]
+    },
+    {
+      "title": "GaMO: Geometry-aware Multi-view Diffusion Outpainting for Sparse-View 3D Reconstruction",
+      "url": "https://arxiv.org/html/2512.25073",
+      "date": "2026-04-04",
+      "key_claims": [
+        "Authors from National Yang Ming Chiao Tung University (Yi-Chuan Huang et al., incl. Yu-Lun Liu)",
+        "Reframes sparse-view reconstruction as FOV-expansion/outpainting on a DUSt3R + 3DGS coarse initialization, using the MVGenMaster diffusion backbone with opacity masks and Plucker ray embeddings",
+        "Runs in ~8 minutes/scene on a single NVIDIA RTX 4090, a claimed 25x speedup over the GuidedVD-3DGS diffusion baseline (3+ hours)",
+        "Mip-NeRF 360 outdoor sparse-view results: 6-view PSNR 16.74/SSIM 0.393/LPIPS 0.436; 9-view PSNR 17.56/SSIM 0.448/LPIPS 0.381",
+        "Paper licensed CC BY 4.0; code public at github.com/yichuanH/GaMO_official but requires 3 separate conda environments and a hard DUSt3R ViT-Large checkpoint dependency; only an indoor Replica demo is documented"
+      ],
+      "quotes": [
+        "expands the field of view (FOV) to cover unobserved regions while preserving geometric consistency"
+      ],
+      "code_refs": [
+        "arXiv:2512.25073",
+        "github.com/yichuanH/GaMO_official"
+      ]
+    },
+    {
+      "title": "GSFixer (arXiv abstract/HTML)",
+      "url": "https://arxiv.org/abs/2508.09667",
+      "date": "2025-08-13",
+      "key_claims": [
+        "Introduces DL3DV-Res, a new benchmark of artifact frames rendered from low-quality 3DGS reconstructions",
+        "Integrates 2D semantic features (DINOv2) and 3D geometric features (VGGT) of reference views to guide video diffusion restoration"
+      ],
+      "quotes": [],
+      "code_refs": [
+        "arXiv:2508.09667"
+      ]
+    },
+    {
+      "title": "zhichu99/PanoSplatt3R GitHub repository (README, TODO checklist, install/eval instructions)",
+      "url": "https://github.com/zhichu99/PanoSplatt3R",
+      "date": "2025-10-17",
+      "key_claims": [
+        "TODO checklist for Evaluation Code, Training Code, Model Checkpoint, and Test Dataset are all checked (fully released)",
+        "GitHub API reports license: null; no LICENSE file in repo file tree",
+        "Trained/tested on HM3D and Replica datasets only",
+        "Training requires >=48GB GPU memory; experiments run on NVIDIA L40 48G GPUs",
+        "Repo created 2025-05-19, last pushed 2025-10-17 (dormant since)"
+      ],
+      "quotes": [
+        "We conduct all our experiments on NVIDIA L40 48G GPUs",
+        "The training procedure requires at least 48 GB of GPU memory"
+      ],
+      "code_refs": [
+        "README.md TODO section",
+        "scripts/evaluate_pose.sh",
+        "config/model/encoder/backbone/croco.yaml"
+      ]
+    },
+    {
+      "title": "PanoSplatt3R: Leveraging Perspective Pretraining for Generalized Unposed Wide-Baseline Panorama Reconstruction (arXiv abstract)",
+      "url": "https://arxiv.org/abs/2507.21960",
+      "date": "2025-07-29",
+      "key_claims": [
+        "Introduces RoPE rolling to model horizontal panorama periodicity for perspective-to-panorama domain transfer",
+        "Operates without camera pose information (pose-free), unlike prior wide-baseline panorama methods",
+        "Accepted to ICCV 2025"
+      ],
+      "quotes": [
+        "significantly outperforms current state-of-the-art methods",
+        "the acquisition of precise pose often requires additional computational resources"
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "PanoSplatt3R project page",
+      "url": "https://npucvr.github.io/PanoSplatt3R/",
+      "date": "2025-07",
+      "key_claims": [
+        "Model takes exactly two panorama images as input per inference",
+        "Demo scenes shown are indoor (walls removed to show room interior)",
+        "No stated VRAM/runtime figures on the page"
+      ],
+      "quotes": [
+        "Given two panorama images as input",
+        "We removed two walls from the final reconstruction to better display the room"
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "zhichu99/PanoSplatt3R open GitHub issues (#3, #7, #8)",
+      "url": "https://github.com/zhichu99/PanoSplatt3R/issues",
+      "date": "2025-10",
+      "key_claims": [
+        "Issue #3 'About unposed inference' unresolved as of query date",
+        "Issue #7 'about DUSt3R fine-tune' unresolved",
+        "Issue #8 'Missing samples in HM3D test dataset' unresolved"
+      ],
+      "quotes": [
+        "Our work is actually unposed. Do you mean that we should use the target cubemap extrinsics for rendering?"
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "esw0116/OmniSplat GitHub repository (README, install, dataset, note)",
+      "url": "https://github.com/esw0116/OmniSplat",
+      "date": "2025-06-06",
+      "key_claims": [
+        "MIT licensed",
+        "Evaluated on 6 real-world datasets: OmniBlender/Ricoh360, OmniPhotos, 360Roam, OmniScenes, 360VO -- includes outdoor/roaming scenes",
+        "Runs on top of posed MVSplat and requires OpenMVG-derived SfM poses, i.e. not pose-free",
+        "Known unresolved pixel-misalignment bug in equirectangular warping with a documented manual patch to the pyequilib library",
+        "CVPR 2025 Highlight paper",
+        "First code upload 2025-06-06; no commits since"
+      ],
+      "quotes": [
+        "OmniSplat runs based on MVSplat, without fine-tuning any parameters",
+        "There will be a pixel misalignment during the omnidirectional image warping",
+        "We will modify the code to resolve the issue without changing the function in the library"
+      ],
+      "code_refs": [
+        "src/main +experiment=[dataset_name]",
+        "submodules/diff-gaussian-yin-rasterization",
+        "submodules/diff-gaussian-yang-rasterization"
+      ]
+    },
+    {
+      "title": "esw0116/OmniSplat open issue #1: 'How to infer on my own dataset?'",
+      "url": "https://github.com/esw0116/OmniSplat/issues/1",
+      "date": "2025",
+      "key_claims": [
+        "No documented workflow yet for running OmniSplat on user-captured panorama data outside the paper's benchmark datasets",
+        "Issue remains open and unanswered by maintainers"
+      ],
+      "quotes": [
+        "I have the same question — looking forward to the author's clarification on this."
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "chengzhag/PanSplat GitHub repository (README, installation, demo, data prep)",
+      "url": "https://github.com/chengzhag/PanSplat",
+      "date": "2026-04-19",
+      "key_claims": [
+        "MIT licensed",
+        "4K (2048x4096) checkpoint requires >=24GB VRAM, e.g. RTX 3090; trained on Matterport3D at 512x1024 then fine-tuned to 4K",
+        "Real-video pipeline requires stella_vslam SLAM-derived poses before Gaussian prediction -- not pose-free",
+        "Fine-tuned on 360Loc real-world dataset (includes outdoor urban/park scenes) in addition to indoor synthetic Matterport3D/Replica/Residential",
+        "Commit history shows activity from Dec 2024 through Apr 2026, though 2026 commits are checkpoint-link and copyright-header changes rather than new capabilities"
+      ],
+      "quotes": [
+        "Our method processes two wide-baseline 360° panoramas and generates a Spherical 3D Gaussian Pyramid",
+        "This requires a GPU with at least 24GB of memory, e.g., NVIDIA RTX 3090"
+      ],
+      "code_refs": [
+        "src/paper/demo +experiment=pansplat-2048",
+        "environment_strict.yaml"
+      ]
+    },
+    {
+      "title": "360Loc: A Dataset and Benchmark for Omnidirectional Visual Localization with Cross-device Queries",
+      "url": "https://huajianup.github.io/research/360Loc/",
+      "date": "2024",
+      "key_claims": [
+        "Dataset covers urban areas, parks, and indoor spaces (used by PanSplat for real-world fine-tuning)"
+      ],
+      "quotes": [
+        "The dataset covers a wide range of environments, such as urban areas, parks, and indoor spaces."
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "AdmiralFabulous/map-anything fork ('with panorama support')",
+      "url": "https://github.com/AdmiralFabulous/map-anything",
+      "date": "2025-12-11",
+      "key_claims": [
+        "Unofficial fork (2 stars) whose repo description claims panorama support, but no panorama/equirectangular documentation found in its README",
+        "Apache-2.0 licensed, not a fork of the description's claim being verifiable from README alone"
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "GitHub - liquorleaf/OmniGS: [WACV 2025] OmniGS: Fast Radiance Field Reconstruction using Omnidirectional Gaussian Splatting",
+      "url": "https://github.com/liquorleaf/OmniGS",
+      "date": "2025-02",
+      "key_claims": [
+        "GPU-accelerated omnidirectional rasterizer splats 3D Gaussians directly onto equirectangular screen space, no cubemap/tangent-plane approximation needed",
+        "License is GPL-3.0",
+        "Requires known camera poses (longitude-latitude format), demonstrated on 360Roam and EgoNeRF datasets via openMVG-style formatting",
+        "79 stars, 10 forks, 5 open issues, 17 commits, no formal releases as of research date",
+        "Build requires CUDA 11.8, cuDNN 8.9.3, OpenCV 4.7.0 (CUDA-built), LibTorch 2.0.1 — native C++ build, not a simple pip install"
+      ],
+      "quotes": [
+        "there exists some unknown bug for this function"
+      ],
+      "code_refs": [
+        "github.com/liquorleaf/OmniGS"
+      ]
+    },
+    {
+      "title": "GitHub - esw0116/ODGS: [NeurIPS 2024] ODGS: 3D Scene Reconstruction from Omnidirectional Images with 3D Gaussian Splatting",
+      "url": "https://github.com/esw0116/odgs",
+      "date": "2024-12",
+      "key_claims": [
+        "MIT licensed",
+        "Poses obtained via OpenMVG Structure-from-Motion, not COLMAP, for all 6 evaluated datasets",
+        "Evaluated on OmniBlender, Ricoh360, OmniPhotos, 360Roam, OmniScenes, and 360VO datasets (mix of indoor and driving-style capture)",
+        "Claims 100x faster optimization/rendering than NeRF-based omnidirectional baselines",
+        "Last commit December 26, 2024 — no activity in the ~19 months since"
+      ],
+      "quotes": [
+        "performing Structure-from-Motion using OpenMVG"
+      ],
+      "code_refs": [
+        "github.com/esw0116/odgs"
+      ]
+    },
+    {
+      "title": "GitHub - chenyingshu/sc-omnigs: [ICLR 2025] SC-OmniGS: Self-Calibrating Omnidirectional Gaussian Splatting - Web Page",
+      "url": "https://github.com/chenyingshu/sc-omnigs",
+      "date": "2025-02",
+      "key_claims": [
+        "Jointly optimizes 3D Gaussians, omnidirectional camera poses, and camera model without requiring precomputed poses — treats 360 images as a full sphere rather than converting to cube maps",
+        "The GitHub repo is a project webpage only (58.8% CSS, 22.6% JS, 18.6% HTML) — no training code is present, only a link out to a separate project site",
+        "10 commits total, all webpage-related; no license file found in the repo"
+      ],
+      "quotes": [],
+      "code_refs": [
+        "github.com/chenyingshu/sc-omnigs (webpage only, no training code)"
+      ]
+    },
+    {
+      "title": "GitHub - thucz/splatter360: [CVPR 2025] Splatter-360: Generalizable 360 Gaussian Splatting for Wide-baseline Panoramic Images",
+      "url": "https://github.com/thucz/splatter360",
+      "date": "2024-12",
+      "key_claims": [
+        "Feed-forward generalizable method: builds a spherical cost volume via spherical sweep, demonstrated to transfer zero-shot from HM3D-trained weights to Replica dataset scenes without per-scene optimization",
+        "Pretrained checkpoints released via Google Drive, plus training/eval/preprocessing scripts",
+        "26 commits, 7 open issues; license file could not be located (404 on direct LICENSE fetch)",
+        "Trained and evaluated on synthetic indoor datasets HM3D and Replica, not outdoor scenes"
+      ],
+      "quotes": [
+        "Cross-Dataset Generalization"
+      ],
+      "code_refs": [
+        "github.com/thucz/splatter360"
+      ]
+    },
+    {
+      "title": "GitHub - zhijieshen-bjtu/TPGS (You Need a Transition Plane: Bridging Continuous Panoramic 3D Reconstruction with Perspective Gaussian Splatting)",
+      "url": "https://github.com/zhijieshen-bjtu/TPGS",
+      "date": "2025-04",
+      "key_claims": [
+        "Reconstructs 3D from a single equirectangular panorama via cubemap decomposition, adding a 'transition plane' between adjacent cube faces to remove stitching seams",
+        "MIT licensed, 17 commits, 2 open issues, no releases published",
+        "README is incomplete: dependency list, setup instructions, and dataset-prep steps are missing or reference external docs only, despite the paper claiming code and models are available"
+      ],
+      "quotes": [
+        "To start"
+      ],
+      "code_refs": [
+        "github.com/zhijieshen-bjtu/TPGS"
+      ]
+    },
+    {
+      "title": "ErpGS: Equirectangular Image Rendering enhanced with 3D Gaussian Regularization (project page)",
+      "url": "https://gsisaoki.github.io/ERPGS/",
+      "date": "2025-05",
+      "key_claims": [
+        "Targets distortion and rig-obstacle artifacts specific to equirectangular multi-view capture via geometric regularization, scale regularization, and distortion-aware masking",
+        "As of the research date, code is explicitly not yet released",
+        "Qualitative results shown on the project page and OmniBlender ablation dataset appear to be indoor scenes only; no outdoor examples were found"
+      ],
+      "quotes": [
+        "Code (Coming Soon)"
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "GitHub - 1170632760/Spherical-GOF (Spherical-GOF: Geometry-Aware Panoramic Gaussian Opacity Fields for 3D Scene Reconstruction)",
+      "url": "https://github.com/1170632760/Spherical-GOF",
+      "date": "2026-03",
+      "key_claims": [
+        "Performs Gaussian Opacity Field ray sampling directly on the unit sphere rather than via projection-based rasterization, claiming 57% depth-reprojection-error reduction and 21% cycle-inlier-ratio improvement over the strongest baseline",
+        "MIT licensed, but the repo currently contains only .gitignore, LICENSE, README, and an assets folder — 2 commits total, no source implementation files",
+        "References a forthcoming 'OmniRob' dataset that is also not yet released"
+      ],
+      "quotes": [
+        "will be released"
+      ],
+      "code_refs": [
+        "github.com/1170632760/Spherical-GOF (code not yet public)"
+      ]
+    },
+    {
+      "title": "GitHub - nerficg-project/SPaGS (SPaGS: Fast and Accurate 3D Gaussian Splatting for Spherical Panoramas, Computer Graphics Forum 2025)",
+      "url": "https://github.com/nerficg-project/SPaGS",
+      "date": "2025-06",
+      "key_claims": [
+        "MIT licensed; ships as a plugin/module for the separate 'NeRFICG' research framework (installed via ./scripts/install.py -m SPaGS), not a standalone repo",
+        "Introduces exact axis-aligned bounding box calculation for spherical images to speed up omnidirectional ray casting of 3D Gaussians",
+        "Ships a new 'RaR' (Roaming and Rounding) dataset with real outdoor drone-captured scenes (named O_car, O_lion, O_statuary, O_stone, O_windmill) that pair panoramic and simultaneous perspective captures",
+        "Only 1 commit recorded in the SPaGS-specific repo, reflecting its dependency on the larger parent framework"
+      ],
+      "quotes": [],
+      "code_refs": [
+        "github.com/nerficg-project/SPaGS"
+      ]
+    },
+    {
+      "title": "CylinderSplat: 3D Gaussian Splatting with Cylindrical Triplanes for Panoramic Novel View Synthesis (arXiv / ICLR 2026)",
+      "url": "https://arxiv.org/abs/2603.05882",
+      "date": "2026-03",
+      "key_claims": [
+        "Introduces a cylindrical Triplane representation aligned to panoramic/Manhattan-world geometry, with a dual-branch pixel + volume architecture to handle occlusions in sparse-view panoramic capture",
+        "Explicitly designed to flexibly handle a variable number of input views, from a single panorama up to multiple panoramas, which is closer to Orbit Studio's ~20-still use case than pairwise methods",
+        "Paper references code at github.com/wangqww/CylinderSplat, but actual repo contents/completeness were not independently verified in this research pass",
+        "Accepted as an ICLR 2026 conference paper"
+      ],
+      "quotes": [],
+      "code_refs": [
+        "github.com/wangqww/CylinderSplat (existence referenced, contents unverified)"
+      ]
+    },
+    {
+      "title": "GitHub - inuex35/360-gaussian-splatting",
+      "url": "https://github.com/inuex35/360-gaussian-splatting",
+      "date": "",
+      "key_claims": [
+        "Hobbyist end-to-end recipe: runs OpenSfM (bin/opensfm_run_all) with a spherical camera model on a folder of 360 photos to produce a reconstruction.json, then trains a modified 3DGS with a --panorama training flag",
+        "Explicitly chosen because COLMAP does not support the spherical/equirectangular camera model needed for direct pose recovery from 360 stills",
+        "Vendors diff-gaussian-rasterization and simple-knn submodules and offers multiple render modes including an OmniGS-style omnidirectional renderer",
+        "README recommends a smaller densify_grad_threshold (0.00002) specifically for equirectangular projections due to increased memory demands"
+      ],
+      "quotes": [],
+      "code_refs": [
+        "github.com/inuex35/360-gaussian-splatting"
+      ]
+    },
+    {
+      "title": "gsplat (nerfstudio-project) - examples/simple_trainer.py",
+      "url": "https://github.com/nerfstudio-project/gsplat",
+      "date": "2026-06",
+      "key_claims": [
+        "Exposes post_processing: Literal['bilateral_grid','ppisp'] with bilateral_grid_fused and bilateral_grid_shape=(16,16,8) for per-image exposure/white-balance correction",
+        "Exposes app_opt (bool), app_embed_dim=16, app_opt_lr, app_opt_reg for per-image appearance embeddings",
+        "Exposes antialiased (bool) implementing a Mip-Splatting-style 2D filter, and pose_opt/pose_opt_lr for camera pose refinement",
+        "Dataset loader accepts an optional 'mask' field for ignore-region training",
+        "June 2026 changes added faster 3DGUT MCMC rasterization (~30% on A100) and Gaussian-ID rasterization"
+      ],
+      "quotes": [
+        "roughly 30% improvement on the 3DGUT MCMC path on an NVIDIA A100"
+      ],
+      "code_refs": [
+        "examples/simple_trainer.py: post_processing, bilateral_grid_shape, app_opt, app_embed_dim, antialiased, pose_opt"
+      ]
+    },
+    {
+      "title": "Antialiased Rendering Mode Causes Disappearance of Many Small Gaussians (Issue #840)",
+      "url": "https://github.com/nerfstudio-project/gsplat/issues/840",
+      "date": "",
+      "key_claims": [
+        "Switching gsplat's anti-aliasing mode from classic to antialiased (Mip-Splatting-derived) removed fine details like bicycle spokes and leaves",
+        "Behavior appeared inconsistent with the results shown in the original Mip-Splatting paper"
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "spirulae-splat (harry7557558)",
+      "url": "https://github.com/harry7557558/spirulae-splat",
+      "date": "2026",
+      "key_claims": [
+        "Bilateral grid and PPISP exposure/white-balance correction both enabled by default, disabled via --model.no_use_bilateral_grid / --model.no_use_ppisp",
+        "PPISP is described as giving less color shift than the classic affine bilateral grid, trained with AdaGrad",
+        "Skybox/sky handling via --model.background_mode sh with regularization to balance sky removal vs transparency",
+        "Supports masking to either ignore regions (sky/background) or mask foreground (people/cars) via --model.apply_loss_for_mask",
+        "Three Gaussian primitive types: 3dgs (no AA), mip (Mip-Splatting anti-aliased), 3dgut (default, distortion-aware)",
+        "Licensed GPL-3.0"
+      ],
+      "quotes": [
+        "PPISP (default) gives less color shift"
+      ],
+      "code_refs": [
+        "--model.no_use_bilateral_grid",
+        "--model.bilagrid_shape",
+        "--model.background_mode sh",
+        "--model.apply_loss_for_mask"
+      ]
+    },
+    {
+      "title": "stechdrive/stechdrive-3dgs-utils",
+      "url": "https://github.com/stechdrive/stechdrive-3dgs-utils",
+      "date": "2026-07-09",
+      "key_claims": [
+        "Windows GUI pipeline turning 360 video/still-image sequences into scale-calibrated 3DGS training assets",
+        "Offers three mask tiers: YOLO/SAM2.1 (fast person masks), YOLO26-sem (Cityscapes classes, defaults to person+sky, extendable to vehicles/vegetation), SAM3.1 (prompt-controlled, can add missed targets like tripods or subtract false positives like signs)",
+        "AprilTag scale calibration: user enters printed tag size and IDs, tool estimates metric scale and rescales camera positions plus point cloud",
+        "Three SfM paths: import existing Metashape/RealityScan results, COLMAP cubemap rig (360 images expanded to cubemap faces), or COLMAP 4.1+ native EQUIRECTANGULAR camera model",
+        "Exports to NeRF JSON/PLY, COLMAP format, LichtFeld Studio, Postshot, and Brush-compatible cubemap datasets",
+        "Latest release v1.25.2, MIT licensed application code, 767 commits"
+      ],
+      "quotes": [
+        "add missed targets such as tripods or subtract false detections such as signs and logos",
+        "COLMAP's native EQUIRECTANGULAR camera model, so no forked COLMAP build is required"
+      ],
+      "code_refs": [
+        "--ImageReader.mask_path",
+        "COLMAP Cubemap Rig mode",
+        "COLMAP 4.1+ Spherical mode"
+      ]
+    },
+    {
+      "title": "SpotLessSplats: Ignoring Distractors in 3D Gaussian Splatting",
+      "url": "https://arxiv.org/pdf/2406.20055",
+      "date": "2025",
+      "key_claims": [
+        "Combines pre-trained Stable Diffusion semantic features with iterative reconstruction residuals to adaptively identify transient distractor regions without manual masks",
+        "Published in ACM Transactions on Graphics 2025",
+        "Targets casual captures with moving people, animals, or changing lighting that break 3DGS's inter-frame consistency assumption"
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "RobustSplat: Decoupling Densification and Dynamics for Transient-Free 3DGS",
+      "url": "https://github.com/fcyycf/RobustSplat",
+      "date": "2025-06",
+      "key_claims": [
+        "ICCV 2025 paper; delayed Gaussian growth strategy prioritizes static structure before allowing splitting/cloning, reducing overfitting to transient objects early in optimization",
+        "Scale-cascaded mask bootstrapping starts from low-resolution feature-similarity supervision for initial transient masks then refines at high resolution"
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "Splatfacto-W: A Nerfstudio Implementation of Gaussian Splatting for Unconstrained Photo Collections",
+      "url": "https://arxiv.org/pdf/2407.12306",
+      "date": "2024-07",
+      "key_claims": [
+        "Integrates per-image appearance embeddings (48-dim) and per-Gaussian appearance features (72-dim) plus a spherical-harmonics background model for varying photometric appearance and transient objects",
+        "Improves PSNR by an average of 5.3 dB over vanilla 3DGS on unconstrained (multi-time-of-day) photo collections"
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "TIDI-GS: Floater Suppression in 3D Gaussian Splatting for Enhanced Indoor Scene Fidelity",
+      "url": "https://arxiv.org/html/2601.09291v1",
+      "date": "2026-01",
+      "key_claims": [
+        "Floaters are defined as Gaussians spatially isolated from the dense/coherent manifolds that valid geometry forms",
+        "Composite pruning score combines spatial isolation with low opacity and low learned importance signals"
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "Clean-GS: Semantic Mask-Guided Pruning for 3D Gaussian Splatting",
+      "url": "https://arxiv.org/abs/2601.00913",
+      "date": "2026-01",
+      "key_claims": [
+        "Removes background clutter and floaters using sparse semantic masks via whitelist-based spatial filtering plus color-guided validation and outlier removal",
+        "Achieves 60-80% model compression while preserving object quality"
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "SuperSplat Editor (playcanvas/supersplat) developer docs",
+      "url": "https://developer.playcanvas.com/user-manual/supersplat/editor/",
+      "date": "2026",
+      "key_claims": [
+        "Open-source, browser-based, MIT-licensed editor for cleaning up raw splat captures: trimming floaters, cropping scenes, retouching colors, before publishing",
+        "Provides 8 selection tools: Picker, Lasso, Polygon, Brush, Flood, Eyedropper, Sphere Select, Box Select"
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "georeferenced_gsplat (manudelu)",
+      "url": "https://github.com/manudelu/georeferenced_gsplat",
+      "date": "",
+      "key_claims": [
+        "Pipeline chaining COLMAP SfM, 3D Gaussian Splatting training, and SuGaR mesh refinement, using drone-image GPS EXIF as the georeferencing anchor",
+        "Converts the COLMAP reconstruction to an ENU (East-North-Up) coordinate frame using the first image's GPS position as reference",
+        "Exports to formats compatible with Cesium Ion and Unreal Engine"
+      ],
+      "quotes": [],
+      "code_refs": []
+    }
+  ]
+}

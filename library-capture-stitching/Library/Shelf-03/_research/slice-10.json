@@ -1,0 +1,188 @@
+{
+  "recommendations": [
+    "Do not adopt PanoSplatt3R as a production path yet: the GitHub repo (zhichu99/PanoSplatt3R) has license:null in the GitHub API and no LICENSE file in the file tree -- despite full code/weights/eval/training release, there is no explicit reuse grant. Before shipping any Orbit Studio feature that depends on it, either get written permission from the authors or wait for a license file to appear.",
+    "PanoSplatt3R is strictly a 2-panorama (pairwise) model -- its own project page says 'Given two panorama images as input,' and the repo ships only pairwise relative-pose evaluation (evaluate_pose.sh), no multi-view global aligner. To use it across the user's ~20 bridge-station panoramas you would have to build your own pairwise-chaining + pose-graph fusion on top -- that is new engineering work for Orbit Studio, not a drop-in swap for COLMAP.",
+    "PanoSplatt3R's only public training/test data is HM3D and Replica, both indoor scan datasets; there is no outdoor demo, benchmark table, or sample in the repo or project page. Its ICCV paper abstract claims 'indoor and outdoor, egocentric, and roaming' generalization but that is not backed by any public outdoor artifact -- treat outdoor (bridge/roadway) performance as unverified, and prototype on 2-3 of the user's real photos before trusting it.",
+    "OmniSplat (MIT license) is the only one of the three panorama-native models with genuine outdoor training/eval data (360Roam, OmniPhotos, 360VO all include outdoor/urban scenes) -- but it is built on posed MVSplat and requires per-scene SfM poses from OpenMVG, so it is NOT pose-free like PanoSplatt3R. It also has a known, unfixed pixel-misalignment bug in equirectangular warping (documented manual patch to the pyequilib library) and an open, unanswered GitHub issue asking exactly the user's question ('How to infer on my own dataset?'). Treat as experimental only.",
+    "PanSplat (MIT license) requires >=24GB VRAM for its 4K checkpoint (RTX 3090-class) and was trained on an A100 -- it will not run on a free Colab T4, which breaks Orbit Studio's zero-cost-GPU constraint. It is also not pose-free: its real-video workflow first runs stella_vslam SLAM to recover poses before predicting Gaussians. Skip it unless the user's budget model changes to allow a paid GPU tier.",
+    "None of PanoSplatt3R/OmniSplat/PanSplat natively fuse more than 2 panoramas into one consistent scene -- this is a structural gap versus the existing perspective-split + COLMAP/pycolmap baseline (and versus MapAnything), which natively solves multi-image registration across all N inputs at once. For a 20-station bridge capture, the existing perspective-split + COLMAP path remains the only baseline with proven >2-view global fusion; keep it as the default pipeline.",
+    "Track facebookresearch/map-anything as the more promising near-term upgrade to the existing baseline, not the panorama-native models: its code is Apache-2.0, it now ships a second checkpoint tier (facebook/map-anything-apache-v1) trained only on permissively-licensed data and released under Apache-2.0 (vs. the default checkpoint's CC-BY-NC-4.0), and it has shipped four releases in 2026 alone (v1.1 Jan 18, v1.1.1 Mar 23 with Apple MPS + Pixio encoder, v1.1.2 May 30 with VGGT Omega, v1.1.3 Jul 17). It still has no documented equirectangular/panorama ingestion in its own README, so Orbit Studio would still need the perspective-split step -- but swapping the fully-open Apache checkpoint in for COLMAP/pycolmap where feasible is a lower-risk, license-clean improvement than adopting any of the three direct-panorama models today.",
+    "Revisit this slice in ~6 months: PanoSplatt3R, OmniSplat, and PanSplat have all been dormant (no commits) since Oct 2025 (PanoSplatt3R), Jun 2025 (OmniSplat), and Apr 2026-copyright-only (PanSplat) respectively -- none show February-July 2026 feature development, so the pose-free direct-panorama family is not yet moving fast enough to justify a pipeline rewrite; MapAnything is the actively-developed piece worth re-checking sooner."
+  ],
+  "slice": "Panorama-native pose-free reconstruction: PanoSplatt3R (ICCV 2025) and the OmniSplat/PanSplat family",
+  "summary": "\nPanoSplatt3R (github.com/zhichu99/PanoSplatt3R, arXiv 2507.21960, ICCV 2025) is fully code-and-weights released: its TODO checklist (Evaluation Code, Training Code, Model Checkpoint, Test Dataset) is entirely checked, with weights hosted on HuggingFace (zhichu99/PanoSplatt3R). However, the GitHub API reports license:null and no LICENSE file exists in the repo -- it is publicly visible but not explicitly open-sourced. It is strictly a 2-panorama (pairwise), pose-free model built on a MASt3R/DUSt3R-style ViT backbone with a novel \"RoPE rolling\" position encoding for horizontal panorama periodicity; it ships no >2-view global-alignment tool. Its only public training/test datasets are HM3D and Replica (both indoor); no outdoor demo or benchmark is shown despite the paper's abstract claiming indoor/outdoor generalization. Training needs >=48GB VRAM (NVIDIA L40 used); inference-specific VRAM is undocumented anywhere in the repo, paper, or project page. The repo has been dormant since Oct 17, 2025 (last push), with open unresolved issues about custom/unposed inference.\n\nOmniSplat (github.com/esw0116/OmniSplat, arXiv 2412.16604, CVPR 2025 Highlight) is MIT-licensed and, notably, is the only one of the three with genuine outdoor training/eval coverage (360Roam, OmniPhotos, OmniBlender/Ricoh360, OmniScenes, 360VO). But it is not pose-free -- it runs on posed MVSplat and requires OpenMVG-derived SfM poses per scene -- and carries a known, unpatched equirectangular pixel-misalignment bug plus an unanswered \"how do I use my own data\" issue. Dormant since June 6, 2025.\n\nPanSplat (github.com/chengzhag/PanSplat, arXiv 2412.12096, CVPR 2025) is MIT-licensed, actively maintained into 2026 (commits through Apr 19, 2026, though recent ones are minor/cosmetic), and offers downloadable checkpoints up to 4K (2048x4096) -- but the 4K model needs >=24GB VRAM (RTX 3090-class, trained on A100), ruling out a free T4. It is also not pose-free (real-video pipeline relies on stella_vslam SLAM poses). Training data is indoor-dominant (Matterport3D/Replica/Residential) with 360Loc real-world fine-tuning data that does include outdoor urban/park scenes.\n\nAs a baseline comparison, facebookresearch/map-anything (Apache-2.0 code) is far more active in this window (four 2026 releases through Jul 17, 2026) and now offers a fully Apache-2.0 checkpoint tier (map-anything-apache-v1) alongside its default CC-BY-NC-4.0 weights -- but it has no native panorama/equirectangular input, so the perspective-split step Orbit Studio already uses remains necessary.\n",
+  "sources": [
+    {
+      "title": "zhichu99/PanoSplatt3R GitHub repository (README, TODO checklist, install/eval instructions)",
+      "url": "https://github.com/zhichu99/PanoSplatt3R",
+      "date": "2025-10-17",
+      "key_claims": [
+        "TODO checklist for Evaluation Code, Training Code, Model Checkpoint, and Test Dataset are all checked (fully released)",
+        "GitHub API reports license: null; no LICENSE file in repo file tree",
+        "Trained/tested on HM3D and Replica datasets only",
+        "Training requires >=48GB GPU memory; experiments run on NVIDIA L40 48G GPUs",
+        "Repo created 2025-05-19, last pushed 2025-10-17 (dormant since)"
+      ],
+      "quotes": [
+        "We conduct all our experiments on NVIDIA L40 48G GPUs",
+        "The training procedure requires at least 48 GB of GPU memory"
+      ],
+      "code_refs": [
+        "README.md TODO section",
+        "scripts/evaluate_pose.sh",
+        "config/model/encoder/backbone/croco.yaml"
+      ]
+    },
+    {
+      "title": "PanoSplatt3R: Leveraging Perspective Pretraining for Generalized Unposed Wide-Baseline Panorama Reconstruction (arXiv abstract)",
+      "url": "https://arxiv.org/abs/2507.21960",
+      "date": "2025-07-29",
+      "key_claims": [
+        "Introduces RoPE rolling to model horizontal panorama periodicity for perspective-to-panorama domain transfer",
+        "Operates without camera pose information (pose-free), unlike prior wide-baseline panorama methods",
+        "Accepted to ICCV 2025"
+      ],
+      "quotes": [
+        "significantly outperforms current state-of-the-art methods",
+        "the acquisition of precise pose often requires additional computational resources"
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "PanoSplatt3R project page",
+      "url": "https://npucvr.github.io/PanoSplatt3R/",
+      "date": "2025-07",
+      "key_claims": [
+        "Model takes exactly two panorama images as input per inference",
+        "Demo scenes shown are indoor (walls removed to show room interior)",
+        "No stated VRAM/runtime figures on the page"
+      ],
+      "quotes": [
+        "Given two panorama images as input",
+        "We removed two walls from the final reconstruction to better display the room"
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "zhichu99/PanoSplatt3R open GitHub issues (#3, #7, #8)",
+      "url": "https://github.com/zhichu99/PanoSplatt3R/issues",
+      "date": "2025-10",
+      "key_claims": [
+        "Issue #3 'About unposed inference' unresolved as of query date",
+        "Issue #7 'about DUSt3R fine-tune' unresolved",
+        "Issue #8 'Missing samples in HM3D test dataset' unresolved"
+      ],
+      "quotes": [
+        "Our work is actually unposed. Do you mean that we should use the target cubemap extrinsics for rendering?"
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "esw0116/OmniSplat GitHub repository (README, install, dataset, note)",
+      "url": "https://github.com/esw0116/OmniSplat",
+      "date": "2025-06-06",
+      "key_claims": [
+        "MIT licensed",
+        "Evaluated on 6 real-world datasets: OmniBlender/Ricoh360, OmniPhotos, 360Roam, OmniScenes, 360VO -- includes outdoor/roaming scenes",
+        "Runs on top of posed MVSplat and requires OpenMVG-derived SfM poses, i.e. not pose-free",
+        "Known unresolved pixel-misalignment bug in equirectangular warping with a documented manual patch to the pyequilib library",
+        "CVPR 2025 Highlight paper",
+        "First code upload 2025-06-06; no commits since"
+      ],
+      "quotes": [
+        "OmniSplat runs based on MVSplat, without fine-tuning any parameters",
+        "There will be a pixel misalignment during the omnidirectional image warping",
+        "We will modify the code to resolve the issue without changing the function in the library"
+      ],
+      "code_refs": [
+        "src/main +experiment=[dataset_name]",
+        "submodules/diff-gaussian-yin-rasterization",
+        "submodules/diff-gaussian-yang-rasterization"
+      ]
+    },
+    {
+      "title": "esw0116/OmniSplat open issue #1: 'How to infer on my own dataset?'",
+      "url": "https://github.com/esw0116/OmniSplat/issues/1",
+      "date": "2025",
+      "key_claims": [
+        "No documented workflow yet for running OmniSplat on user-captured panorama data outside the paper's benchmark datasets",
+        "Issue remains open and unanswered by maintainers"
+      ],
+      "quotes": [
+        "I have the same question — looking forward to the author's clarification on this."
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "chengzhag/PanSplat GitHub repository (README, installation, demo, data prep)",
+      "url": "https://github.com/chengzhag/PanSplat",
+      "date": "2026-04-19",
+      "key_claims": [
+        "MIT licensed",
+        "4K (2048x4096) checkpoint requires >=24GB VRAM, e.g. RTX 3090; trained on Matterport3D at 512x1024 then fine-tuned to 4K",
+        "Real-video pipeline requires stella_vslam SLAM-derived poses before Gaussian prediction -- not pose-free",
+        "Fine-tuned on 360Loc real-world dataset (includes outdoor urban/park scenes) in addition to indoor synthetic Matterport3D/Replica/Residential",
+        "Commit history shows activity from Dec 2024 through Apr 2026, though 2026 commits are checkpoint-link and copyright-header changes rather than new capabilities"
+      ],
+      "quotes": [
+        "Our method processes two wide-baseline 360° panoramas and generates a Spherical 3D Gaussian Pyramid",
+        "This requires a GPU with at least 24GB of memory, e.g., NVIDIA RTX 3090"
+      ],
+      "code_refs": [
+        "src/paper/demo +experiment=pansplat-2048",
+        "environment_strict.yaml"
+      ]
+    },
+    {
+      "title": "360Loc: A Dataset and Benchmark for Omnidirectional Visual Localization with Cross-device Queries",
+      "url": "https://huajianup.github.io/research/360Loc/",
+      "date": "2024",
+      "key_claims": [
+        "Dataset covers urban areas, parks, and indoor spaces (used by PanSplat for real-world fine-tuning)"
+      ],
+      "quotes": [
+        "The dataset covers a wide range of environments, such as urban areas, parks, and indoor spaces."
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "facebookresearch/map-anything GitHub repository (README, License section, releases, commits)",
+      "url": "https://github.com/facebookresearch/map-anything",
+      "date": "2026-07-17",
+      "key_claims": [
+        "Code licensed Apache 2.0",
+        "Ships two weight tiers: default facebook/map-anything(-v1) is CC-BY-NC-4.0; facebook/map-anything-apache(-v1) is Apache-2.0, trained only on permissively licensed data",
+        "No native panorama/equirectangular input documented in README (perspective multi-image pipeline only)",
+        "v1.1 released 2026-01-18; v1.1.1 (MPS + Pixio encoder) 2026-03-23; v1.1.2 (VGGT Omega) 2026-05-30; v1.1.3 2026-07-17",
+        "3,584 GitHub stars as of query date"
+      ],
+      "quotes": [
+        "This code is licensed under an open-source Apache 2.0 license.",
+        "The only difference is the training data composition and resulting license terms."
+      ],
+      "code_refs": [
+        "README.md Code License section",
+        "--apache CLI flag"
+      ]
+    },
+    {
+      "title": "AdmiralFabulous/map-anything fork ('with panorama support')",
+      "url": "https://github.com/AdmiralFabulous/map-anything",
+      "date": "2025-12-11",
+      "key_claims": [
+        "Unofficial fork (2 stars) whose repo description claims panorama support, but no panorama/equirectangular documentation found in its README",
+        "Apache-2.0 licensed, not a fork of the description's claim being verifiable from README alone"
+      ],
+      "quotes": [],
+      "code_refs": []
+    }
+  ],
+  "uncertainties": [
+    "PanoSplatt3R inference-time VRAM requirement is not documented anywhere (repo, paper, project page) -- only the 48GB training figure is public. Whether it fits a free Colab T4 (16GB) is unverified and should be tested empirically before relying on it.",
+    "Whether PanoSplatt3R's claimed 'indoor and outdoor, egocentric, and roaming' generalization (stated only in secondary web-search summaries of the abstract, not confirmed verbatim in the arXiv abstract text I retrieved) is actually demonstrated anywhere in public code/benchmarks is unconfirmed -- the repo's only shipped datasets (HM3D, Replica) are indoor.",
+    "No PanoSplatt3R/OmniSplat/PanSplat repo documents a supported workflow for fusing more than 2 panoramas into one globally consistent scene; whether any of the authors' papers (not just repos) describe a multi-view extension was not fully confirmed from primary sources within the time available.",
+    "AdmiralFabulous/map-anything's claimed 'panorama support' could not be verified from its README (grep for panorama/equirect returned nothing) -- it may exist in code not surfaced by the README fetch, or may be an inaccurate repo description. Low confidence either way given only 2 stars and no independent corroboration found.",
+    "OmniSplat's per-scene VRAM/GPU requirement is not stated in its README or found via search.",
+    "Whether Orbit Studio's existing perspective-split + pycolmap/COLMAP step could be pointed directly at MapAnything's Apache-licensed checkpoint today (API compatibility, output format for gsplat training) was not verified -- this slice only confirms MapAnything's license/release cadence, not integration feasibility."
+  ]
+}

@@ -1,0 +1,197 @@
+{
+  "recommendations": [
+    "Upgrade the Colab COLMAP step to COLMAP >=4.0.0 (ideally 4.1.1, released 2026-07-17) instead of hand-installing a separate GLOMAP binary — GLOMAP's own repo (github.com/colmap/glomap) was archived/deprecated on 2026-03-09 with the note it is 'fully migrated to COLMAP, where GLOMAP functionality is exposed as the global mapper'. Drop any GLOMAP-specific install step from the pipeline and just call COLMAP's `--Mapper.ba_global_use_pba`/global mapper mode.",
+    "Keep (don't remove) the existing ffmpeg perspective-reframe/cubemap-split step for the still-photo path. COLMAP 4.1.0's new native spherical/equirectangular camera model is explicitly documented as 'generally faster but less accurate than rendering perspective views' — wrong tradeoff when you only have 20 sparse stills and need every match to count, especially around thin bridge railings/trusses that suffer at equirect poles.",
+    "For splitting each of the 20 equirectangular JPGs, adopt the nerfstudio ns-process-data convention rather than a plain 6-face 90° cube: 8 faces at 120° FOV or 14 faces at 110° FOV, at pitches [-45,0,45]. This produces ~160-280 well-overlapping perspective frames from 20 panoramas, giving COLMAP's exhaustive matcher enough shared coverage to close the loop around the bridge and roadway. Use `ns-process-data images --camera-type equirectangular --images-per-equirect 14` directly, or the underlying py360convert library (pip install py360convert) if you want the split step to stay inside Orbit Studio's own scripts rather than depend on nerfstudio.",
+    "Switch feature extraction/matching in the Colab step to COLMAP's built-in ALIKED (via ONNX) + LightGlue (via ONNX) path, added natively in COLMAP 4.0.0 (2026-03-14) — this removes the need to vendor the separate hloc toolbox (whose last tagged release, v1.4, is from July 2024; ALIKED/XFeat support lives only on hloc's unreleased master via open PRs like #441). Keep classic SIFT + exhaustive matching as an automatic fallback if ALIKED/LightGlue produce a broken/disconnected reconstruction on the repetitive pavement/asphalt texture around the bridge.",
+    "Do not add OpenMVG or SphereSfM (json87/SphereSfM) to the pipeline. OpenMVG's 'Spherical' camera is reported by its own maintainers as not true equirectangular projection, with the correct model (Spherical_Equirectangular) still an open, unresolved GitHub issue (#1045) after years. SphereSfM is a maintained but niche COLMAP fork (last release 2025-08-18) that adds deployment risk versus mainline COLMAP now shipping native spherical support directly.",
+    "After matching, run COLMAP's integrated global mapper (ex-GLOMAP) first for speed, but keep the incremental mapper as an automatic retry path if global mapper output looks degenerate — GLOMAP's own paper and COLMAP's rotation-averaging robustification notes (4.1.0 changelog: 'Robustified gravity-aligned rotation averaging against 180-degree flips') both flag global SfM's known failure mode on small/structured loop scenes, which a 20-photo bridge loop is exactly."
+  ],
+  "slice": "Structure-from-motion for 360 imagery in 2026 (Orbit Studio research)",
+  "summary": "The SfM-for-360 landscape consolidated sharply into COLMAP itself in 2026. GLOMAP, the standalone fast global-SfM pipeline, was archived on 2026-03-09 after being fully merged into COLMAP 4.0.0 (2026-03-14) as a first-class 'global mapper' mode, alongside natively integrated ALIKED (via ONNX) feature extraction and LightGlue (via ONNX) matching for both SIFT and ALIKED. COLMAP 4.1.0 (2026-06-26) then added native spherical/equirectangular and Enhanced Unified Camera Model (EUCM) support plus the Caspar GPU bundle-adjustment backend (1-2 orders of magnitude faster than Ceres-CUDA); 4.1.1 (2026-07-17) is the current stable point release. Critically, COLMAP's own docs describe native equirectangular reconstruction as faster but less accurate than the classic cubemap/perspective-split approach, so for a sparse 20-photo dataset the traditional split-then-SfM workflow remains the safer choice. Nerfstudio's ns-process-data (`--camera-type equirectangular --images-per-equirect 8|14`, FOV 120deg/110deg with pitch bounds [-45,0,45]) is the closest thing to a standardized, actively-maintained splitting tool, and its main equirect artifact bug (issue #3445) is closed. hloc, by contrast, hasn't cut a tagged release since v1.4 (July 2024); its ALIKED/XFeat support lives on an unreleased master branch, making COLMAP's own native ALIKED+LightGlue integration the more current path. OpenMVG's spherical camera model is widely reported as not truly equirectangular and unresolved for years; SphereSfM (json87) is a maintained but niche research fork (last release 2025-08-18). Net: COLMAP 4.1.x alone, fed cubemap-split stills, is now the most reliable open-source pose-recovery path.",
+  "sources": [
+    {
+      "title": "Release 4.1.0 · colmap/colmap",
+      "url": "https://github.com/colmap/colmap/releases/tag/4.1.0",
+      "date": "2026-06-26",
+      "key_claims": [
+        "Added the spherical (equirectangular) camera models enabling native reconstruction of 360 panoramic images",
+        "Native approach is generally faster but less accurate than rendering perspective views",
+        "Extended panorama_sfm example to convert perspective cameras back to equirectangular and added global mapping support",
+        "Added Enhanced Unified Camera Model (EUCM)",
+        "Added Caspar, a GPU-accelerated bundle adjustment backend, 1-2 orders of magnitude faster than Ceres CUDA backend"
+      ],
+      "quotes": [
+        "generally faster but less accurate than rendering perspective views",
+        "1-2 orders of magnitude faster than the Ceres CUDA backend"
+      ],
+      "code_refs": [
+        "examples/panorama_sfm"
+      ]
+    },
+    {
+      "title": "Releases · colmap/colmap (release list with dates)",
+      "url": "https://github.com/colmap/colmap/releases",
+      "date": "2026-07-17",
+      "key_claims": [
+        "4.1.1 released 2026-07-17 (bug fixes: matching slowdown fix, pycolmap enum rename)",
+        "4.1.0 released 2026-06-26",
+        "4.0.0 released 2026-03-14, launching GLOMAP integration, ALIKED and LightGlue support",
+        "3.13.0 released 2025-11-07"
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "Changelog — COLMAP",
+      "url": "https://colmap.github.io/changelog.html",
+      "date": "2026-07-17",
+      "key_claims": [
+        "COLMAP 4.0.0 (2026-03-14): Integrated GLOMAP global SfM pipeline as first-class alternative with view graph calibration",
+        "COLMAP 4.0.0 added ALIKED feature extraction via ONNX with vocabulary tree matching and LightGlue ONNX matching for SIFT and ALIKED",
+        "COLMAP 4.0.0 replaced FreeImage with OpenImageIO, dropped Python 3.9 support",
+        "COLMAP 4.1.0 (2026-06-26) added rotation averaging options to GlobalMapper and robustified gravity-aligned rotation averaging against 180-degree flips"
+      ],
+      "quotes": [
+        "Integrated GLOMAP global SfM pipeline as first-class alternative"
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "COLMAP 4.1.0 Ships Caspar GPU Bundle Adjustment and Native 360 Reconstruction - Radiance Fields",
+      "url": "https://radiancefields.com/colmap-4.1.0-ships-caspar-gpu-bundle-adjustment-and-native-360-reconstruction",
+      "date": "2026-06",
+      "key_claims": [
+        "4.1.0 eliminates the perspective cropping and re-stitching step that previously stood between a panoramic capture and a COLMAP reconstruction",
+        "Caspar functions as an optional alternative rather than mandatory replacement for the Ceres solver",
+        "Release also fixes Blackwell GPU compatibility and SIFT/LightGlue integration bugs"
+      ],
+      "quotes": [
+        "perspective cropping and re-stitching step that previously stood between a panoramic capture and a COLMAP reconstruction"
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "colmap/glomap GitHub repository (archive notice)",
+      "url": "https://github.com/colmap/glomap",
+      "date": "2026-03-09",
+      "key_claims": [
+        "Repository archived by owner on 2026-03-09 and made read-only",
+        "Notice states the project is no longer maintained and has been fully migrated to COLMAP, exposed as the 'global' mapper",
+        "Had 2.3k stars, ~180 forks at time of archiving"
+      ],
+      "quotes": [
+        "This project is no longer maintained and has been fully migrated to COLMAP, where GLOMAP functionality is exposed as the 'global' mapper."
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "Global Structure-from-Motion Revisited (GLOMAP paper, arXiv)",
+      "url": "https://arxiv.org/abs/2407.20219",
+      "date": "2024-07",
+      "key_claims": [
+        "GLOMAP is a general-purpose global SfM system on-par or superior to COLMAP's incremental mapper while being orders of magnitude faster",
+        "Merges translation averaging and triangulation into a single global positioning step",
+        "Originally presented at ECCV 2024, later merged directly into COLMAP as its global mapper"
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "SphereSfM (json87) GitHub repository",
+      "url": "https://github.com/json87/SphereSfM",
+      "date": "2025-08-18",
+      "key_claims": [
+        "SfM engine specialized for ERP (equirectangular) spherical images, built on top of the COLMAP codebase",
+        "Adds a dedicated SPHERE camera model and spatial matching optimized for equirectangular imagery",
+        "Latest release dated 2025-08-18 with 32 commits on main branch"
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "Adding Equirectangular Camera Support; correct approach? · Issue #1045 · openMVG/openMVG",
+      "url": "https://github.com/openMVG/openMVG/issues/1045",
+      "date": "unknown",
+      "key_claims": [
+        "OpenMVG's existing 'Spherical' camera model is not actually equirectangular; likely closer to a rectilinear/other projection",
+        "Discussion concludes OpenMVG needs a distinct 'Spherical_Equirectangular' camera because the projection formula differs",
+        "Issue remains open with no confirmed resolution found in 2025-2026 searches"
+      ],
+      "quotes": [
+        "the 'Spherical' Camera in OpenMVG is in fact not equirectangular"
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "Releases · cvg/Hierarchical-Localization (hloc)",
+      "url": "https://github.com/cvg/Hierarchical-Localization/releases",
+      "date": "2024-07-20",
+      "key_claims": [
+        "Latest tagged release is v1.4, dated 2024-07-20, adding LightGlue as a new sparse matching front end",
+        "No newer tagged release exists as of the 2026 search; ALIKED/XFeat support (e.g. PR #441 adding xfeat+lighterglue) lives only on the unreleased master branch"
+      ],
+      "quotes": [],
+      "code_refs": [
+        "hloc/match_features.py"
+      ]
+    },
+    {
+      "title": "ns-process-data equirect_utils.py (nerfstudio source) via GitHub search",
+      "url": "https://github.com/nerfstudio-project/nerfstudio/blob/main/nerfstudio/process_data/process_data_utils.py",
+      "date": "2026",
+      "key_claims": [
+        "ns-process-data supports --camera-type equirectangular with --images-per-equirect set to 8 or 14",
+        "8-face mode uses 120-degree FOV; 14-face mode uses 110-degree FOV, both sampled at pitches [-45, 0, 45]",
+        "Per-face resolution derived from equirect resolution divided by number of faces (res_squared = h*w/num_images)",
+        "--crop-factor (top,bottom,left,right) lets users exclude polar regions before splitting"
+      ],
+      "quotes": [],
+      "code_refs": [
+        "nerfstudio/process_data/equirect_utils.py"
+      ]
+    },
+    {
+      "title": "Planar output from ns-process-data equirect mode has image artifacts, doesn't respect crop parameters · Issue #3445 · nerfstudio-project/nerfstudio",
+      "url": "https://github.com/nerfstudio-project/nerfstudio/issues/3445",
+      "date": "2024-09-26",
+      "key_claims": [
+        "Issue reported artifacts and ignored --crop-bottom parameter when splitting 8k equirect images, opened 2024-09-26",
+        "Issue status is now closed, indicating the equirect-to-perspective splitting bug has been fixed"
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "What are best practises to use equirectangular image frames from a 360 video as input? · Issue #2529 · colmap/colmap",
+      "url": "https://github.com/colmap/colmap/issues/2529",
+      "date": "2024-04-20",
+      "key_claims": [
+        "User reports using AliceVision split360Images with --equirectangularNbSplits 8 --fov 90.0 as one common community workaround before COLMAP had native spherical support",
+        "Issue documents inconsistent feature-matching results splitting equirect video frames, left unanswered by maintainers in the fetched content"
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "Spherical Camera Support on COLMAP GUI · Issue #3595 · colmap/colmap",
+      "url": "https://github.com/colmap/colmap/issues/3595",
+      "date": "2025-08-26",
+      "key_claims": [
+        "As of 2025-08-26, the spherical camera model was usable via COLMAP's Python (pycolmap) scripting interface but not selectable in the COLMAP GUI",
+        "No maintainer resolution/roadmap comment found in fetched content, so GUI-level support status in the current 4.1.x release is unconfirmed"
+      ],
+      "quotes": [
+        "the Spherical camera model is not an available option in the COLMAP GUI, even though the COLMAP 3.12 release mentions spherical camera support"
+      ],
+      "code_refs": []
+    }
+  ],
+  "uncertainties": [
+    "The exact COLMAP version where the spherical/equirectangular camera model first landed is inconsistent across sources: one GitHub issue (#3595, opened 2025-08-26) attributes it to COLMAP 3.12, while release notes and changelog fetches attribute the 'native reconstruction without rendering to perspective' framing to 4.1.0 (2026-06-26). Likely 3.12 added a basic spherical camera model usable via pycolmap, and 4.1.0 made it more complete/native, but this could not be fully disambiguated from available fetches.",
+    "Whether COLMAP's GUI (as of the current 4.1.1, 2026-07-17) now exposes the spherical camera model as a selectable option, versus still requiring the Python/pycolmap scripting path, is unconfirmed — the only issue found on this (#3595) was opened in August 2025 with no visible maintainer resolution in the fetched content.",
+    "hloc's exact master-branch (unreleased) support status for ALIKED and XFeat+LighterGlue (PR #441) as of July 2026 could not be confirmed as merged vs. still open/in-review.",
+    "No single authoritative 'best practice' document was found specifying an optimal face count/FOV/overlap specifically for splitting STILL equirectangular photos (as opposed to video frames) for SfM; the two concrete conventions found (nerfstudio's 8-or-14-face scheme and a generic '90 deg cube faces expanded to ~95 deg for overlap' pattern from cubemap-literature/GitHub issue discussion) are both plausible but not COLMAP-endorsed standards for this exact use case.",
+    "Could not confirm whether pycolmap's current PyPI release (as installable in a fresh Google Colab T4 notebook in July 2026) already wraps COLMAP 4.1.x's native spherical camera model and Caspar GPU backend, or lags behind the C++ releases."
+  ]
+}

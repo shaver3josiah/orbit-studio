@@ -1,14 +1,15 @@
 {
   "topic": "Capturing photos and stitching them into a 3D reconstruction — the Orbit Capture way",
-  "level": 2,
+  "level": 3,
   "ratio_code": 0.4,
   "created": "2026-07-16T05:32:19.379679+00:00",
-  "updated": "2026-07-16T13:59:56.095297+00:00",
+  "updated": "2026-07-24T03:11:15.794488+00:00",
   "phases": {
     "plan": "done",
     "research": {
       "1": "done",
-      "2": "done"
+      "2": "done",
+      "3": "done"
     },
     "write": {
       "S01-B001": "done",
@@ -110,13 +111,24 @@
       "S02-B047": "done",
       "S02-B048": "done",
       "S02-B049": "done",
-      "S02-B050": "done"
+      "S02-B050": "done",
+      "S03-B001": "done",
+      "S03-B002": "done",
+      "S03-B003": "done",
+      "S03-B004": "done",
+      "S03-B005": "done",
+      "S03-B006": "done",
+      "S03-B007": "done",
+      "S03-B008": "done",
+      "S03-B009": "done",
+      "S03-B010": "done"
     },
     "primers": {
       "1": "done",
-      "2": "done"
+      "2": "done",
+      "3": "done"
     },
     "catalog": "done"
   },
-  "next": "Phase 4 catalog build"
+  "next": "build-catalog"
 }

@@ -1,0 +1,158 @@
+{
+  "recommendations": [
+    "Keep the ffmpeg equirect-to-perspective reframe stage: none of the production-ready feed-forward models (VGGT, VGGT-Omega, Pi3/Pi3X, MapAnything, AnySplat, Depth Anything 3) ingest equirectangular panoramas natively -- all expect perspective crops. Feed each of the 20 panoramas as ~6-8 cube-face crops (~120-160 perspective images) into the feed-forward model.",
+    "Replace the pycolmap/COLMAP SfM stage with MapAnything (facebookresearch/map-anything, v1.1.3, 2026-07-17) using the Apache-2.0 'facebook/map-anything-apache' checkpoint (not the default CC-BY-NC checkpoint). It wraps VGGT/DUSt3R/MASt3R/Pi3-X interchangeably, handles far more views than you need (2000-view mode documented), and exports directly to COLMAP cameras/images/points3D format -- which Brush (already vendored) already reads natively, so no downstream code changes are needed.",
+    "Do not drop per-scene splat training. Feed MapAnything's poses + metric point cloud into Brush/gsplat as initialization instead of running COLMAP feature matching + bundle adjustment -- this removes the slowest, most failure-prone part of the Colab T4 pipeline (matching wide-baseline, low-overlap bridge shots) while keeping training quality from real optimization.",
+    "Add AnySplat (MIT license, InternRobotics/AnySplat, SIGGRAPH Asia 2025) as an optional instant-preview path: same perspective crops -> direct feed-forward Gaussian splat output in seconds, useful for on-site/Colab-free sanity checks before committing to a full training run. It is not a proven substitute for the final bridge-scale scene yet.",
+    "Do not add SPAG4d to the pipeline for this use case -- it is single-panorama monocular projection (no multi-view fusion across your 20 photos), and its higher-quality backends (PaGeR, SHARP 360) plus the OmniRoam refinement path are research-only/Adobe-Research-License, which conflicts with an open pipeline.",
+    "Avoid anchoring the pipeline on DUSt3R, MASt3R, or Pi3/Pi3X weights, or the default VGGT-1B checkpoint -- all are CC BY-NC(-SA) 4.0, non-commercial only. If VGGT is used instead of MapAnything, use the VGGT-1B-Commercial checkpoint specifically.",
+    "Track PanoVGGT, VGGT-360, and 360-GeoGS as a future upgrade path -- they are purpose-built for exactly this scenario (sets of 2-24 outdoor equirectangular panoramas -> poses/depth/points in one pass, PanoVGGT reports strong urban outdoor pose/depth accuracy) and would eliminate the perspective-reframe step entirely, but as of 2026-07-23 their code/weights release could not be confirmed live (papers say 'code and dataset will be released'). Revisit in Q4 2026."
+  ],
+  "slice": "Feed-forward / pose-free 3D reconstruction models (DUSt3R/MASt3R lineage, VGGT/VGGT-Omega, Pi3/Pi3X, MapAnything, AnySplat, SPAG4d, Depth Anything 3, panorama-native successors)",
+  "summary": "The feed-forward/pose-free reconstruction field matured fast in H1 2026. VGGT (CVPR2025 Best Paper) got a commercial-licensed checkpoint (VGGT-1B-Commercial, 2025-07-29) and a successor, VGGT-Omega (CVPR2026 oral, gated weights), using 30% of VGGT's memory at 1.6x speed. Pi3/Pi3X (BSD-3 code, CC-BY-NC weights) is the fastest (57 FPS vs VGGT 43 FPS vs DUSt3R 1.25 FPS) and needs no reference view. Meta's MapAnything (Apache-2.0, v1.1.3, 2026-07-17) is the most pipeline-friendly: it wraps VGGT/DUSt3R/MASt3R/Pi3-X under one interface, scales to thousands of views, and exports straight to COLMAP format that Brush already consumes. AnySplat (MIT) and parts of Depth Anything 3 (Apache-2.0 base variants, 2025-11-14) go further, predicting Gaussians directly in one pass -- but only from perspective images. None of these ingest equirectangular panoramas natively. The real panorama-native successors -- PanoVGGT, VGGT-360, 360-GeoGS (all CVPR2026) -- are designed for exactly this task (multi-panorama outdoor sets) but their code release status is unconfirmed as of today. SPAG4d is a community tool (MIT core) that turns ONE equirectangular panorama into a splat via monocular depth, but does not fuse multiple wide-baseline panoramas, and its better backends carry non-commercial/Adobe licenses. Separately, COLMAP's own authors shipped GLUEMAP (CVPR2026), a hybrid pipeline that leans on feed-forward models (Pi3, SALAD, VGGSfM) specifically to patch COLMAP's classic failure modes: low texture, limited overlap, wide baseline -- exactly the profile of 20 sparse bridge photos. Net: feed-forward pose recovery can and should replace COLMAP's matching/SfM stage for a 20-image set today; fully replacing per-scene splat training is not yet proven at this scale.",
+  "sources": [
+    {
+      "title": "facebookresearch/vggt (README, LICENSE)",
+      "url": "https://github.com/facebookresearch/vggt",
+      "date": "2026-05-18",
+      "key_claims": [
+        "VGGT is a feed-forward transformer inferring camera poses, depth maps, point maps and 3D point tracks from one, a few, or hundreds of views within seconds",
+        "Base VGGT-1B checkpoint is CC-BY-NC-4.0 (non-commercial); a separate VGGT-1B-Commercial checkpoint released 2025-07-29 permits commercial use excluding military applications",
+        "A 2026-05 update lets VGGT run on roughly 2-3x more input frames at the same GPU memory budget after a memory fix",
+        "VGGT provides a script exporting predictions to COLMAP format, usable downstream with gsplat/Brush",
+        "No native panorama/equirectangular ingestion is documented"
+      ],
+      "quotes": [
+        "a non-exclusive, worldwide, non-transferable and royalty-free limited license"
+      ]
+    },
+    {
+      "title": "VGGT-Omega project page / facebookresearch/vggt-omega",
+      "url": "https://vggt-omega.github.io/",
+      "date": "2026-05",
+      "key_claims": [
+        "VGGT-Omega is a CVPR 2026 Oral successor to VGGT, using ~30% of VGGT's training memory and running 1.6x faster at inference",
+        "Trained with 20x more supervised data and 100x more unsupervised data than prior work via a new dynamic-scene annotation pipeline and self-supervised protocol",
+        "Improves camera estimation accuracy by 77% on Sintel versus prior best",
+        "Checkpoints are gated (request access required); a Hugging Face demo is public"
+      ],
+      "quotes": []
+    },
+    {
+      "title": "π³ (Pi3): Permutation-Equivariant Visual Geometry Learning (arXiv + yyfz/Pi3)",
+      "url": "https://arxiv.org/abs/2507.13347",
+      "date": "2025-07-17",
+      "key_claims": [
+        "Pi3 is fully permutation-equivariant: it predicts affine-invariant poses and scale-invariant point maps without any fixed reference view, robust to input ordering",
+        "Accepts unordered images, video, or static/dynamic scenes",
+        "Inference speed: 57.4 FPS vs VGGT 43.2 FPS vs DUSt3R 1.25 FPS",
+        "Code (yyfz/Pi3) is BSD-3-Clause; model weights are CC BY-NC 4.0 (non-commercial only)",
+        "Pi3X upgrade released 2025-12-28 adds smoother point clouds, optional pose/intrinsics/depth conditioning, and approximate metric scale",
+        "Accepted at ICLR 2026 (last revised 2026-03-07); outputs points/local_points/conf/camera_poses only -- no direct Gaussian splat output"
+      ],
+      "quotes": []
+    },
+    {
+      "title": "MapAnything: Universal Feed-Forward Metric 3D Reconstruction (facebookresearch/map-anything)",
+      "url": "https://github.com/facebookresearch/map-anything",
+      "date": "2026-07-17",
+      "key_claims": [
+        "Developed by Meta Reality Labs and CMU; end-to-end transformer regressing factored metric 3D geometry from images with optional poses/intrinsics/depth",
+        "Code is Apache-2.0; two checkpoint variants exist -- 'facebook/map-anything' (CC-BY-NC-4.0) and 'facebook/map-anything-apache' (Apache-2.0, fully permissive)",
+        "Supports over 12 reconstruction tasks (SfM, MVS, camera localization, depth completion) and wraps VGGT, DUSt3R, MASt3R, MUSt3R, Pi3-X interchangeably behind one interface",
+        "Memory-efficient mode processes up to 2000 views on 140GB GPU memory",
+        "Exported COLMAP-format files can be used directly with gsplat for Gaussian Splatting training",
+        "Latest release v1.1.3 dated 2026-07-17; no native panorama/equirectangular ingestion documented"
+      ],
+      "quotes": [
+        "the exported COLMAP files can be directly used with gsplat for Gaussian Splatting training"
+      ]
+    },
+    {
+      "title": "AnySplat: Feed-forward 3D Gaussian Splatting from Unconstrained Views",
+      "url": "https://github.com/InternRobotics/AnySplat",
+      "date": "2025-05",
+      "key_claims": [
+        "SIGGRAPH Asia 2025 (ACM TOG) paper; single feed-forward pass predicts 3D Gaussian primitives plus camera intrinsics/extrinsics directly from uncalibrated images -- no COLMAP or poses required",
+        "Trained without 3D SfM or MVS supervision, relying solely on uncalibrated images",
+        "License is MIT (fully permissive)",
+        "Processes standard perspective images (448x448); no panorama/equirectangular support documented",
+        "Renders novel views within seconds of inference"
+      ],
+      "quotes": []
+    },
+    {
+      "title": "Depth Anything 3 (ByteDance-Seed/Depth-Anything-3)",
+      "url": "https://github.com/ByteDance-Seed/Depth-Anything-3",
+      "date": "2025-11-14",
+      "key_claims": [
+        "Handles single-image and multi-view input; predicts spatially consistent geometry with or without known camera poses",
+        "Outputs include camera extrinsics/intrinsics in COLMAP-style format plus a '3D Gaussian prediction' capability, similar in scope to VGGT",
+        "DA3-BASE/SMALL/METRIC-LARGE/MONO-LARGE are Apache-2.0; the recommended '-1.1' Giant/Large/Nested variants are CC-BY-NC-4.0 (research only)",
+        "DA3-Streaming supports long video sequences under 12GB GPU memory via sliding window",
+        "PyPI package (depth-anything-3) published 2026-03-04; claims to outperform VGGT on multi-view depth and pose estimation",
+        "No panorama/360 support documented; perspective imagery only"
+      ],
+      "quotes": []
+    },
+    {
+      "title": "SPAG-4D: 360° Panorama to 3D Gaussian Splats (cedarconnor/SPAG4d)",
+      "url": "https://github.com/cedarconnor/SPAG4d",
+      "date": "2026-02-21",
+      "key_claims": [
+        "Converts a single equirectangular panorama into a 3D Gaussian splat PLY using one of four backends (DA360, DAP, PaGeR, SHARP 360); no camera poses or SfM required",
+        "Single-image only -- no multi-view/multi-panorama fusion across a photo set",
+        "VRAM needs 6-48GB depending on backend and optional refinement",
+        "Core license is MIT; DA360/DAP MIT; SHARP/PaGeR are research/non-commercial; optional OmniRoam refinement uses an Adobe Research License",
+        "Optional ArtiFixer3D path bridges internally to COLMAP for novel-view consistency but is not exposed to the user",
+        "Portable release 2026-02-21; ~215 GitHub stars, ~247 commits at time of check"
+      ],
+      "quotes": []
+    },
+    {
+      "title": "PanoVGGT: Feed-Forward 3D Reconstruction from Panoramic Imagery",
+      "url": "https://arxiv.org/html/2603.17571v1",
+      "date": "2026-03",
+      "key_claims": [
+        "Takes an unordered set of 2-24 equirectangular panoramas (512x1024) and predicts camera poses, dense depth maps, and 3D point clouds in world/camera coordinates in one feed-forward pass",
+        "Uses a DINOv2 ViT-B/14 encoder with spherical-aware positional embeddings and a 24-block alternating-attention Geometry Aggregator",
+        "On the outdoor PanoCity dataset: pose AUC@30 = 0.949, median translation error 0.873 degrees, depth Abs Rel 0.0196, described as robust across diverse urban scenes and weather",
+        "Accepted at CVPR 2026; paper states 'Code and dataset will be released' but availability was not confirmed as of this check"
+      ],
+      "quotes": [
+        "Code and dataset will be released"
+      ]
+    },
+    {
+      "title": "Global Structure-from-Motion Meets Feedforward Reconstruction (GLUEMAP)",
+      "url": "https://arxiv.org/abs/2605.26103",
+      "date": "2026-05",
+      "key_claims": [
+        "Authored by Linfei Pan, Johannes Schönberger (COLMAP's original author), and Marc Pollefeys; accepted CVPR 2026",
+        "Proposes a hybrid SfM pipeline combining classical global SfM with feed-forward models specifically to overcome COLMAP failure modes: low texture, limited overlap, and symmetric scenes",
+        "Implementation (colmap/gluemap) vendors Pi3, SALAD, a VGGSfM tracker, and Doppelgangers++ as feed-forward components alongside a C++/Ceres/Eigen backend",
+        "Signals that even COLMAP's own authors treat feed-forward models as complementary patches for classical SfM's weak spots rather than a full replacement at scale"
+      ],
+      "quotes": []
+    },
+    {
+      "title": "DUSt3R / MASt3R license and MASt3R-SfM scalability",
+      "url": "https://github.com/naver/mast3r",
+      "date": "2024-09",
+      "key_claims": [
+        "DUSt3R and MASt3R remain licensed CC BY-NC-SA 4.0 (non-commercial, share-alike) as of this check, restricting use in a permissively-licensed open pipeline without separate permission from Naver",
+        "MASt3R-SfM extends MASt3R with a frozen-encoder retrieval step, achieving quasi-linear complexity in image count versus MASt3R's pairwise-only scaling",
+        "PanoSplatt3R (arXiv 2507.21960, 2025-07) adapts MASt3R/DUSt3R perspective pretraining via transfer learning for wide-baseline panorama reconstruction, showing the lineage is being extended toward panoramic inputs"
+      ],
+      "quotes": []
+    }
+  ],
+  "uncertainties": [
+    "Whether PanoVGGT, VGGT-360, and 360-GeoGS have actually published code/weights as of 2026-07-23 could not be confirmed live -- their papers use future-tense release language ('code and dataset will be released'); no public repository was found during this research pass.",
+    "Exact VRAM requirements for running VGGT, VGGT-Omega, or Pi3/Pi3X across ~120-160 perspective crops (from 20 panoramas x 6-8 faces) on a single Colab T4 were not documented in accessible sources -- only MapAnything's 2000-view/140GB figure was found, which is a datacenter-scale upper bound, not a T4-relevant lower bound.",
+    "Whether MapAnything's Apache-2.0 'facebook/map-anything-apache' checkpoint matches the reconstruction quality of the default CC-BY-NC checkpoint was not confirmed.",
+    "SPAG4d is a small community project (~215 GitHub stars at time of check); its production robustness and quality on real bridge/outdoor imagery beyond its own README claims is unverified.",
+    "Whether Splatter-360 and PanSplat (2025, code released) can fuse more than 2 wide-baseline panoramas into one persistent explorable scene, versus only pairwise novel-view synthesis, was not directly confirmed from the sources reached -- relevant if considering them as an alternative panorama-native path.",
+    "VGGT's exact 'commercial checkpoint' license text (VGGT-1B-Commercial) was described secondhand via search snippets, not fetched verbatim from Meta's own license file for that specific checkpoint."
+  ]
+}

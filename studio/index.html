@@ -2125,7 +2125,7 @@ input[type="range"]::-moz-range-thumb {
 </div>
 </div>
 
-<input type="file" id="mediaFileInput" accept="video/mp4,video/*,image/jpeg,image/jpg" hidden>
+<input type="file" id="mediaFileInput" accept="video/mp4,video/*,image/jpeg,image/jpg" hidden multiple>
 <input type="file" id="resultFileInput" accept=".ply,.splat,.spz" hidden>
 <input type="file" id="viewerFileInput" accept=".ply,.splat,.spz" hidden>
 
@@ -2199,6 +2199,7 @@ const state = {
     step: 1,
     name: "",
     mediaFile: null,
+    mediaFiles: null,
     mediaMeta: null,
     targetFrames: 300,
     cropsPerFrame: 14,
@@ -2377,7 +2378,9 @@ async function fetchJSON(url, options, timeoutMs) {
 
 async function fetchForm(url, file, fieldName) {
   const form = new FormData();
-  form.append(fieldName || "file", file);
+  const field = fieldName || "file";
+  if (Array.isArray(file)) file.forEach((f) => form.append(field, f, f.name));
+  else form.append(field, file);
   const response = await fetch(url, { method: "POST", body: form });
   const text = await response.text();
   let data = null;
@@ -2400,6 +2403,7 @@ const api = {
   createProject: (name) => fetchJSON("/api/projects", { method: "POST", body: { name } }),
   deleteProject: (id) => fetchJSON("/api/projects/" + id, { method: "DELETE" }),
   uploadMedia: (id, file, force) => fetchForm("/api/projects/" + id + "/media" + (force ? "?force=1" : ""), file, "file"),
+  uploadPhotoset: (id, files, force) => fetchForm("/api/projects/" + id + "/photoset" + (force ? "?force=1" : ""), files, "photos"),
   run: (id, stage, settings) => fetchJSON("/api/projects/" + id + "/run", { method: "POST", body: { stage, settings } }),
   cancel: (id) => fetchJSON("/api/projects/" + id + "/cancel", { method: "POST" }),
   bundleUrl: (id) => "/api/projects/" + id + "/bundle.zip",
@@ -2684,8 +2688,8 @@ function wireDropzone(el, onFile) {
     });
   });
   el.addEventListener("drop", (evt) => {
-    const file = evt.dataTransfer.files && evt.dataTransfer.files[0];
-    if (file) onFile(file);
+    const files = evt.dataTransfer.files;
+    if (files && files.length) onFile(files[0], Array.from(files));
   });
 }
 
@@ -3011,9 +3015,9 @@ function wizardStep1Markup() {
     '<p class="wizard-subtitle">Export a 360 equirectangular file from the Insta360 app or free Insta360 Studio first. Need the exact steps? <a href="#" data-goto-guide>See the Guide</a>.</p>' +
     '<label class="field-label" for="projectNameInput">Scene name</label>' +
     '<input type="text" class="text-input" id="projectNameInput" placeholder="Backyard walkthrough" value="' + escapeHtml(c.name) + '" maxlength="60">' +
-    '<div class="dropzone" id="mediaDropzone" tabindex="0" role="button" aria-label="Choose equirectangular footage">' +
+    '<div class="dropzone" id="mediaDropzone" tabindex="0" role="button" aria-label="Choose equirectangular footage or photos">' +
       svg("film") +
-      "<p><strong>Drop your equirectangular file</strong> or click to browse<br>MP4 video or JPG panorama, 2:1 aspect</p>" +
+      "<p><strong>Drop your footage or 360 photos</strong> or click to browse<br>One MP4 video, or a set of JPG panoramas (2:1)</p>" +
     "</div>" +
     '<div id="mediaSummaryHost"></div>' +
     wizardNavMarkup(false)
@@ -3022,6 +3026,14 @@ function wizardStep1Markup() {
 
 function wizardStep2Markup() {
   const c = state.create;
+  if (c.mediaMeta && c.mediaMeta.type === "imageset") {
+    return (
+      '<div class="wizard-step-label">Step 2 of 4</div>' +
+      '<h2 class="wizard-title">Your photos are ready</h2>' +
+      '<p class="wizard-subtitle">All ' + c.mediaMeta.count + ' panoramas become reconstruction frames directly. There is no video to sample, so skip ahead to how each one is split into views.</p>' +
+      wizardNavMarkup(true)
+    );
+  }
   const hint = c.targetFrames < 220 ? "Faster processing, lighter detail" : c.targetFrames < 420 ? "A solid balance of speed and detail" : "Best detail, longest processing time";
   return (
     '<div class="wizard-step-label">Step 2 of 4</div>' +
@@ -3113,7 +3125,7 @@ function wireWizardStep1() {
   const dropzone = byId("mediaDropzone");
   dropzone.addEventListener("click", () => byId("mediaFileInput").click());
   dropzone.addEventListener("keydown", (evt) => { if (evt.key === "Enter") byId("mediaFileInput").click(); });
-  wireDropzone(dropzone, handleMediaFileChosen);
+  wireDropzone(dropzone, (file, files) => handleMediaFilesChosen(files || [file]));
   renderMediaSummary();
   refreshStep1NextState();
   const nextBtn = byId("wizardNextBtn");
@@ -3121,53 +3133,78 @@ function wireWizardStep1() {
 }
 
 byId("mediaFileInput").addEventListener("change", (evt) => {
-  const file = evt.target.files[0];
-  if (file) handleMediaFileChosen(file);
+  const files = Array.from(evt.target.files || []);
+  if (files.length) handleMediaFilesChosen(files);
   evt.target.value = "";
 });
 
-function handleMediaFileChosen(file) {
-  const isVideo = file.type.startsWith("video/") || /\.(mp4|mov)$/i.test(file.name);
-  const isImage = file.type.startsWith("image/") || /\.(jpg|jpeg)$/i.test(file.name);
-  if (!isVideo && !isImage) {
-    toast("Choose an MP4 video or a JPG panorama", "warning");
+const isVideoFile = (f) => f.type.startsWith("video/") || /\.(mp4|mov)$/i.test(f.name);
+const isImageFile = (f) => f.type.startsWith("image/") || /\.(jpg|jpeg)$/i.test(f.name);
+
+function handleMediaFilesChosen(files) {
+  const images = files.filter(isImageFile);
+  const videos = files.filter(isVideoFile);
+  if (!images.length && !videos.length) {
+    toast("Choose JPG panoramas or an MP4 video", "warning");
     return;
   }
-  const objectUrl = URL.createObjectURL(file);
-  const meta = { file, name: file.name, size: file.size, type: isVideo ? "video" : "image", width: 0, height: 0, duration: 0 };
-  if (isVideo) {
-    const videoEl = document.createElement("video");
-    videoEl.preload = "metadata";
-    videoEl.onloadedmetadata = () => {
-      meta.width = videoEl.videoWidth;
-      meta.height = videoEl.videoHeight;
-      meta.duration = videoEl.duration;
-      URL.revokeObjectURL(objectUrl);
-      finishMediaSelection(meta);
-    };
-    videoEl.src = objectUrl;
+  if (videos.length) {
+    handleSingleVideoChosen(videos[0]);
   } else {
-    const imgEl = new Image();
-    imgEl.onload = () => {
-      meta.width = imgEl.naturalWidth;
-      meta.height = imgEl.naturalHeight;
-      URL.revokeObjectURL(objectUrl);
-      finishMediaSelection(meta);
-    };
-    imgEl.src = objectUrl;
+    buildPhotoSet(images);
   }
+}
+
+function handleSingleVideoChosen(file) {
+  const objectUrl = URL.createObjectURL(file);
+  const meta = { file, name: file.name, size: file.size, type: "video", width: 0, height: 0, duration: 0 };
+  const videoEl = document.createElement("video");
+  videoEl.preload = "metadata";
+  videoEl.onloadedmetadata = () => {
+    meta.width = videoEl.videoWidth;
+    meta.height = videoEl.videoHeight;
+    meta.duration = videoEl.duration;
+    URL.revokeObjectURL(objectUrl);
+    finishMediaSelection(meta);
+  };
+  videoEl.src = objectUrl;
+}
+
+function buildPhotoSet(images) {
+  images.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+  const totalBytes = images.reduce((sum, f) => sum + f.size, 0);
+  const meta = { type: "imageset", count: images.length, size: totalBytes, name: images.length + " panorama" + (images.length === 1 ? "" : "s"), firstName: images[0].name, width: 0, height: 0, duration: 0 };
+  const probe = new Image();
+  const url = URL.createObjectURL(images[0]);
+  const done = () => { URL.revokeObjectURL(url); finishPhotoSetSelection(images, meta); };
+  probe.onload = () => { meta.width = probe.naturalWidth; meta.height = probe.naturalHeight; done(); };
+  probe.onerror = done;
+  probe.src = url;
 }
 
 function finishMediaSelection(meta) {
   state.create.mediaFile = meta.file;
+  state.create.mediaFiles = null;
   state.create.mediaMeta = meta;
-  if (!state.create.name) {
-    state.create.name = meta.name.replace(/\.[^.]+$/, "");
-    const nameInput = byId("projectNameInput");
-    if (nameInput) nameInput.value = state.create.name;
-  }
+  applyDefaultName(meta.name.replace(/\.[^.]+$/, ""));
   renderMediaSummary();
   refreshStep1NextState();
+}
+
+function finishPhotoSetSelection(images, meta) {
+  state.create.mediaFile = null;
+  state.create.mediaFiles = images;
+  state.create.mediaMeta = meta;
+  applyDefaultName(meta.firstName.replace(/\.[^.]+$/, "").replace(/[_-]?\d+$/, "") || "Bridge scene");
+  renderMediaSummary();
+  refreshStep1NextState();
+}
+
+function applyDefaultName(candidate) {
+  if (state.create.name) return;
+  state.create.name = candidate;
+  const nameInput = byId("projectNameInput");
+  if (nameInput) nameInput.value = candidate;
 }
 
 function renderMediaSummary() {
@@ -3176,6 +3213,22 @@ function renderMediaSummary() {
   const meta = state.create.mediaMeta;
   if (!meta) {
     host.innerHTML = "";
+    return;
+  }
+  if (meta.type === "imageset") {
+    const setRatio = meta.width && meta.height ? meta.width / meta.height : 0;
+    const setGood = Math.abs(setRatio - 2) < 0.08;
+    const setBadges = ['<span class="mini-badge">' + meta.count + " photos</span>"];
+    if (meta.width && meta.height) setBadges.push('<span class="mini-badge ' + (setGood ? "good" : "warn") + '">' + (setGood ? "2:1 ok" : "check aspect") + "</span>");
+    setBadges.push('<span class="mini-badge">' + formatBytes(meta.size) + "</span>");
+    host.innerHTML =
+      '<div class="media-summary">' +
+        '<div class="media-summary-icon">' + svg("camera") + "</div>" +
+        '<div class="media-summary-info">' +
+          '<div class="media-summary-name">360 photo set</div>' +
+          '<div class="media-summary-badges">' + setBadges.join("") + "</div>" +
+        "</div>" +
+      "</div>";
     return;
   }
   const ratio = meta.width && meta.height ? meta.width / meta.height : 0;
@@ -3198,8 +3251,9 @@ function refreshStep1NextState() {
   const nextBtn = byId("wizardNextBtn");
   if (!nextBtn) return;
   const c = state.create;
+  const hasMedia = c.mediaFile || (c.mediaFiles && c.mediaFiles.length);
   if (!c.name.trim()) setButtonDisabled(nextBtn, "Give this scene a name first");
-  else if (!c.mediaFile) setButtonDisabled(nextBtn, "Add your equirectangular footage to continue");
+  else if (!hasMedia) setButtonDisabled(nextBtn, "Add footage or 360 photos to continue");
   else setButtonDisabled(nextBtn, null);
 }
 
@@ -3227,7 +3281,12 @@ async function handleStep1Continue() {
 }
 
 async function uploadCurrentMedia(force) {
-  await api.uploadMedia(state.create.projectId, state.create.mediaFile, force);
+  const c = state.create;
+  if (c.mediaFiles && c.mediaFiles.length) {
+    await api.uploadPhotoset(c.projectId, c.mediaFiles, force);
+  } else {
+    await api.uploadMedia(c.projectId, c.mediaFile, force);
+  }
 }
 
 function offerForceImport() {
@@ -3262,6 +3321,10 @@ function offerForceImport() {
 function wireWizardStep2() {
   const c = state.create;
   const slider = byId("framesSlider");
+  if (!slider) {
+    byId("wizardNextBtn").addEventListener("click", () => { c.step = 3; renderCreate(); });
+    return;
+  }
   const valueEl = byId("framesValue");
   const hintEl = byId("framesHint");
   slider.addEventListener("input", () => {
@@ -3472,6 +3535,7 @@ function resetCreateFlow() {
     step: 1,
     name: "",
     mediaFile: null,
+    mediaFiles: null,
     mediaMeta: null,
     targetFrames: 300,
     cropsPerFrame: 14,

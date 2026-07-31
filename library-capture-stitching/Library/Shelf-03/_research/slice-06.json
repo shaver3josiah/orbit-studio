@@ -1,0 +1,197 @@
+{
+  "recommendations": [
+    "Switch the viewer artifact format from raw .splat to Niantic's SPZ (or Spark's 'extended SPZ' with a pre-built LoD tree): Spark/three.js already auto-detects and loads .spz natively, files run ~10x smaller than PLY with 3-5x faster compression than the old SPZ, and it's MIT-licensed -- a near-zero-cost swap that speeds up load time for a bridge-scale scene in a browser on a phone.",
+    "Lean into the accuracy gap in marketing/docs: as of July 2026 no mainstream consumer tool takes a sparse set of *still* 360 photos and does metrically faithful multi-view reconstruction. Niantic Scaniverse's 360-camera pipeline explicitly rejects still equirectangular images ('Still panoramic images (.jpg, .png, etc.) are not supported' -- video (.insv/.mp4) only), and World Labs Marble's multi-image mode is admittedly generative ('combine them to generate a 3D world with elements of the real-world space'), not photogrammetric. Orbit Studio's COLMAP+gsplat pipeline from real stills is the thing neither big player ships -- position it for as-built/infrastructure documentation, not 'pretty virtual walkthrough'.",
+    "Add a same-day single-pano fallback/preview mode using the SPAG-4D approach (open-source, MIT-core, monocular-depth-to-splat, no COLMAP/poses needed, actively developed through Feb 2026) so that if COLMAP fails to register some of the 20 bridge photos (likely with wide-baseline, sparse still-panorama capture), the pipeline can still emit a rough per-panorama splat for that viewpoint instead of dropping it entirely.",
+    "Benchmark cost/turnaround messaging against the new commercial baseline: Splatica (Insta360's 3DGS partner) charges $49.95-$299.95/mo cloud processing and Niantic's own 360-camera tier is $20-$50/mo gated to video-only capture, versus Orbit Studio's free Colab T4 + open pipeline -- worth a line in the README/pitch since paid competitors just set the market's price anchor.",
+    "Treat exterior/infrastructure gaussian splatting as validated, not niche: Zillow (SkyTour, July 2025) and Apartments.com/CoStar (Matterport 3D Exteriors) both shipped exterior-focused splat viewers in the last ~12 months, and Insta360+Splatica explicitly target simulation/large-scene exports (Unity, Unreal, Isaac Sim, Omniverse) -- a bridge-and-roadway target scene is squarely in the direction the industry is already moving, reinforcing that Orbit Studio isn't solving a problem nobody has."
+  ],
+  "slice": "Industry/product moves Feb-Jul 2026: 360-capture-to-3D-world products (World Labs Marble, Niantic Scaniverse, Meta Horizon Hyperscape, Insta360, Matterport/Zillow/Kuula)",
+  "summary": "Feb-Jul 2026 was an active stretch for 360-to-3D. World Labs launched a public World API (Jan 21) and raised $1B (Feb 18), then shipped Marble 1.1/1.1 Plus (Apr 2) with auto-expanding scene coverage; but Marble's multi-image/panorama mode is explicitly generative, not metric reconstruction -- it \"combines\" photos to \"generate\" a plausible world, not a faithful digital twin. Niantic (now under John Hanke's Niantic Spatial after the Scopely game-business sale) shipped a major Scaniverse update (Apr 7) adding a paid ($20-50/mo) 360-camera-to-splat pipeline and a browser workspace for city-scale scenes -- but it hard-requires video (.insv/.mp4), explicitly rejecting still equirectangular JPGs. Niantic also open-sourced SPZ 4 (MIT), a fast compressed splat format already supported by Spark/three.js. Meta's Hyperscape Capture (Quest-only, live walkthrough capture, no photo import) is being decoupled from Horizon Worlds as Horizon goes mobile-only by June 2026. Insta360 partnered with Splatica (announced Apr 24, NAB week) to turn Insta360 X5/Antigravity A1 360 video into splats with engine exports, at $50-300/mo; a rumored Insta360 X6 is not yet shipped (expected Aug-Sept 2026). In real estate, Zillow's SkyTour (2025) and Matterport 3D Exteriors on Apartments.com/CoStar both normalized exterior gaussian splats at platform scale. A smaller open-source project, SPAG-4D (MIT core, active through Feb 2026), converts a single equirectangular still to a splat via monocular depth -- the closest thing found to a still-photo-native open tool, but single-view only, not multi-photo fusion. Net signal: the industry is racing toward splats from 360 capture, but every major shipped product wants either video frames or accepts stills only for generative (not reconstructive) output -- leaving genuine multi-still-photogrammetry, especially for outdoor infrastructure, an open lane.",
+  "sources": [
+    {
+      "title": "Announcing the World API",
+      "url": "https://www.worldlabs.ai/blog/announcing-the-world-api",
+      "date": "2026-01-21",
+      "key_claims": [
+        "Public World API launched Jan 21, 2026 for programmatic 3D world generation",
+        "Accepts text, single images, multi-image sets, 360-degree panoramas, and video",
+        "Can export into simulators like NVIDIA Isaac Sim and MuJoCo",
+        "Pricing via purchasable credits on the World Labs Platform dashboard"
+      ],
+      "quotes": [
+        "navigable spatial environments directly from text, images, panoramas"
+      ]
+    },
+    {
+      "title": "World Labs Announces New Funding",
+      "url": "https://www.worldlabs.ai/blog/funding-2026",
+      "date": "2026-02-18",
+      "key_claims": [
+        "World Labs raised $1 billion in new funding announced Feb 18, 2026",
+        "Investors included AMD, Autodesk ($200M), Emerson Collective, Fidelity, NVIDIA, and Sea",
+        "Funding announcement coincided with Marble's formal commercial launch"
+      ]
+    },
+    {
+      "title": "Marble: A Multimodal World Model",
+      "url": "https://www.worldlabs.ai/blog/marble-world-model",
+      "date": "2025-11",
+      "key_claims": [
+        "Marble's multi-image mode accepts photos/video of a real place and generates a 3D world 'with elements' of that space, not a precise reconstruction",
+        "Users can specify directional positioning (Front/Back/Left/Right) or use Auto Layout for multi-image input",
+        "Uploading a 360 panorama is offered as the most accurate/controlled spatial input option"
+      ],
+      "quotes": [
+        "combine them to generate a 3D world with elements of the real-world space"
+      ]
+    },
+    {
+      "title": "Fei-Fei Li's World Labs speeds up the world model race with Marble, its first commercial product",
+      "url": "https://techcrunch.com/2025/11/12/fei-fei-lis-world-labs-speeds-up-the-world-model-race-with-marble-its-first-commercial-product/",
+      "date": "2025-11-12",
+      "key_claims": [
+        "Marble launched Nov 12, 2025 as World Labs' first commercial product",
+        "Pricing at launch: Free (4 generations), Standard $20/mo (12 generations), Pro $35/mo (25 generations), Max $95/mo (75 generations)",
+        "Marble creates persistent, downloadable 3D environments rather than on-the-fly generation while exploring"
+      ]
+    },
+    {
+      "title": "World Labs Releases Marble 1.1 and Marble 1.1 Plus",
+      "url": "https://radiancefields.com/world-labs-releases-marble-1.1-and-marble-1.1-plus",
+      "date": "2026-04-02",
+      "key_claims": [
+        "Marble 1.1 became the new default model at the same 1,500-credit cost per world",
+        "Marble 1.1 Plus auto-expands spatial coverage to produce larger worlds in a single pass without manual boundary expansion",
+        "1.1 Plus pricing: 1,500 base credits plus 300 credits per additional 'dynamic cube'"
+      ]
+    },
+    {
+      "title": "Niantic Spatial Releases Major Scaniverse Update",
+      "url": "https://radiancefields.com/niantic-releases-major-scaniverse-update",
+      "date": "2026-04-07",
+      "key_claims": [
+        "Scaniverse added 360-camera-to-splat processing gated to the paid Plus tier ($20/mo)",
+        "New web-based workspace scales processing to industrial and city-scale environments",
+        "Multi-scan collaborative captures can be fused into a single unified, incrementally-updating model",
+        "Export formats: mesh as FBX, splats as PLY and SPZ"
+      ]
+    },
+    {
+      "title": "Niantic Spatial 360 Camera Scanning Guide (docs)",
+      "url": "https://www.nianticspatial.com/docs/scaniverse/360camera/",
+      "date": "2026-04",
+      "key_claims": [
+        "Scaniverse's 360-camera pipeline requires video only: .insv (Insta360 X5/X4/X3/One RS) or equirectangular .mp4 (Ricoh Theta X/Z1, GoPro Max 2, DJI Osmo 360, Antigravity A1, DJI Avata 360)",
+        "Still panoramic images in .jpg/.png are explicitly not supported",
+        "Free tier gets no 360-asset generation; Plus tier allows up to 5-minute videos, Pro up to 15-minute videos",
+        "Output: splat as .ply/.spz/.usdz, mesh as .glb/.usdz"
+      ],
+      "quotes": [
+        "Still panoramic images (.jpg, .png, etc.) are not supported",
+        "Scaniverse processes 360 video files only"
+      ]
+    },
+    {
+      "title": "SPZ 4 is here: leaner, faster, and more future-proof",
+      "url": "https://www.nianticspatial.com/blog/spz4",
+      "date": "2026-05",
+      "key_claims": [
+        "Niantic Spatial released SPZ 4, an MIT-licensed open-source compressed gaussian-splat file format",
+        "SPZ 4 is ~3-5x faster to compress and ~1.5-2x faster to load than prior version, files ~10x smaller than uncompressed PLY",
+        "Replaces single-stream GZip with six parallel ZSTD streams for multi-core processing",
+        "Can encode scenes with tens of millions of Gaussians unmodified, suited to large AEC/geospatial reconstructions"
+      ],
+      "quotes": [
+        "JPG for 3D Gaussian splats"
+      ]
+    },
+    {
+      "title": "Loading Gsplats (Spark docs)",
+      "url": "https://sparkjs.dev/docs/loading-splats/",
+      "date": "2026",
+      "key_claims": [
+        "Spark (used by Orbit Studio's viewer) auto-detects and loads .ply, .splat, .ksplat, .spz, .sog, .zip and .rad splat formats",
+        "Spark can pre-build an LoD tree stored as 'extended SPZ', only ~30% larger than the original SPZ file"
+      ]
+    },
+    {
+      "title": "Insta360, Splatica Partner to Democratize 360-to-3D Gaussian Splatting",
+      "url": "https://www.insta360.com/blog/enterprise/insta360-splatica-gaussian-splatting-partnership.html",
+      "date": "2026-04-24",
+      "key_claims": [
+        "Insta360 and Splatica partnership announced Apr 24, 2026, days after NAB Show 2026",
+        "Turns Insta360 X5/Antigravity A1 360 video into 3D Gaussian splats with web viewer, VR support, and exports to Unity, Unreal Engine, Isaac Sim, and Omniverse",
+        "5-minute 360 video capture yields a simulation-ready environment in hours"
+      ],
+      "quotes": [
+        "upload 360 footage captured in 5 minutes and receive simulation-ready 3D environments in hours"
+      ]
+    },
+    {
+      "title": "Splatica platform profile",
+      "url": "https://radiancefields.com/platforms/splatica",
+      "date": "2026",
+      "key_claims": [
+        "Splatica pricing: Basic $49.95/mo (300 points, ~1 scene from a 5-min video), Pro $149.95/mo (900 points), Studio $299.95/mo (2100 points)",
+        "No free trial available; monthly subscriptions cancellable anytime"
+      ]
+    },
+    {
+      "title": "cedarconnor/SPAG4d (GitHub)",
+      "url": "https://github.com/cedarconnor/SPAG4d",
+      "date": "2026-02-21",
+      "key_claims": [
+        "Open-source tool converts a single equirectangular panorama into a 3D Gaussian splat using monocular depth estimation, no multi-view/COLMAP/pose data required",
+        "Four backends: DA360 and DAP are MIT-licensed (commercial-safe); PaGeR and SHARP 360 are CC BY-NC/non-commercial research-only",
+        "247 commits on main; latest 'Portable distribution' release dated Feb 21, 2026"
+      ]
+    },
+    {
+      "title": "Meta Horizon Hyperscape Capture (Beta): Getting Started and Best Practices",
+      "url": "https://www.meta.com/help/quest/1088536553019177/",
+      "date": "2026",
+      "key_claims": [
+        "Hyperscape Capture is exclusively a live Quest headset walkthrough capture (walk the room's edge, inspect objects close up); no file/photo import path is documented",
+        "Minimum capture space is roughly 3x3 meters; no outdoor/large-scale guidance given",
+        "No panorama or 360-photo import, and no file export/output formats documented on this help page"
+      ]
+    },
+    {
+      "title": "Updates to Your Meta Quest Experience in 2026 (Meta Community Forums)",
+      "url": "https://communityforums.atmeta.com/blog/AnnouncementsBlog/updates-to-your-meta-quest-experience-in-2026/1369435",
+      "date": "2026-03",
+      "key_claims": [
+        "Effective March 24, 2026, viewing/sharing Hyperscape captures moves out of Horizon Worlds into a standalone Hyperscape Capture/Preview app",
+        "Publishing Hyperscape captures as a Horizon world is being removed; existing captures migrate to the standalone app",
+        "Horizon Worlds is being pulled from Quest headsets entirely by June 2026, becoming mobile-only"
+      ]
+    },
+    {
+      "title": "Take home listings to new heights with Zillow SkyTour",
+      "url": "https://www.zillow.com/news/take-home-listings-to-new-heights-with-skytour/",
+      "date": "2025-07-15",
+      "key_claims": [
+        "Zillow's SkyTour, an exterior 3D flyover built on gaussian splatting, launched July 15, 2025 as part of a features rollout",
+        "Limited to exteriors on Showcase Listings; users can fly around and orbit the structure, adjusting altitude"
+      ]
+    },
+    {
+      "title": "Apartments.com Unveils Matterport 3D Exterior",
+      "url": "https://radiancefields.com/apartments-com-unveils-matterport-3d-exterior",
+      "date": "2026",
+      "key_claims": [
+        "Apartments.com (CoStar) added Matterport 3D Exterior, a gaussian-splatting-based drone flyover viewer for apartment complexes",
+        "An 'Enter Building' control links the exterior splat flyover to Matterport's existing interior tour",
+        "Bundled into Platinum/Diamond ad tiers alongside interior tours and photography"
+      ]
+    }
+  ],
+  "uncertainties": [
+    "Kuula.co: no evidence found of gaussian-splatting/3DGS support being added as of July 2026 -- 2025-2026 blog updates (Dec 2025 upload rebuild, Mar 2026 tour menu, Google Street View publishing) are all traditional 360-panorama-tour features, not splats. Treat 'Kuula stays panorama-only' as a tentative negative finding, not confirmed via an explicit Kuula statement ruling out splats.",
+    "Insta360 X6: rumored only (FCC certification reported July 3, 2026, model code CINSABXA), expected Aug-Sept 2026 launch window; no official Insta360 announcement confirms specs, price, or 3D/splat feature set as of this research.",
+    "Meta Community Forums posts on the Horizon Worlds/Hyperscape 2026 timeline returned HTTP 403 on direct fetch; the March 24 and June 2026 dates are drawn from WebSearch result snippets/secondary summaries of that forum post, not a directly verified primary-source fetch.",
+    "Could not directly confirm whether Scaniverse's cloud 360-video pipeline uses COLMAP/SfM internally -- Niantic's own docs only say it 'extracts frames from your video and reconstructs the scene,' without naming the algorithm.",
+    "Whether World Labs Marble's panorama-only (single 360 image) input mode, as opposed to its multi-image mode, produces geometrically closer results was not separately confirmed -- the generative characterization above is based on the multi-image/video documentation language."
+  ]
+}

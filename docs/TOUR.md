@@ -76,7 +76,7 @@ the button turns into **Confirm delete?** (a scene or hotspot just says
    photo's own aspect ratio. The same section also states the photo's actual
    pixel dimensions and whether it uploaded untouched or got converted, and
    warns you if it's wider than this machine's graphics can hold.
-4. **Connect the scenes.** Click **+ Link hotspot**: the hotspot follows your
+4. **Connect the scenes.** Click **+ Link**: the hotspot follows your
    pointer around the panorama — already showing the shape, size, and
    opacity it will actually have — until you click the spot where the way
    there is. The hotspot panel then opens asking which scene it leads to,
@@ -117,7 +117,27 @@ the button turns into **Confirm delete?** (a scene or hotspot just says
    the order the walk was shot in — and any photo with no location is
    chained to its list neighbours so it never drops out of the tour. Every
    link is made both ways, existing links are never duplicated, and the
-   whole run is one Ctrl+Z. It also now runs on its own right after a drop
+   whole run is one Ctrl+Z.
+
+   Two things sharpen those arrows without a compass. **The sun**: a photo
+   that carries a GPS fix and a UTC timestamp (GPSDateStamp/GPSTimeStamp, not
+   the zone-less DateTimeOriginal) and has the sun visible in frame gets its
+   true heading from where the sun sits, because the sun's real bearing at
+   that time and place is calculable to a hundredth of a degree. This matters
+   on a steel structure, where a magnetic compass can read tens of degrees
+   out: measured on generated fixtures, the recovered heading landed within
+   1° of truth. It never overwrites a heading the camera recorded — where the
+   camera wrote a *magnetic* bearing and the sun disagrees by more than 15°,
+   the scene panel shows both and leaves the call to you. Nothing is claimed
+   unless the bright thing in frame is at the height the sun must actually be
+   at, which is what stops a floodlight or a reflection off water being read
+   as the sun. **Shared landmarks**: two photos that see the same piers and
+   parapet can measure how far one is turned from the other, which aims the
+   return arrow properly instead of assuming both photos face the same way.
+   It refuses far more often than it answers — a repeating row of piers or a
+   featureless soffit gets no answer at all rather than a confident wrong one.
+
+   It also runs on its own right after a drop
    of photos that don't yet connect to anything, so a tour never sits
    unlinked just because nobody clicked the button — it steps aside once the
    arriving scenes already have links, so it won't fight you mid-edit.
@@ -126,7 +146,7 @@ the button turns into **Confirm delete?** (a scene or hotspot just says
    yet (and it isn't the start scene) — it would be unreachable in the
    finished tour. A line under the list also states how many scenes that
    is, in case the dot itself is easy to miss.
-5. **Add detail.** *+ Info hotspot* and *+ URL hotspot* place the same way as
+5. **Add detail.** *+ Info* and *+ URL* place the same way as
    a link — click the button, click the spot in the panorama — and then open
    a panel: a title, text, an image, and an audio clip for Info; an external
    page (opened in a new tab) for URL. Click any hotspot — a link arrow
@@ -158,6 +178,119 @@ the button turns into **Confirm delete?** (a scene or hotspot just says
 
 Everything saves as you work — the status under the tour name reads
 *Saving…* then *Saved*. A failed save retries on its own and says so.
+
+## Record an inspection
+
+Orbit Tour also speaks the vocabulary of the field-sketch tool, so one
+structure's 360 record and its sketch register can be read side by side.
+
+**The title block.** Under the tour name, **Inspection** holds the same four
+fields the sketch tool asks for — Structure ID, inspection date, inspected by,
+sheet. The date fills itself in from the first photo's EXIF capture time if you
+leave it empty, and never overwrites one you typed.
+
+**Tagging a photo.** *This scene* gains three fields: the **required photo
+stop** it covers, the **element** in view (free text, with the usual bridge
+vocabulary as suggestions), and the **station**, written the way stations are
+written — `2+50`.
+
+**Defects.** **+ Defect** places a marker where the defect is, numbered `D1`,
+`D2`, `D3` across the whole tour. The marker wears its own code in a red ring so
+a reviewer can call out "D7" without opening anything. The nine types and their
+measurement increments are the sketch tool's exactly: a spall takes a depth
+(1/4, 1/2, 1, 2, over 2 in) and a *reinforcement exposed* tick; a crack or map
+cracking takes a width (hairline, 1/16, 1/8, 1/4, over 1/4 in); the rest are
+recorded by note and photo, because that is all the sketch tool measures either.
+Switching a defect's type clears a measurement that no longer applies, so a
+register never carries a number nobody typed.
+
+**Coverage.** The Inspection panel lists the eleven NBIS photo stops and ticks
+each one that has a photo filed against it. A tick means *filed*, not *shown* —
+this cannot see a bearing. 360 capture supplements the inspection record; it
+does not replace hands-on judgement.
+
+**The paperwork.** The Share panel offers **Download defect register (CSV)** —
+Code, Type, Measure, Scene, Photo stop, Element, Station, Note, sorted so D9
+comes before D10 — and **Print photo log**, which lays out one row per defect
+with its photo, code, measure and station under the title block, for Print to
+PDF. Both are built in the browser from the tour document, so they need no
+server: in a **standalone export** the same two appear in the viewer's own
+toolbar, whenever the tour carries any defects. That matters, because the
+export is the folder an owner actually archives — a zip holding the walk but
+neither the register nor the log would be a slideshow, not a record.
+
+## Getting around a big tour
+
+A forty-panorama bridge is a maze, so:
+
+- **Ctrl+K** jumps to any scene or defect by name, station, element or code.
+- The scene list **groups itself by photo stop** past eight scenes.
+- **Plan view**, under the scene list, draws the structure's own long axis and
+  places every photo around it, north up, with the site's real proportions and
+  the distance across it. Three kinds of dot, told apart by their drawing and
+  counted in the note underneath: solid for a GPS fix, hollow and dashed for a
+  photo placed by capture order because it had no fix, filled for one you moved
+  yourself. **Drag any dot** to put a photo where it actually stood — the
+  correction is stored in metres, so a later photo widening the site rescales
+  the plate without sliding anything you have already fixed. *Undo my
+  placements* clears them all. A guessed dot is a starting position, never a
+  surveyed coordinate, and the plate says so.
+  **Every link the tour has is drawn between the dots**, so the walk reads as a
+  route rather than a scatter. A pair that walks both ways is a plain line; a
+  link placed one way only is dashed and carries an arrow on the end that
+  works, because from the far side it is a dead end. Links touching the photo
+  you are editing are picked out in the accent colour.
+  **Drop one dot on another and the two get connected**, both ways, in one
+  gesture — while the drag is over another photo the dot springs back home and
+  a dashed line follows the cursor, so the plate says which of the two things
+  is about to happen. The outgoing arrow is aimed at the real bearing between
+  the two positions whenever the photo also knows which way it was facing, and
+  falls back to the same opening-finding the automatic pass uses when it does
+  not. One Ctrl+Z undoes it. A dot too crowded to pick up is still a perfectly
+  good thing to drop on, so linking never hits the pickable cap.
+  **Click a link to cut it.** Both directions go, because half a cut pair
+  leaves a one-way link nobody asked for. Ctrl+Z puts it back. Pointer only —
+  the hotspot panel's delete button is the keyboard equivalent.
+  The structure is drawn as a deck — a band with kerbs and an abutment tick
+  across each end — along that long axis.
+  **The grid is ruled in metres**, at a round 1-2-5 step, with a scale bar and
+  a north mark to step distances off against. Without a GPS fix anywhere there
+  is no scale to state, so it falls back to plain quarters and says so.
+  **A photo carrying defects wears the count**, so the register's findings sit
+  on the ground they were found on rather than only in a flat CSV. **A photo
+  nothing links to gets a red ring** — it is in the record but not in the walk.
+  That reachability now has one definition shared with the scene list and the
+  pre-share check; the scene list used to disagree with the other two and put
+  an orphan dot on the very photo a visitor would land on whenever no start
+  scene had been chosen.
+  **The photo you are editing shows a wedge** for the way it looks, from the
+  same heading-plus-view-yaw sum the viewer's compass needle uses. Only that
+  one photo, and only when it recorded a heading.
+  If two or more photos both see the plant on the deck and both know which way
+  they were facing, the bearings are crossed and the vehicle is drawn as a
+  truck. Near-parallel bearings cross at a point far too sensitive to be worth
+  anything, so those are refused rather than drawn.
+- The viewer shows a **compass** whenever a photo has a heading — recorded by
+  the camera, or worked out from the sun (below).
+- **Hotspots never sit on top of each other.** An automatic arrow steps aside
+  if its bearing is already taken, and any that still collide on screen —
+  two defects on the same spall, or a tour built before that fix — are spread
+  apart where they are *drawn*. The stored angle never moves, so the register,
+  the CSV and the photo log are unaffected, and no mark is ever displaced
+  further than its own radius, so it always still covers the point it marks.
+- Picking a scene puts it in the address bar, so a link can point at one exact
+  scene rather than the front door.
+- **Order by capture time** puts a folder drop back into the order it was walked.
+
+Press **?** for the full list of keyboard shortcuts.
+
+## Away from a desk
+
+The editor works on a tablet: below 960px, or on any touch screen, the sidebar
+becomes a drawer and every control grows to a 44px target. The app follows your
+system's light or dark setting — the chrome turns to paper in daylight, while
+the panorama keeps dark surroundings in both, because that is how a photograph
+is shown.
 
 ## Share it
 
@@ -211,7 +344,7 @@ libraries are lockstepped — bump them together or not at all.
 | POST | `/api/tours/<id>/duplicate` | copy tour + media |
 | POST | `/api/tours/<id>/files` | upload media (multipart `file`) |
 | GET | `/api/tours/<id>/files/<name>` | serve media |
-| GET | `/api/tours/<id>/export.zip` | standalone static site |
+| GET | `/api/tours/<id>/export.zip` | standalone static site + `manifest.json` provenance |
 
 Uploads are capped at 64 MB and limited to jpg/png/webp/mp3/m4a/ogg on the
 wire — HEIC and any other non-web-safe image is converted to JPEG in the
@@ -225,21 +358,92 @@ files immediately.
 
 ## Checks
 
+Everything, in one command:
+
+```bash
+test.bat
+```
+
+Runs all three suites in order, prints each one's output rather than swallowing
+it, and exits non-zero if any of them fails. Node is optional — if it is not
+installed the panorama and plan-view maths are reported as skipped, and skipped
+still counts as a failure so the gap cannot pass unnoticed. The three can still
+be run one at a time:
+
 ```bash
 python tests/tour_smoke_test.py
 ```
 
-30 checks across the tour API: CRUD, upload validation, the prune grace
+45 checks across the tour API: CRUD, upload validation, the prune grace
 window, path-traversal and malformed-id rejection, oversize rejection,
-duplicate, and the export bundle's contents.
+duplicate, the export bundle's contents and its provenance manifest, and the
+409 a save from a stale version now gets instead of silently overwriting a
+second editor.
+
+Two of those groups are newer and worth naming. The stale-save check no longer
+posts its two saves one after another — the one interleaving that cannot fail —
+but fires eight simultaneous saves through a barrier, all carrying the same
+`updated`, and requires exactly one 200 and seven 409s. Against the previous
+implementation, which compared and wrote under two separate holds of the lock,
+that check fails on roughly two runs in five with several winners at once.
+And the export is no longer checked only by its table of contents: the zip is
+opened, the injected `window.ORBIT_STATIC_TOUR` is parsed and matched against
+the tour, every import-map target is required to be present in the zip, and
+every media file the document references is required to have been bundled.
 
 ```bash
 node tests/tour_pano_test.mjs
 ```
 
-58 checks on the coverage geometry, GPano XMP reading, EXIF GPS parsing (from
-JPEG APP1, and now PNG eXIf and WebP EXIF chunks too), bearing maths, and the
-walkable-direction guess that suggests where hotspots go.
+282 checks on the coverage geometry, GPano XMP reading, EXIF GPS parsing (from
+JPEG APP1, and now PNG eXIf and WebP EXIF chunks too, plus the UTC timestamp
+the sun reading needs), bearing maths, the walkable-direction guess that
+suggests where hotspots go, the solar position (against published Meeus worked
+examples and an independent IAU SOFA/ERFA chain), the landmark matcher and its
+refusals, the plant-on-the-deck finder and the shadow it must not mistake for
+one, the bearing crossing and its refusal to cross near-parallel lines, the
+hotspot separation geometry, the defect register's measurement phrasing and
+code numbering, the CSV writer (including the leading `=` Excel would otherwise
+execute), and the plan-view projection including the drag round-trip.
+
+This suite lifts its subjects straight out of `tour/index.html` — the block
+between the two `pure helpers` marker comments — so a copy here could never
+drift from the real thing. The list of what to lift is no longer written by
+hand: every top-level declaration in the fence is found by regex and exported
+under its own name, which removed two hand-maintained lists that had already
+drifted from the source and from each other. Two guards keep that honest. A
+name used below but no longer in the fence throws before any check runs, rather
+than reading as `undefined` and letting a check pass for the wrong reason. And
+every *function* in the fence must be mentioned by at least one check, so a
+helper cannot be added and then quietly never exercised. Functions only,
+because the only way to satisfy that gate for a private tuning constant is to
+assert that the constant equals itself, which locks in the one number it exists
+to let somebody change. The handful of parser internals exercised only through
+their public entry point are listed in `INDIRECT`, and a name left there after
+its helper is deleted is itself a failing check.
+
+```bash
+python tests/test_stdlib_boot.py
+```
+
+The one check on the property the whole install story rests on: that the server
+imports and serves with numpy and Pillow absent. It guards the lazy-import
+boundary that keeps the 360 tours running on a machine that never ran the splat
+pipeline's setup.
+
+### The tour document
+
+`tests/fixtures/tour-v1.json` is one tour carrying every field the code reads —
+tour, settings, inspection, all sixteen scene fields and all of the hotspot
+fields across a link, an info, a url and three defects. It is the schema, and it
+is executable: the pure-helper suite runs the real readers over it, so a field
+that gets renamed or dropped fails a check instead of quietly becoming
+`undefined` somewhere. A schema document nobody updates is worse than none; this
+one cannot go stale without going red.
+
+Saved documents carry `v: 1`. Nothing refuses a document for lacking it — every
+tour written before today lacks it and they all still load — it is a marker for
+whoever has to write the first migration.
 
 `python tests/seed_demo_tour.py` builds a demo tour with three generated
 panoramas and a hotspot ring, useful for looking at the viewer without a

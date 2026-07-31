@@ -1,0 +1,178 @@
+{
+  "recommendations": [
+    "Do NOT replace the 20-photo COLMAP(pycolmap)+gsplat reconstruction with a from-scratch generative world model. The 20 registered panoramas already give genuine multi-view photogrammetric coverage of the bridge/roadway; a full generative model (HunyuanWorld, WorldGen-from-text, WonderWorld) would hallucinate structure that doesn't match reality — a bad tradeoff for documenting real infrastructure.",
+    "Add an OPTIONAL, off-by-default post-process 'fill pass' that targets only the known-bad regions of the existing reconstruction: sky/horizon (near-zero-parallax, noisy splats) and small occlusion shadows behind railings/girders/vegetation that no camera position saw. Implement this with WorldGen (Apache-2.0, github.com/ZiYang-xie/WorldGen) as the primary candidate — it already accepts a user-supplied equirectangular pano via its `pano_image` parameter and its low-VRAM mode (~10GB) fits the free Colab T4 (16GB). Restrict it to Apache/MIT-licensed sub-backends (DA-2 depth), not any bundled non-commercial component.",
+    "As a lighter alternative or second option for sky/hole patching specifically, evaluate SPAG4d (github.com/cedarconnor/SPAG4d, MIT core, actively committed as of June 12 2026) restricted to its DA360/DAP backends only. Explicitly avoid its SHARP 360/PaGeR (Apple CC-BY-NC-4.0) and OmniRoam/ArtiFixer3D (Adobe Research License) paths in anything Orbit Studio redistributes — those are fine for the user's own hobby run but not for a general-purpose open-source tool others might use commercially. Treat SPAG4d as a small, unreviewed one-person repo (~215 stars) — useful because it's a near-exact fit, not because it's battle-tested.",
+    "Do NOT vendor or bundle Tencent HunyuanWorld 1.0/1.1(WorldMirror)/2.0 weights or code into anything Orbit Studio ships. Their 'Community License' explicitly excludes the EU, UK, and South Korea as usable territory and caps free use at 1,000,000 MAU before requiring a separate grant from Tencent — incompatible with an unrestricted open-source redistribution goal. If offered at all, document it as a manual, clearly-labeled opt-in Colab cell (same pattern the pipeline already uses for swappable components like Brush), never a default.",
+    "Skip DreamScene360 for anything beyond the user's own private/research use — it directly accepts a real user-supplied equirectangular panorama (exact input format match) but its 3D Gaussian Splatting codebase inherits the original Inria/MPII 'research purposes only' non-commercial license, so it cannot be repackaged into a tool others might use commercially.",
+    "Do not pursue Genie-3-adjacent video world models (Matrix-Game 3.0, LingBot-World) for this pipeline at all right now, regardless of their permissive licenses (LingBot-World is Apache-2.0). They generate frame-by-frame action-conditioned video, not a static exportable mesh/splat file, which is architecturally incompatible with Orbit Studio's 'bake once, host a static .splat, view in Spark/three.js' design — adopting one would mean running a live generative backend per viewing session instead of shipping a file.",
+    "Separately (not generative fill, but worth a follow-up investigation outside this slice): HunyuanWorld-Mirror / WorldMirror is a feed-forward multi-view 3D reconstruction model (predicts point clouds, depth, normals, camera poses in one pass, no iterative optimization) that could be evaluated as a faster alternative or complement to pycolmap for the 20-photo pose-estimation step itself — confirm its license separately before use, as it likely inherits the same Tencent Community License family.",
+    "World Labs Marble (and the MIT-licensed 'image-blaster' glue project around it) is the most polished single/few-image-to-explorable-world product on the market (World API launched Jan 21 2026, accepts panoramas) but is fully closed-weight and gated behind a paid API/ToS — not usable as a self-hosted component of an open-source tool; note it only for competitive awareness."
+  ],
+  "slice": "Generative world models turning one/few 360 panoramas into a walkable 3D scene (2025-2026)",
+  "summary": "The single-pano-to-world space split into two camps by mid-2026. Tencent's HunyuanWorld line (1.0, July 2025; 1.1/WorldMirror, Oct 2025; HY-World 2.0, Apr-May 2026) is the most capable, producing panorama-to-3DGS/mesh pipelines importable into Unity/Unreal, but ships under a \"Community License\" that excludes the EU, UK, and South Korea and caps free use at 1M MAU — disqualifying it from an unrestricted open-source tool. Apache-2.0 alternatives exist: WorldGen (ZiYang-xie) directly accepts a user's own equirectangular panorama and was actively updated through April 2026 (DA-2 depth swap, cubemap SHARP rework); LayerPano3D (SIGGRAPH 2025) is Apache-2.0 but text-prompt-only, no real-photo input. A niche hobby tool, SPAG4d, is purpose-built for exactly this task — equirect photo to 3DGS with explicit disocclusion/sky-hole filling via novel-view generation — with an MIT core but non-commercial (Apple/Adobe-licensed) high-quality backends. DreamScene360 (ECCV 2024) also takes real panoramas but inherits the original Gaussian-Splatting codebase's non-commercial research-only license. WonderWorld's license is undocumented and it needs 48GB VRAM, well beyond a free T4. \"Genie-3-adjacent\" open models (Matrix-Game 3.0, LingBot-World, Apache-2.0) generate playable video rather than exportable static geometry, making them a different product category than Orbit Studio's file-based viewer. World Labs' Marble is the most prominent closed proprietary competitor. Given the user already has 20 real overlapping panoramas, generative fill's realistic role is narrow, gap-patching (sky, occlusion, capture-edge extrapolation) on top of genuine photogrammetry, not wholesale scene generation.",
+  "sources": [
+    {
+      "title": "Tencent-Hunyuan/HunyuanWorld-1.0 (GitHub)",
+      "url": "https://github.com/Tencent-Hunyuan/HunyuanWorld-1.0",
+      "date": "2025-07-26",
+      "key_claims": [
+        "Generates immersive, explorable, interactive 360 3D worlds from text or images via panoramic world proxies + semantically layered 3D mesh representation",
+        "Two-stage pipeline: panorama generation then world scene construction with foreground object layering (labels_fg1/fg2)",
+        "Outputs Draco-compressed mesh for graphics-pipeline import; lite version (Aug 15, 2025) runs on consumer 4090 GPUs with fp8 quantization",
+        "Licensed under the Tencent HunyuanWorld-1.0 Community License Agreement"
+      ],
+      "quotes": [
+        "Generating Immersive, Explorable, and Interactive 3D Worlds from Words or Pixels"
+      ]
+    },
+    {
+      "title": "tencent/HunyuanWorld-1 README (Hugging Face) + license text",
+      "url": "https://huggingface.co/tencent/HunyuanWorld-1/blob/main/README.md",
+      "date": "2025-07",
+      "key_claims": [
+        "License Territory is defined as worldwide excluding the European Union, United Kingdom, and South Korea",
+        "Products/services exceeding 1,000,000 monthly active users in the prior calendar month must obtain separate written approval from Tencent",
+        "License forbids using outputs to train or improve competing AI models; Tencent claims no rights over user-generated outputs"
+      ],
+      "quotes": [
+        "Worldwide territory, excluding the territory of the European Union, United Kingdom and South Korea.",
+        "Tencent claims no rights in Outputs You generate."
+      ]
+    },
+    {
+      "title": "Nice model, but strange license. You are not allowed to use it in EU, UK... (Hacker News discussion)",
+      "url": "https://news.ycombinator.com/item?id=43420870",
+      "date": "2025",
+      "key_claims": [
+        "Community discussion independently corroborates the HunyuanWorld license's EU/UK/South Korea territorial exclusion and criticizes it as non-standard/non-OSI-open"
+      ],
+      "quotes": [
+        "You are not allowed to use it in EU, UK, and So..."
+      ]
+    },
+    {
+      "title": "Tencent-Hunyuan/HY-World-2.0 (GitHub) + License.txt",
+      "url": "https://github.com/Tencent-Hunyuan/HY-World-2.0",
+      "date": "2026-04-16",
+      "key_claims": [
+        "HY-World 2.0 released April 16, 2026 as a multi-modal world model producing real 3DGS/mesh/point-cloud assets importable into Unity/Unreal (not pixel video)",
+        "Four-stage panorama-to-3DGS pipeline: trajectory planning, world expansion, Gaussian splatting optimization",
+        "Companion releases: HY-Pano 2.0 (May 11, 2026) and WorldStereo 2.0 (May 18, 2026); WorldMirror 2.0 does multi-view/video to 3D reconstruction in one pass",
+        "Uses the same 'Tencent HY-WORLD 2.0 Community License Agreement' with identical EU/UK/South Korea exclusion and 1M MAU cap, plus added prohibitions on military use and high-stakes automated decisions"
+      ],
+      "quotes": [
+        "A Multi-Modal World Model for Reconstructing, Generating, and Simulating 3D Worlds"
+      ]
+    },
+    {
+      "title": "ZiYang-xie/WorldGen (GitHub)",
+      "url": "https://github.com/ZiYang-xie/WorldGen",
+      "date": "2026-04-12",
+      "key_claims": [
+        "Apache-2.0 licensed; accepts text prompts, single images, or a user-supplied 360 equirectangular panorama directly via a pano_image parameter",
+        "Outputs 3D Gaussian Splatting or mesh as PLY files with 360-degree free exploration and loop closure",
+        "Low-VRAM mode needs ~10GB (fits a free-tier T4); standard mode recommends 24GB+",
+        "April 2026 updates replaced UniK3D with DA-2 depth estimation and reworked the ml-sharp cubemap pipeline from 8+ views down to 6 faces; background inpainting for occluded regions is still experimental"
+      ],
+      "quotes": [
+        "WorldGen - Generate Any 3D Scene in Seconds"
+      ]
+    },
+    {
+      "title": "ShijieZhou-UCLA/DreamScene360 (GitHub)",
+      "url": "https://github.com/ShijieZhou-UCLA/DreamScene360",
+      "date": "2024 (ECCV 2024 paper; repo shows 6 commits, no tagged releases)",
+      "key_claims": [
+        "Explicitly supports feeding in the user's own real 360 panorama image of any resolution (not just text-generated ones), placed directly into the data folder",
+        "Lifts a single panorama into 3D Gaussians using aligned monocular depth as initialization, with semantic/geometric regularization specifically to reconstruct unseen/occluded regions from single-view input",
+        "Inherits the original 3D Gaussian Splatting codebase's license (Inria/MPII), which grants rights for research purposes only and prohibits commercial use without explicit consent"
+      ],
+      "quotes": [
+        "Unconstrained Text-to-3D Scene Generation with Panoramic Gaussian Splatting"
+      ]
+    },
+    {
+      "title": "3DTopia/LayerPano3D (GitHub)",
+      "url": "https://github.com/3DTopia/LayerPano3D",
+      "date": "2025 (SIGGRAPH 2025)",
+      "key_claims": [
+        "Apache-2.0 licensed; generates panoramic 3D scenes from a single text prompt only — no support for a real user photo/panorama as input",
+        "Introduces 'Layered 3D Panorama' representation: decomposes a reference panorama into multiple depth layers, each revealing occluded space via diffusion prior, lifted into 3D Gaussians",
+        "Uses a new Upright360 dataset (9k panoramas) and a finetuned Flux model; requires downloading multiple separate checkpoints (SAM ViT-H, Depth-Anything-V2, panorama LoRA)"
+      ],
+      "quotes": [
+        "Layered 3D Panorama for Hyper-Immersive Scene Generation"
+      ]
+    },
+    {
+      "title": "KovenYu/WonderWorld (GitHub) + CVPR 2025 paper",
+      "url": "https://github.com/KovenYu/WonderWorld",
+      "date": "2024-06 (arXiv); 2025 (CVPR)",
+      "key_claims": [
+        "Interactive single-image 3D scene generation using 'Fast Layered Gaussian Surfels' (FLAGS), generating each connected scene extension in under 10 seconds on an A6000 GPU",
+        "Requires roughly 48GB GPU memory to run, far beyond a free-tier T4; optional (non-required) OpenAI GPT-4 API call for scene descriptions",
+        "No LICENSE file was found in the repository at the time of checking — license status is undocumented/unclear"
+      ],
+      "quotes": [
+        "Code release for https://kovenyu.com/WonderWorld/"
+      ]
+    },
+    {
+      "title": "cedarconnor/SPAG4d (GitHub)",
+      "url": "https://github.com/cedarconnor/SPAG4d",
+      "date": "2026-06-12 (most recent commit)",
+      "key_claims": [
+        "Converts a single equirectangular 360 panorama directly into a 3D Gaussian Splat PLY, with four depth-to-Gaussian backends (DA360, DAP, PaGeR, SHARP 360) plus optional native UniSHARP 360",
+        "Explicit disocclusion/hole-filling stage using OmniRoam-generated novel views distilled back into the splat cloud, or a 14B ArtiFixer3D generative repair model (requires WSL2/Docker, ~140GB disk)",
+        "Core code and DA360/DAP backends are MIT licensed and need under 3GB VRAM; SHARP 360/PaGeR use Apple's CC BY-NC-4.0 research-only weights; OmniRoam uses Adobe's non-commercial Research License",
+        "Small project: 215 stars, 27 forks as of the check; portable Windows distribution released February 2026"
+      ],
+      "quotes": [
+        "Convert 360° equirectangular panoramas into viewable 3D Gaussian Splat files."
+      ]
+    },
+    {
+      "title": "Tencent-Hunyuan/HunyuanWorld-Mirror (GitHub) / WorldMirror technical report",
+      "url": "https://github.com/Tencent-Hunyuan/HunyuanWorld-Mirror",
+      "date": "2025-10 (announced as Hunyuan World 1.1); accepted ICML 2026",
+      "key_claims": [
+        "Feed-forward (single forward pass, no iterative optimization) universal 3D reconstruction model taking multi-view images, video, or partial priors (poses/intrinsics/depth) as input",
+        "Simultaneously predicts point clouds, multi-view depth, camera parameters, surface normals, and 3D Gaussians in one pass on a single A100",
+        "Positioned as an alternative to optimization-based multi-view reconstruction (i.e., a possible pycolmap alternative), distinct from generative world-from-scratch models; its specific license terms were not independently confirmed in this research pass"
+      ],
+      "quotes": [
+        "Fast and Universal 3D reconstruction model for versatile tasks"
+      ]
+    },
+    {
+      "title": "Announcing the World API (World Labs blog)",
+      "url": "https://www.worldlabs.ai/blog/announcing-the-world-api",
+      "date": "2026-01-21",
+      "key_claims": [
+        "World Labs launched a public 'World API' on January 21, 2026 for generating explorable 3D worlds via its Marble multimodal world model, accepting text, single/multiple images, panoramas, video, and coarse 3D structure as input",
+        "Marble itself is closed-weight and proprietary; generated-world commercial use requires an eligible paid World Labs plan governed by their Terms of Service"
+      ],
+      "quotes": []
+    },
+    {
+      "title": "neilsonnn/image-blaster (GitHub)",
+      "url": "https://github.com/neilsonnn/image-blaster",
+      "date": "2026 (mid-2026)",
+      "key_claims": [
+        "MIT-licensed open-source Claude Code skillset that turns a single image into a full 3D environment (meshes, physics colliders, lighting, ambient audio) in under 5 minutes",
+        "Generation itself is not self-hosted: it calls paid third-party APIs — World Labs Marble for the environment splat (.spz), Hunyuan3D (via fal) for object meshes, and ElevenLabs for audio — so the MIT license covers only orchestration glue, not the underlying models"
+      ],
+      "quotes": []
+    }
+  ],
+  "uncertainties": [
+    "HunyuanWorld-Mirror / WorldMirror's own License.txt was not independently fetched and verified; it is assumed to likely follow the same Tencent Community License family (EU/UK/South Korea exclusion, 1M MAU cap) as HunyuanWorld 1.0/HY-World 2.0 but this was not directly confirmed on its repo.",
+    "Matrix-Game 3.0's exact license was not confirmed from a primary source in this pass (only referenced via secondary aggregator pages); treat its Apache-2.0-adjacent claims and 720p/40fps/5B-vs-28B-MoE performance figures as unverified until checked on huggingface.co/Skywork/Matrix-Game-3.0 directly.",
+    "WorldGen's Apache-2.0 repo license covers the orchestration code, but whether its bundled/optional sub-models (DA-2 depth, the ml-sharp/SHARP-derived cubemap path) carry their own separate non-commercial restrictions was not fully resolved — SPAG4d's README suggests SHARP-family models are Apple CC-BY-NC-4.0, which may also apply to WorldGen's ml-sharp option specifically (as opposed to its default/DA-2 path).",
+    "WonderWorld's license status is genuinely undocumented (no LICENSE file found), not merely unconfirmed by us — treat any commercial or redistribution use as unsafe until the authors clarify.",
+    "SPAG4d is a very small, single-maintainer repository (~215 stars) with no peer review; its quality/robustness claims come only from its own README and were not cross-validated against independent user reports.",
+    "DreamScene360's own repository LICENSE.md file returned 404 when fetched directly; the 'research purposes only' license characterization is inferred from it being built on the original Inria/MPII 3D Gaussian Splatting codebase, not from DreamScene360's own license file text.",
+    "Genie-3 itself (Google DeepMind) remains a closed, limited research preview with no public API or weights as of this check; all comparisons here are to open-source 'Genie-3-adjacent' projects, not to Genie 3 directly."
+  ]
+}

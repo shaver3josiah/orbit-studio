@@ -177,7 +177,58 @@ def save_tour(tour: dict) -> None:
     path = tdir / "tour.json"
     with TOURS_IO_LOCK:
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(tour, indent=2), encoding="utf-8")
+        _write_tour(path, tour)
+
+
+TOUR_SCHEMA_VERSION = 1
+
+
+def _write_tour(path: Path, tour: dict) -> None:
+    """Serialise a tour. Caller must already hold TOURS_IO_LOCK.
+
+    Every write goes through here, so the version stamp goes here too rather
+    than at each of the three call sites that would have to remember it. The
+    field is a marker for a future reader, not a gate: nothing refuses a
+    document for lacking it, because every tour written before today lacks it
+    and they all still load.
+    """
+    tour["v"] = TOUR_SCHEMA_VERSION
+    path.write_text(json.dumps(tour, indent=2), encoding="utf-8")
+
+
+def save_tour_if_current(tour: dict, seen: Optional[str]) -> Optional[dict]:
+    """Write a tour only if nobody else wrote it since the client last read.
+
+    Compare-and-swap under ONE hold of the lock. The version this replaces did
+    the reading in handle_tour_save and the writing in save_tour, each taking
+    and releasing the lock separately, with the request's own body read sitting
+    in between. Every request gets its own thread (ThreadingHTTPServer), so two
+    editors posting the same `updated` both passed the comparison and the later
+    write silently won — which is the exact loss the comparison was added to
+    prevent. Reading the body is still done by the caller, outside the lock; it
+    waits on a client and must not hold the tours directory while it does.
+
+    Returns the written document, or None when the client is working from a
+    version that is no longer on disk.
+    """
+    tdir = tour_dir(tour["id"])
+    if tdir is None:
+        raise ValueError(f"bad tour id {tour['id']!r}")
+    path = tdir / "tour.json"
+    with TOURS_IO_LOCK:
+        try:
+            current = json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            current = {}
+        # A payload with no "updated" at all is a first save or a non-browser
+        # client and is let through unchanged, as it always was.
+        if seen and current.get("updated") and seen != current["updated"]:
+            return None
+        tour["created"] = current.get("created", tour.get("created"))
+        tour["updated"] = datetime.now(timezone.utc).isoformat()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        _write_tour(path, tour)
+    return tour
 
 
 def list_tours() -> list[dict]:
@@ -1049,12 +1100,24 @@ def handle_tour_save(handler: "Handler", tour_id: str) -> None:
     if payload is None or not isinstance(payload.get("scenes"), list):
         send_error(handler, 400, "bad_request", "expected a tour doc with a scenes list")
         return
+    # Two editors on one tour used to overwrite each other in silence, because a
+    # save posts the WHOLE document. If the client is working from a version
+    # that is no longer the one on disk, refuse rather than clobber; the client
+    # keeps its edits and decides. The comparison and the write happen under one
+    # hold of the lock inside save_tour_if_current — see the note there for why
+    # doing them separately did not actually stop the clobbering.
     payload["id"] = tour_id
-    payload["created"] = existing.get("created", payload.get("created"))
-    payload["updated"] = datetime.now(timezone.utc).isoformat()
-    save_tour(payload)
-    prune_tour_files(payload)
-    send_json(handler, 200, payload)
+    written = save_tour_if_current(payload, payload.get("updated"))
+    if written is None:
+        send_error(
+            handler,
+            409,
+            "stale",
+            "this tour was changed somewhere else since you loaded it",
+        )
+        return
+    prune_tour_files(written)
+    send_json(handler, 200, written)
 
 
 def handle_tour_delete(handler: "Handler", tour_id: str) -> None:
@@ -1125,6 +1188,59 @@ then visit http://localhost:8000
 """
 
 
+def export_manifest(tour: dict) -> dict:
+    """What this zip is, so a folder found in three years still explains itself.
+
+    An inspection deliverable that cannot say which structure it is, when it was
+    walked and who walked it is an archive of anonymous photographs. Everything
+    here is derived from the tour rather than asked for again, so it cannot
+    disagree with the record it ships beside.
+    """
+    # Defensive about shape on purpose: handle_tour_save only validates that
+    # "scenes" is a list, so a hand-edited or third-party doc can put anything
+    # inside it. Before this, one non-dict scene raised AttributeError and took
+    # the WHOLE export down with a 500 — a regression against the pre-change
+    # export, which never looked inside the document at all.
+    scenes = [s for s in (tour.get("scenes") or []) if isinstance(s, dict)]
+    defects = [
+        h
+        for s in scenes
+        for h in (s.get("hotspots") or [])
+        if isinstance(h, dict) and h.get("type") == "defect"
+    ]
+    inspection = tour.get("inspection")
+    if not isinstance(inspection, dict):
+        inspection = {}
+    return {
+        "app": "orbit-tour",
+        "tour": {"id": tour.get("id"), "name": tour.get("name")},
+        "inspection": {
+            "structureId": inspection.get("structureId"),
+            "date": inspection.get("date"),
+            "inspectedBy": inspection.get("by"),
+            "sheet": inspection.get("sheet"),
+        },
+        "counts": {
+            "scenes": len(scenes),
+            "defects": len(defects),
+            # which of the eleven NBIS stops carry at least one photo
+            "photoStopsCovered": len(
+                {s["stop"] for s in scenes if isinstance(s.get("stop"), str)}
+            ),
+        },
+        "defectCodes": sorted(
+            (h["code"] for h in defects if isinstance(h.get("code"), str)),
+            key=lambda c: int(c[1:]) if c[1:].isdigit() else 0,
+        ),
+        "exportedAt": datetime.now(timezone.utc).isoformat(),
+        "viewer": {"photoSphereViewer": "5.14.3", "three": "0.184.0"},
+        "note": (
+            "360 capture supplements the inspection record; it does not replace "
+            "hands-on NBIS judgement or access requirements."
+        ),
+    }
+
+
 def handle_tour_export(handler: "Handler", tour_id: str) -> None:
     """Zip a tour into a static site: viewer html + vendored libs + media."""
     tour = load_tour(tour_id)
@@ -1148,6 +1264,7 @@ def handle_tour_export(handler: "Handler", tour_id: str) -> None:
         with zipfile.ZipFile(tmp_path, "w", zipfile.ZIP_DEFLATED) as z:
             z.writestr("index.html", html)
             z.writestr("README.txt", EXPORT_README)
+            z.writestr("manifest.json", json.dumps(export_manifest(tour), indent=2))
             for f in sorted((REPO_ROOT / "tour" / "vendor").iterdir()):
                 if f.suffix in (".js", ".css"):
                     z.write(f, f"vendor/{f.name}")

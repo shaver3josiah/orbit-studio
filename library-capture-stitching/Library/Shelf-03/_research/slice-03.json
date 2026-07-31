@@ -1,0 +1,170 @@
+{
+  "recommendations": [
+    "Prototype feeding the 20 leveled equirect JPGs straight into COLMAP's native spherical/equirectangular camera model (panorama_sfm CLI path, pycolmap-accessible) before building any ffmpeg cubemap-reframe step — if it registers cleanly it deletes an entire pipeline stage. Fall back to reframing only if pose quality is poor.",
+    "If reframing is still needed, follow the practitioner-consensus recipe over the current perspective-crop approach: cut each equirect still into 6 cubemap faces (or 6-8 horizontal yaw slices at ~90-110deg FOV) with ~10% face-to-face overlap, keep the zenith/up face for a bridge (trusses/girders overhead) rather than discarding it as real-estate workflows do, and mask or drop the nadir face where the tripod/operator sits instead of trying to hand-patch it.",
+    "Add a lightweight sharpness/coverage culling pass (Laplacian-variance scoring, batched by capture station) modeled on the realitystack 3DGaussianTools approach before handing frames to COLMAP -- with only 20 stations you want every reframed view that survives to be a good one, not a quantity play.",
+    "For operator/tripod removal, don't rely on manual nadir-patch compositing in Insta360 Studio; reproject to a handful of virtual perspective views per pano and run a SAM/YOLO mask pass (as Ronski's 360 Splat Pro / Stills Prep and the DIY 3DGaussianTools pipeline do), dilating masks ~15% to catch soft edges/shadows, then back-project the masks before COLMAP feature extraction.",
+    "Keep Brush as the trainer (matches the current vendored setup and the community's local-training tier alongside Nerfstudio/Postshot) since 20 panos x 6-8 reframed views is only ~120-160 images -- comfortably inside a free Colab T4 budget, no need to reach for a cloud service like Splatica/Spatial Studio/FreeGaussian that expects continuous video input rather than discrete stills.",
+    "Treat the resulting splat as a visual, not metrical, deliverable per AEC-industry guidance -- if bridge measurements matter downstream, cross-check scale/geometry against the COLMAP sparse point cloud or a known reference length rather than trusting the splat's geometry directly.",
+    "Standardize exposure/white-balance across all 20 capture stations (not just within a single continuous video) since these are discrete stills possibly taken at different times/lighting -- no strong community-documented HDR-bracketing recipe for still panos was found, so treat consistent locked exposure per station as the safer, field-tested substitute until dedicated guidance emerges."
+  ],
+  "slice": "Practitioner/community workflows (2026) for turning Insta360 photos/video into Gaussian splats: capture, reframe, and reconstruction recipes for small (~10-30) panorama counts",
+  "summary": "Two distinct community tracks exist in 2026. Track one is cloud-automatic: services (Splatica x Insta360, partnered April 2026; FreeGaussian; Splatware; Spatial Studio) accept a continuous 360 video and return a splat in hours, with universal capture advice -- lock exposure, move slowly overhead on a monopod/selfie stick, clean lenses, walk overlapping loops -- but none of these documented a stills-only (20-photo) input path; they are built around video. Track two is the DIY/local pipeline closer to Orbit Studio's existing design: equirectangular frames are reprojected into multiple perspective/cubemap views (6 cubemap faces with ~10% overlap is the most-cited split, per Mikhail Mokrushin's workflow writeup) because COLMAP historically could not consume spherical images directly -- Jonathan Stephens' tutorial calls horizontal-slicing \"the EASIEST but not the BEST way\" for exactly this reason. That constraint changed: COLMAP's panorama_sfm path added native spherical/equirectangular camera models plus a much faster GPU bundle-adjustment backend (Caspar), removing the crop/re-stitch step entirely for practitioners willing to use the CLI (not yet exposed in the GUI, confirmed via COLMAP issue #3595) -- though the exact release version/date could not be pinned down with confidence (sources conflict on 2024 vs 2026). Nadir/operator handling has shifted from manual \"nadir patch\" compositing toward automated masking: a solo developer's \"3DGaussianTools\" (realitystack Substack, May 2026) reprojects each pano to 18 virtual cameras, runs YOLO+SAM masking, and dilates masks ~15% to remove tripod/selfie-stick/shadow artifacts before training in Nerfstudio or LichtFeld Studio. A cluster of small paid Windows utilities (360 Splat Pro, 360 Video Stills Prep Tool, Metashape-to-COLMAP converter) and one open-source single-panorama tool (SPAG4d, MIT core) round out the tooling, but none specifically report results on ~10-30 discrete panorama stills of a static structure like a bridge -- that remains the least-covered scenario in current community writeups.",
+  "uncertainties": [
+    "Exact COLMAP version/date for native spherical camera model + Caspar GPU bundle adjustment is unclear -- one fetch of the same release notes returned June 2024 dates, another returned June 2026; the feature's existence (panorama_sfm converting perspective back to equirectangular, Caspar as a faster alternative to Ceres) is corroborated across two independent pages but the date/version numbers conflict and should be verified directly against the colmap/colmap GitHub tags before citing a specific version.",
+    "No practitioner report was found describing the exact scenario in the prompt -- ~20 discrete leveled equirectangular STILL photos (not video) of a single static structure processed end to end into a splat. All concrete numeric workflow reports found (frame counts, splat counts, training times) are video-frame-extraction based (e.g., 6000 frames down to 40, or a 2-minute walk), so the small-still-count case is an extrapolation from the video-based recipes plus classic multi-station photogrammetry logic, not a directly cited case.",
+    "No specific community guidance was found on HDR bracketing for Insta360 still panos feeding a splat pipeline; the SeHDR paper on 3D Gaussian HDR bracketing is academic research (arXiv 2509.20400), not a documented field workflow, so the HDR-bracketing pitfall named in the task brief is not confirmed as an actual practitioner concern in current write-ups.",
+    "Whether Brush (ArthurBrussee/brush) has shipped any 2026 releases or 360/panorama-specific features could not be confirmed -- the GitHub releases page fetch returned only tagged releases through v0.3.0 (Sept 2024) with no 2026 entries, which may undercount ongoing untagged commit activity rather than reflect the project being stale.",
+    "Whether COLMAP's native spherical camera model is usable via pycolmap (Orbit Studio's current binding) rather than only the C++ CLI/panorama_sfm example script was not directly confirmed."
+  ],
+  "sources": [
+    {
+      "title": "COLMAP GitHub Releases",
+      "url": "https://github.com/colmap/colmap/releases",
+      "date": "2024-06",
+      "key_claims": [
+        "Release (labeled 4.1.0 in one fetch, conflicting dates seen) added Caspar, a GPU-accelerated bundle adjustment backend selectable as an alternative to the default Ceres solver, claimed 1-2 orders of magnitude faster than Ceres CUDA for medium-to-large problems.",
+        "Added native spherical (equirectangular) camera models enabling reconstruction of 360 panoramic images without first rendering perspective views.",
+        "panorama_sfm example extended to convert perspective cameras back to equirectangular and added global mapping support."
+      ],
+      "quotes": [
+        "GPU-accelerated bundle adjustment backend, selectable as an alternative",
+        "enables native reconstruction of 360 panoramic images"
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "Spherical Camera Support on COLMAP GUI · Issue #3595 · colmap/colmap",
+      "url": "https://github.com/colmap/colmap/issues/3595",
+      "date": "",
+      "key_claims": [
+        "Spherical/equirectangular camera model support exists in COLMAP but is not exposed as an option in the COLMAP GUI as of this issue; it is reachable via CLI / panorama_sfm example script only."
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "Gaussian Splatting from 360 Video: From Insta360 Capture to 3D (Mikhail Mokrushin)",
+      "url": "https://www.linkedin.com/pulse/gaussian-splatting-from-360-video-insta360-capture-3d-mokrushin-7kdnf",
+      "date": "",
+      "key_claims": [
+        "Recommends exporting equirectangular from Insta360 Studio, extracting keyframes every 1-2 seconds, then converting each 360 image into 6 cubemap faces with ~10% overlap and exporting in COLMAP format.",
+        "Compares local training (Nerfstudio, Brush, Postshot -- max control, needs powerful GPU) vs cloud semi-automatic (Teleport/Polycam/KIRI, frame-limited) vs fully automatic (Splatica).",
+        "States current splatting algorithms cannot ingest raw 360/fisheye footage directly, so preprocessing is mandatory."
+      ],
+      "quotes": [
+        "Gaussian Splatting creation algorithms currently don't know how to work with raw 360 video or fisheye lens footage."
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "Using 360 Video for 3D Gaussian Splatting (and NeRFs) - Jonathan Stephens (LinkedIn post)",
+      "url": "https://www.linkedin.com/posts/jonathanstephens_how-to-use-360-video-for-3d-gaussian-splatting-activity-7106131828138283008-zvBk",
+      "date": "",
+      "key_claims": [
+        "Demonstrates splitting 360 images horizontally into standard 2D perspective slices because COLMAP does not natively handle spherical/cylindrical projections.",
+        "Author frames this as 'the easiest but not the best way,' implying better methods exist.",
+        "A commenter reported a COLMAP run taking 1008 minutes and producing a 30GB database.db with no output, illustrating processing-scale pitfalls."
+      ],
+      "quotes": [
+        "the EASIEST but not the BEST way",
+        "after 1008 minutes i have 30 gb of database.db and no output"
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "I Built My Own Tools to Turn 360 Footage Into Clean Gaussian Splatting Data (realitystack Substack)",
+      "url": "https://realitystack.substack.com/p/i-built-my-own-tools-to-turn-360",
+      "date": "2026-05-26",
+      "key_claims": [
+        "Built '3DGaussianTools': extracts frames (every-N or target fps), scores sharpness via Laplacian variance, and selects frames by best-n/batched/outlier strategies for spatial coverage.",
+        "Reprojects equirectangular images to 18 virtual perspective cameras (16 ring cameras across 8 yaw x 2 pitch, plus 2 polar cameras) to run YOLO+SAM masking, because YOLO/SAM fail directly on equirectangular polar distortion.",
+        "Dilates masks by roughly 15% coverage to catch loose hair, backpack shadows, and motion blur left by tighter segmentation.",
+        "Reduced a 2-minute, 6000-frame 8K walkthrough down to ~40 selected sharp frames, trained via LichtFeld Studio/Nerfstudio, yielding an 8.5 million-splat scene running at 40fps on a budget Android phone."
+      ],
+      "quotes": [
+        "the step that actually makes it work"
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "360 Gaussian Splatting Plugins & Tools (2026 Guide) - RadianceFields.com",
+      "url": "https://radiancefields.com/360-gaussian-splatting-plugins",
+      "date": "2026",
+      "key_claims": [
+        "360 Splat Pro (Ronski, Windows, paid) converts equirectangular video to perspective tiles/cubemap, supports Insta360 .INS and DJI .OSV, includes SAM3 text-prompt masking and SphereSfM alignment; positioned as the explicit Insta360 recommendation.",
+        "360 Video Stills Prep Tool (Ronski, Windows, paid) does SAM2 masking and perspective splitting for photogrammetry-style batch workflows.",
+        "360 Gaussian (Laskos Virtuals, Windows, free) is described as a free end-to-end trainer from 360 video supporting multiple SfM backends (SphereSfM, COLMAP, Metashape, RealityScan).",
+        "Metashape 360 to COLMAP Converter (kotohibi) converts Metashape 360 SfM results into a COLMAP cubemap format with a GUI."
+      ],
+      "quotes": [
+        "End-to-end 360° prep pipeline with AI masking and bundled alignment."
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "Convert Insta360 .insp files to equirectangular projection on Ubuntu with FFmpeg (ARJ)",
+      "url": "https://www.arj.no/2025/12/19/insta360-to-equirectangular/",
+      "date": "2025-12-19",
+      "key_claims": [
+        "Demonstrates that Insta360 .insp files are dual-fisheye JPEGs that can be renamed .jpg and processed directly by ffmpeg's v360 filter.",
+        "Uses ffmpeg v360=input=dfisheye:output=e:ih_fov=204:iv_fov=204:w=8000:h=4000 to convert dual-fisheye stills to 8000x4000 equirectangular, with 204 degree FOV found via iterative testing against Insta360 X2 source images.",
+        "Notes minor stitching artifacts persisting near the bottom (nadir) edge of the output."
+      ],
+      "quotes": [
+        "those cryptic .insp files are just JPEGs"
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "GitHub - cedarconnor/SPAG4d: Convert 360 equirectangular panoramas into viewable 3D Gaussian Splat files",
+      "url": "https://github.com/cedarconnor/SPAG4d",
+      "date": "",
+      "key_claims": [
+        "Open-source (MIT core for DA360/DAP/SeedVR2 backends; PaGeR is CC BY-NC 4.0, SHARP/OmniRoam are research-licensed) tool converting a SINGLE equirectangular panorama to a 3D Gaussian PLY via monocular depth estimation, not multi-view SfM/COLMAP.",
+        "SHARP 360 backend extracts configurable horizon faces (default 6, up to 12) plus dedicated nadir/zenith pole-cap faces specifically to fill structural holes at the poles, with a tunable 10-60 degree horizon/cap seam latitude.",
+        "Designed for single-panorama input; no built-in multi-panorama fusion pipeline, so it is not a fit for combining 20 separate station panoramas of one scene."
+      ],
+      "quotes": [
+        "A single-viewpoint panorama produces Gaussians with structural holes"
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "Introducing Gaussian Splats for AEC - AEC Magazine",
+      "url": "https://aecmag.com/technology/introducing-gaussian-splats-for-aec/",
+      "date": "2025-12-02",
+      "key_claims": [
+        "Frames gaussian-splat capture for construction/infrastructure as resembling filmmaking rather than laser scanning -- walk with a phone or drone, process into a navigable scene in minutes.",
+        "Lists AEC-specific tools integrating splats: Gauzilla Pro, XGRIDS (SLAM + Revit), Autodesk (ReCap/Civil 3D/InfraWorks/Construction Cloud), Bentley iTwin Capture, ESRI ArcGIS Reality, Pix4D.",
+        "Explicitly cautions that splats excel at appearance rather than precise geometry and should be anchored to LiDAR/SLAM as the metrical backbone for infrastructure work, not used as a standalone survey deliverable."
+      ],
+      "quotes": [
+        "splats excel at appearance rather than precise geometry"
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "Insta360 Studio: File Export (Insta360 Online Manual)",
+      "url": "https://onlinemanual.insta360.com/studio/en-us/operation-guide/file-management/file-export-instructions",
+      "date": "",
+      "key_claims": [
+        "Insta360 Studio supports batch export via File > Batch Export (or Ctrl+B / Cmd+B) across selected footage.",
+        "Export formats include JPG, MP4, DNG, MOV, and INSV; Equirectangular can be selected as the output projection type for a seamless 360 panorama, with field-of-view/angle adjustment available pre-export for leveling."
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "Insta360, Splatica Partner to Democratize 360-to-3D Gaussian Splatting (Insta360 blog)",
+      "url": "https://www.insta360.com/blog/enterprise/insta360-splatica-gaussian-splatting-partnership.html",
+      "date": "2026-04-24",
+      "key_claims": [
+        "Insta360 and Splatica announced a partnership turning consumer 360 VIDEO into 3D Gaussian Splats via a cloud pipeline: capture, upload, and receive a production-ready splat in hours with browser/VR viewing and simulation-environment export.",
+        "Positioned as a video-input pipeline (capture a short 360 video), not a discrete-stills workflow, making it a poor structural match for a 20-still-photo bridge capture even though it is Insta360's own official recommended path."
+      ],
+      "quotes": [],
+      "code_refs": []
+    }
+  ]
+}

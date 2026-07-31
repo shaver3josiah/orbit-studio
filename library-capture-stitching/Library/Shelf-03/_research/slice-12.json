@@ -1,0 +1,209 @@
+{
+  "slice": "Outdoor infrastructure splat quality: sky handling, appearance/exposure correction, anti-aliasing, floater pruning, transient-object masking, nadir/tripod holes, scale calibration/georeferencing",
+  "summary": "Since roughly late 2025, open-source 3DGS tooling has converged on a fairly standard \"outdoor quality checklist\" that is now mostly flag-toggles rather than custom code. gsplat's simple_trainer.py exposes app_opt (per-image appearance embedding), post_processing={bilateral_grid,ppisp} for exposure/white-balance drift, and an antialiased flag implementing Mip-Splatting's 2D/3D filter (though gsplat issue #840 shows it can delete thin high-frequency detail). StopThePop's per-ray depth sorting remains a standalone fork (r4dl/StopThePop), not merged into gsplat/nerfstudio mainline. Sky handling has moved from \"just let it floater\" to explicit sky masks (skyseg U-2-Net/onnx) or dedicated sky Gaussians/skyboxes (spirulae-splat's background_mode=sh, PostShot's sky sphere, the March-2026 R3GW paper). Transient-object handling for moving cars/pedestrians now has both automatic methods (SpotLessSplats' diffusion-feature+residual masking, RobustSplat's delayed-densification + scale-cascaded mask bootstrapping, ICCV 2025) and practical mask-generation tooling (YOLO/SAM2.1/SAM3.1 in stechdrive-3dgs-utils, MIT, v1.25.2 July 2026). Floater pruning has both research methods (TIDI-GS, Clean-GS, both Jan 2026 arXiv) and the de facto manual tool, SuperSplat (MIT, browser-based lasso/crop cleanup). For 360-specific capture, COLMAP 4.1.0 (June 26, 2026) added a native EQUIRECTANGULAR spherical camera model (faster but admittedly less accurate than perspective rendering per COLMAP's own notes), while SPAG-4D and stechdrive-3dgs-utils both use cubemap/pole-cap face-splitting to handle nadir/tripod holes and offer AprilTag-based metric scale calibration as an alternative to GPS EXIF, which Insta360's JPG equirect exports typically lack.",
+  "sources": [
+    {
+      "title": "gsplat (nerfstudio-project) - examples/simple_trainer.py",
+      "url": "https://github.com/nerfstudio-project/gsplat",
+      "date": "2026-06",
+      "key_claims": [
+        "Exposes post_processing: Literal['bilateral_grid','ppisp'] with bilateral_grid_fused and bilateral_grid_shape=(16,16,8) for per-image exposure/white-balance correction",
+        "Exposes app_opt (bool), app_embed_dim=16, app_opt_lr, app_opt_reg for per-image appearance embeddings",
+        "Exposes antialiased (bool) implementing a Mip-Splatting-style 2D filter, and pose_opt/pose_opt_lr for camera pose refinement",
+        "Dataset loader accepts an optional 'mask' field for ignore-region training",
+        "June 2026 changes added faster 3DGUT MCMC rasterization (~30% on A100) and Gaussian-ID rasterization"
+      ],
+      "quotes": [
+        "roughly 30% improvement on the 3DGUT MCMC path on an NVIDIA A100"
+      ],
+      "code_refs": [
+        "examples/simple_trainer.py: post_processing, bilateral_grid_shape, app_opt, app_embed_dim, antialiased, pose_opt"
+      ]
+    },
+    {
+      "title": "Antialiased Rendering Mode Causes Disappearance of Many Small Gaussians (Issue #840)",
+      "url": "https://github.com/nerfstudio-project/gsplat/issues/840",
+      "date": "",
+      "key_claims": [
+        "Switching gsplat's anti-aliasing mode from classic to antialiased (Mip-Splatting-derived) removed fine details like bicycle spokes and leaves",
+        "Behavior appeared inconsistent with the results shown in the original Mip-Splatting paper"
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "COLMAP Release 4.1.0",
+      "url": "https://github.com/colmap/colmap/releases/tag/4.1.0",
+      "date": "2026-06-26",
+      "key_claims": [
+        "Added native spherical/EQUIRECTANGULAR camera models enabling reconstruction of 360 panoramic images without first rendering perspective views",
+        "Native equirectangular reconstruction is generally faster but less accurate than rendering perspective views (per panorama_sfm example)",
+        "Added Caspar, a GPU bundle-adjustment backend 1-2 orders of magnitude faster than the Ceres CUDA solver for medium/large problems",
+        "COLMAP 4.0.0 released 2026-03-14; 4.1.1 released 2026-07-17 with a feature-matching performance fix"
+      ],
+      "quotes": [
+        "generally faster but less accurate than rendering perspective views",
+        "1-2 orders of magnitude faster than the Ceres CUDA solver"
+      ],
+      "code_refs": [
+        "colmap feature_extractor --ImageReader.mask_path"
+      ]
+    },
+    {
+      "title": "spirulae-splat (harry7557558)",
+      "url": "https://github.com/harry7557558/spirulae-splat",
+      "date": "2026",
+      "key_claims": [
+        "Bilateral grid and PPISP exposure/white-balance correction both enabled by default, disabled via --model.no_use_bilateral_grid / --model.no_use_ppisp",
+        "PPISP is described as giving less color shift than the classic affine bilateral grid, trained with AdaGrad",
+        "Skybox/sky handling via --model.background_mode sh with regularization to balance sky removal vs transparency",
+        "Supports masking to either ignore regions (sky/background) or mask foreground (people/cars) via --model.apply_loss_for_mask",
+        "Three Gaussian primitive types: 3dgs (no AA), mip (Mip-Splatting anti-aliased), 3dgut (default, distortion-aware)",
+        "Licensed GPL-3.0"
+      ],
+      "quotes": [
+        "PPISP (default) gives less color shift"
+      ],
+      "code_refs": [
+        "--model.no_use_bilateral_grid",
+        "--model.bilagrid_shape",
+        "--model.background_mode sh",
+        "--model.apply_loss_for_mask"
+      ]
+    },
+    {
+      "title": "SPAG-4D: 360 Panorama to 3D Gaussian Splats (cedarconnor/SPAG4d)",
+      "url": "https://github.com/cedarconnor/SPAG4d",
+      "date": "2026",
+      "key_claims": [
+        "Converts a single equirectangular panorama into a 3DGS scene via four backends: DA360, DAP, PaGeR (depth-based) and SHARP-360 (Apple's per-face Gaussian prediction model)",
+        "SHARP-360 uses pole-cap faces (looking straight down/up) to fill the holes the horizon ring leaves at nadir and zenith, with tunable seam latitude 10-60 degrees",
+        "Optional OmniRoam refinement generates novel views to fill disocclusion holes",
+        "Core is MIT licensed; PaGeR and SHARP-360 backends carry non-commercial research-only upstream model licenses"
+      ],
+      "quotes": [
+        "Pole-cap faces (looking straight down/up) fill the holes the horizon ring leaves at the nadir and zenith"
+      ],
+      "code_refs": []
+    },
+    {
+      "title": "stechdrive/stechdrive-3dgs-utils",
+      "url": "https://github.com/stechdrive/stechdrive-3dgs-utils",
+      "date": "2026-07-09",
+      "key_claims": [
+        "Windows GUI pipeline turning 360 video/still-image sequences into scale-calibrated 3DGS training assets",
+        "Offers three mask tiers: YOLO/SAM2.1 (fast person masks), YOLO26-sem (Cityscapes classes, defaults to person+sky, extendable to vehicles/vegetation), SAM3.1 (prompt-controlled, can add missed targets like tripods or subtract false positives like signs)",
+        "AprilTag scale calibration: user enters printed tag size and IDs, tool estimates metric scale and rescales camera positions plus point cloud",
+        "Three SfM paths: import existing Metashape/RealityScan results, COLMAP cubemap rig (360 images expanded to cubemap faces), or COLMAP 4.1+ native EQUIRECTANGULAR camera model",
+        "Exports to NeRF JSON/PLY, COLMAP format, LichtFeld Studio, Postshot, and Brush-compatible cubemap datasets",
+        "Latest release v1.25.2, MIT licensed application code, 767 commits"
+      ],
+      "quotes": [
+        "add missed targets such as tripods or subtract false detections such as signs and logos",
+        "COLMAP's native EQUIRECTANGULAR camera model, so no forked COLMAP build is required"
+      ],
+      "code_refs": [
+        "--ImageReader.mask_path",
+        "COLMAP Cubemap Rig mode",
+        "COLMAP 4.1+ Spherical mode"
+      ]
+    },
+    {
+      "title": "SpotLessSplats: Ignoring Distractors in 3D Gaussian Splatting",
+      "url": "https://arxiv.org/pdf/2406.20055",
+      "date": "2025",
+      "key_claims": [
+        "Combines pre-trained Stable Diffusion semantic features with iterative reconstruction residuals to adaptively identify transient distractor regions without manual masks",
+        "Published in ACM Transactions on Graphics 2025",
+        "Targets casual captures with moving people, animals, or changing lighting that break 3DGS's inter-frame consistency assumption"
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "RobustSplat: Decoupling Densification and Dynamics for Transient-Free 3DGS",
+      "url": "https://github.com/fcyycf/RobustSplat",
+      "date": "2025-06",
+      "key_claims": [
+        "ICCV 2025 paper; delayed Gaussian growth strategy prioritizes static structure before allowing splitting/cloning, reducing overfitting to transient objects early in optimization",
+        "Scale-cascaded mask bootstrapping starts from low-resolution feature-similarity supervision for initial transient masks then refines at high resolution"
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "Splatfacto-W: A Nerfstudio Implementation of Gaussian Splatting for Unconstrained Photo Collections",
+      "url": "https://arxiv.org/pdf/2407.12306",
+      "date": "2024-07",
+      "key_claims": [
+        "Integrates per-image appearance embeddings (48-dim) and per-Gaussian appearance features (72-dim) plus a spherical-harmonics background model for varying photometric appearance and transient objects",
+        "Improves PSNR by an average of 5.3 dB over vanilla 3DGS on unconstrained (multi-time-of-day) photo collections"
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "TIDI-GS: Floater Suppression in 3D Gaussian Splatting for Enhanced Indoor Scene Fidelity",
+      "url": "https://arxiv.org/html/2601.09291v1",
+      "date": "2026-01",
+      "key_claims": [
+        "Floaters are defined as Gaussians spatially isolated from the dense/coherent manifolds that valid geometry forms",
+        "Composite pruning score combines spatial isolation with low opacity and low learned importance signals"
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "Clean-GS: Semantic Mask-Guided Pruning for 3D Gaussian Splatting",
+      "url": "https://arxiv.org/abs/2601.00913",
+      "date": "2026-01",
+      "key_claims": [
+        "Removes background clutter and floaters using sparse semantic masks via whitelist-based spatial filtering plus color-guided validation and outlier removal",
+        "Achieves 60-80% model compression while preserving object quality"
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "SuperSplat Editor (playcanvas/supersplat) developer docs",
+      "url": "https://developer.playcanvas.com/user-manual/supersplat/editor/",
+      "date": "2026",
+      "key_claims": [
+        "Open-source, browser-based, MIT-licensed editor for cleaning up raw splat captures: trimming floaters, cropping scenes, retouching colors, before publishing",
+        "Provides 8 selection tools: Picker, Lasso, Polygon, Brush, Flood, Eyedropper, Sphere Select, Box Select"
+      ],
+      "quotes": [],
+      "code_refs": []
+    },
+    {
+      "title": "georeferenced_gsplat (manudelu)",
+      "url": "https://github.com/manudelu/georeferenced_gsplat",
+      "date": "",
+      "key_claims": [
+        "Pipeline chaining COLMAP SfM, 3D Gaussian Splatting training, and SuGaR mesh refinement, using drone-image GPS EXIF as the georeferencing anchor",
+        "Converts the COLMAP reconstruction to an ENU (East-North-Up) coordinate frame using the first image's GPS position as reference",
+        "Exports to formats compatible with Cesium Ion and Unreal Engine"
+      ],
+      "quotes": [],
+      "code_refs": []
+    }
+  ],
+  "recommendations": [
+    "Replace the ffmpeg-frame-extraction step (irrelevant for 20 stills) with a cubemap/perspective-face split per panorama before COLMAP, rather than relying on COLMAP 4.1's new native EQUIRECTANGULAR camera model alone -- COLMAP's own 4.1.0 release notes call native spherical reconstruction 'generally faster but less accurate than rendering perspective views,' and with only 20 source stations pose accuracy matters more than speed.",
+    "Add a per-face masking pre-pass before COLMAP feature extraction: sky mask (skyseg U-2-Net/onnx, MIT) + tripod/nadir mask, fed to COLMAP via ImageReader.mask_path so no SfM features are matched on sky or the tripod blob -- directly reduces the floater count gsplat/Brush will otherwise have to prune later.",
+    "If any of the 20 panoramas show moving cars or pedestrians on the roadway, run YOLO/SAM2.1 (or SAM3.1 prompt masks) to produce ignore-region masks and pass them into gsplat's dataset `mask` field (or spirulae-splat's `apply_loss_for_mask`) during training, not just at the COLMAP stage -- this is the same approach stechdrive-3dgs-utils and RobustSplat/SpotLessSplats use to stop transient objects from becoming ghost splats.",
+    "Turn on gsplat's existing appearance-correction flags for training: `app_opt=True` (16-dim per-image embedding) and `post_processing='bilateral_grid'` or `'ppisp'` (spirulae-splat reports PPISP gives less color shift) -- this is a config change, not new code, and directly targets exposure/white-balance drift across 20 shots taken at different times of day.",
+    "A/B test gsplat's `antialiased` (Mip-Splatting) flag on the bridge scene specifically -- gsplat issue #840 documents it deleting thin high-frequency structures (bike spokes, by analogy cables/railings), which matters for a bridge's guardrails and cable geometry; don't assume anti-aliasing is a free win here.",
+    "Add an explicit scale-calibration step since 20 tripod-mounted 360 stills won't carry a GPS track the way drone footage does (Insta360 JPG equirect export typically drops GPS unless a GPX/embed option is explicitly used): either place one printed AprilTag of known size in a couple of frames (as stechdrive-3dgs-utils does) or feed COLMAP's model_aligner one or two known real-world distances (railing post spacing, lane width) as control points -- otherwise the splat is unscaled and can't be measured or georeferenced.",
+    "Add a cheap manual cleanup pass with SuperSplat (browser-based, MIT, playcanvas/supersplat) before shipping artifact.splat: crop scene bounds and lasso-remove stray sky/water floaters -- no new dependency, it's already the community-standard post-processing step.",
+    "For the nadir tripod hole in each of the 20 stations, don't attempt generative inpainting (overkill for 20 stills) -- either mask-and-accept the hole (simplest) or crop/plane-fill it in SuperSplat afterward; reserve pole-cap-with-seam-latitude techniques (SPAG-4D's approach) only if a filled floor patch under each station is actually needed for the fly-through."
+  ],
+  "uncertainties": [
+    "Whether StopThePop's per-ray depth sorting has ever been merged into gsplat, nerfstudio, or any other mainline trainer -- all evidence found shows it remains a standalone reference implementation/fork (r4dl/StopThePop, r4dl/StopThePop-Rasterization); could not confirm any upstream integration.",
+    "Exact GPS/EXIF retention behavior of the Insta360 X4 Air's own equirectangular JPG export path specifically -- only general Insta360 X4 behavior was confirmed (raw .insv/GPX retains GPS, exported JPG/MP4 via software typically does not by default).",
+    "The full expansion/meaning of the 'PPISP' acronym used by gsplat and spirulae-splat as a bilateral-grid alternative was not found in any fetched source.",
+    "Moshpit360 (LichtFeld Studio plugin for one-click 360 video to 3DGS) had no confirmed release date, explicit license, or documented nadir/sky/scale-handling behavior as of the source checked -- described only as 'in the final stages of development.'",
+    "Whether the 'sky segmentation network unifying transformers with a lightweight MLP' phrasing that surfaced in search summaries refers to one specific named 2026 tool/paper or is a generic paraphrase spanning several outdoor-3DGS papers (e.g., R3GW) could not be pinned to a single primary source.",
+    "No primary source specifically benchmarked any of these techniques (bilateral grid, sky masking, transient masking, AA) on a bridge/roadway scene or on Insta360-style 360 still-photo panoramas as opposed to drone/video capture -- the bridge-specific applicability is an inference, not a directly confirmed claim."
+  ]
+}

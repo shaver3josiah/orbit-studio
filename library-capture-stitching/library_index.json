@@ -1,7 +1,7 @@
 {
   "topic": "Capturing photos and stitching them into a 3D reconstruction — the Orbit Capture way",
-  "level": 2,
-  "created": "2026-07-16T13:59:55.900093+00:00",
+  "level": 3,
+  "created": "2026-07-24T03:11:14.096589+00:00",
   "shelves": [
     {
       "shelf": 1,
@@ -1331,6 +1331,152 @@
             "S02-B040",
             "S02-B049",
             "S02-B044"
+          ]
+        }
+      ]
+    },
+    {
+      "shelf": 3,
+      "title": "From 20 Panoramas to a Fly-Through World: The 2026 Frontier",
+      "tier": "frontier",
+      "volumes": [
+        {
+          "id": "S03-B000",
+          "title": "The 2026 Frontier: What Changed, What Stalled, and What Still Splits the Sphere",
+          "type": "primer",
+          "tags": [],
+          "path": "Library/Shelf-03/books/S03-B000.md",
+          "present": true,
+          "cross_refs": []
+        },
+        {
+          "id": "S03-B001",
+          "title": "The Year SfM Collapsed Inward: COLMAP 4, the GLOMAP Merger, and the New Pose Baseline",
+          "type": "essay",
+          "tags": [],
+          "path": "Library/Shelf-03/books/S03-B001.md",
+          "present": true,
+          "cross_refs": [
+            "S03-B003",
+            "S03-B002",
+            "S03-B010"
+          ]
+        },
+        {
+          "id": "S03-B002",
+          "title": "Feed-Forward Geometry: VGGT, MapAnything, and the End of Mandatory Feature Matching",
+          "type": "essay",
+          "tags": [],
+          "path": "Library/Shelf-03/books/S03-B002.md",
+          "present": true,
+          "cross_refs": [
+            "S03-B001",
+            "S03-B004",
+            "S03-B010"
+          ]
+        },
+        {
+          "id": "S03-B003",
+          "title": "Splitting the Sphere: Perspective Rigs for Panorama SfM in Practice",
+          "type": "code",
+          "tags": [],
+          "path": "Library/Shelf-03/books/S03-B003.md",
+          "present": true,
+          "cross_refs": [
+            "S03-B001",
+            "S03-B005",
+            "S01-B003"
+          ]
+        },
+        {
+          "id": "S03-B004",
+          "title": "Panorama-Native Splatting: The Promise and Stall of the Direct-From-Equirect Family",
+          "type": "essay",
+          "tags": [],
+          "path": "Library/Shelf-03/books/S03-B004.md",
+          "present": true,
+          "cross_refs": [
+            "S03-B002",
+            "S03-B003",
+            "S03-B006"
+          ]
+        },
+        {
+          "id": "S03-B005",
+          "title": "Twenty Stations, One Bridge: A Sparse-View Playbook for Outdoor Splats",
+          "type": "code",
+          "tags": [],
+          "path": "Library/Shelf-03/books/S03-B005.md",
+          "present": true,
+          "cross_refs": [
+            "S03-B003",
+            "S03-B008",
+            "S01-B001"
+          ]
+        },
+        {
+          "id": "S03-B006",
+          "title": "The Trainer Field in Mid-2026: Brush, LichtFeld Studio, and the Quiet Stall of Nerfstudio",
+          "type": "essay",
+          "tags": [],
+          "path": "Library/Shelf-03/books/S03-B006.md",
+          "present": true,
+          "cross_refs": [
+            "S03-B005",
+            "S03-B007",
+            "S03-B010"
+          ]
+        },
+        {
+          "id": "S03-B007",
+          "title": "Shipping a World: SOG, SPZ 4, and the New Web Splat Stack",
+          "type": "code",
+          "tags": [],
+          "path": "Library/Shelf-03/books/S03-B007.md",
+          "present": true,
+          "cross_refs": [
+            "S03-B006",
+            "S03-B010",
+            "S03-B009"
+          ]
+        },
+        {
+          "id": "S03-B008",
+          "title": "Generative Fill and Its License Minefield",
+          "type": "essay",
+          "tags": [],
+          "path": "Library/Shelf-03/books/S03-B008.md",
+          "present": true,
+          "cross_refs": [
+            "S03-B005",
+            "S03-B009",
+            "S03-B004"
+          ]
+        },
+        {
+          "id": "S03-B009",
+          "title": "What the Industry Shipped While You Were Capturing: Marble, Scaniverse, and the Open Lane",
+          "type": "essay",
+          "tags": [],
+          "path": "Library/Shelf-03/books/S03-B009.md",
+          "present": true,
+          "cross_refs": [
+            "S03-B008",
+            "S03-B007",
+            "S03-B010"
+          ]
+        },
+        {
+          "id": "S03-B010",
+          "title": "The 2026 Orbit Studio Upgrade: A Reference Pipeline from Twenty Panoramas to Fly-Through",
+          "type": "code",
+          "tags": [],
+          "path": "Library/Shelf-03/books/S03-B010.md",
+          "present": true,
+          "cross_refs": [
+            "S03-B001",
+            "S03-B005",
+            "S03-B007"
           ]
         }
       ]
