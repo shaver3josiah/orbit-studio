@@ -2,6 +2,23 @@
 
 Named, categorized mistakes awaiting promotion to a durable memory surface. Maintained by the mistake-cartographer skill. One section per Pattern-Key, newest first.
 
+## [MC-20260731-013] tool-env/delivered-command-assumes-cwd
+- Pattern-Key: tool-env/delivered-command-assumes-cwd
+- Family: Tool/Environment
+- Mode: missing-precondition
+- Logged: 2026-07-31T21:18:53Z
+- Recurrence: 2
+- Status: pending
+- Scope: all-work
+- Surface: userPreferences
+- Trigger-Context: Handed over `git checkout main; git pull` and later `git branch -d ...` as paste-ready chunks; both died on fatal: not a git repository because the user's prompt sat at C:\Users\shave, not the repo. The gh command in the same set already carried --repo owner/name to make it directory-independent, so the fix was known and simply not applied to the git commands beside it. The second failure came after the first had been acknowledged.
+- Root-Cause: Authored the command from the assistant's own fixed working directory and assumed the user's shell shares it. A delivered chunk carries no context but its own text.
+- Generalized-Rule: Every command handed to the user to run must establish its own working directory or name its target explicitly. Lead a location-dependent chunk with cd to an absolute path, or use the tool's own scoping flag (git -C PATH, gh --repo OWNER/NAME). A chunk that only works from one directory is not paste-ready.
+- Scope-Test: Fires on every delivered command that touches a specific location; no counter-case, because an absolute cd or -C flag is harmless when the shell is already in the right place; durable
+- Contributing: none
+- Promoted-To: none
+- See-Also: MC-20260708-003 tool-env/ps-paste-no-abort, MC-20260708-002 verification/suppressed-diagnostics
+
 ## [MC-20260715-012] tool-env/blocking-wait-kills-workflow
 - Pattern-Key: tool-env/blocking-wait-kills-workflow
 - Family: Tool/Environment
