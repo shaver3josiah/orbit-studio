@@ -1,0 +1,162 @@
+{
+  "recommendations": [
+    "Do not add Meshroom/AliceVision to Orbit Studio's pipeline yet: mrGSplat (github.com/meshroomHub/mrGSplat) is still a MeshroomHub developer-preview add-on as of mid-2026 -- not installable from Meshroom's UI, needs a manual `rez env meshroom-develop mrGSplat-version` setup plus AliceVision 3.3.0, has only 57 commits and 4 open issues, and its own README admits pose optimization 'didn't really work.' The existing Colab pycolmap + gsplat/Brush path is more mature.",
+    "If you ever swap COLMAP for AliceVision's SfM on the pose-estimation step only (skipping mrGSplat entirely), rely on AliceVision's `split360Images`/SplitEquirectangular CLI tool to cube-map the equirectangular stills into perspective sub-images before standard incremental SfM -- this is the same crop-then-reconstruct trick Orbit's ffmpeg reframe step already does, and it is a load-bearing AliceVision feature (in production use since ~2019) rather than the untested direct 'equirectangular' CameraInit tag added in Meshroom 2023.3.0, whose fitness for full multi-position scene SfM (vs. panorama stitching) is unverified.",
+    "Do not route the bridge job through OpenSfM expecting a COLMAP handoff: OpenSfM's own `opensfm/actions/export_colmap.py` only maps brown/perspective/fisheye/fisheye_opencv projection types to COLMAP camera models and explicitly raises `ValueError(\"Can't convert {camera.projection_type} to COLMAP\")` for spherical cameras -- there is no built-in bridge from OpenSfM's native spherical reconstruction to the COLMAP text format that Brush/gsplat consume.",
+    "For 20 wide-baseline bridge panoramas, if COLMAP 4.1's native SPHERE mode fails, prefer widening/adding more virtual perspective crops per panorama in Orbit's existing ffmpeg-reframe -> pycolmap step over introducing OpenSfM -- OpenSfM's spherical/equirectangular projection type is real and documented (camera_models_overrides.json with a full 360-dataset example) but its GitHub issue history shows the spherical-camera-model issues are old (2018-2022, several still open/unresolved) with no 2026 activity specific to that model, signaling low current maintenance attention for that exact feature.",
+    "If native full-360 bundle adjustment (no cropping, keeping full-FOV overlap across only 20 images) is worth the extra integration risk, evaluate a COLMAP-native SPHERE fork such as json87/SphereSfM ('SfM for sphere images in the ERP format within the framework of ColMap') or kiritio-173/colmap-pano instead of OpenSfM -- because these stay inside COLMAP's own binary/text format the whole time, they need no format-conversion bridge to feed pycolmap/gsplat/Brush at all. Verify their license and maintenance status before depending on either, as neither publishes a clear LICENSE file."
+  ],
+  "slice": "Non-COLMAP open photogrammetry stacks with native spherical support: Meshroom 2025.1 mrGSplat and OpenSfM",
+  "summary": "Meshroom 2025.1.0 (released 2025-08-19, still the latest stable tag as of 2026-07-23; only nightly `develop` builds are newer) restructured AliceVision's node graph into a plugin architecture with sub-process-isolated Python nodes and spun up MeshroomHub (github.com/meshroomHub), a registry of experimental ML plugins including mrGSplat, mrDepthEstimation, MrSegmentation, and others. mrGSplat wraps nerfstudio's gsplat inside Meshroom nodes (PrepareImagesForGSPlat, GaussianSplattingOptim, GaussianSplattingRender, ConvertGSplatModel) but as of mid-2026 remains developer-preview only -- no UI installer, manual rez-env setup, 57 commits, 4 open issues, and a README admitting pose optimization underperforms. Equirectangular/spherical support in AliceVision predates this release: CameraInit gained an \"equirectangular\" camera-model option in Meshroom 2023.3.0 (2023-12-07), and AliceVision separately ships a split360Images tool that cube-maps panoramas into perspective sub-images for standard SfM -- functionally the same crop-and-reconstruct approach Orbit Studio's ffmpeg step already uses. Meshroom and AliceVision are both MPL-2.0 (confirmed via each repo's LICENSE-MPL2.md/COPYING.md), though optional AliceVision dependencies carry BSD, LGPL, EPL, and MIT licenses. OpenSfM (BSD-2-Clause, copyright mapillary 2014) documents a genuine, production-heritage \"spherical\" projection type via camera_models_overrides.json, but its own `export_colmap.py` hard-errors (`ValueError`) on spherical cameras -- it only maps brown/perspective/fisheye types to COLMAP formats -- so there is no built-in OpenSfM-to-COLMAP bridge for panorama poses. Recent 2026 OpenSfM issues (Feb/Mar/Apr) are build/dependency bugs, not spherical-model fixes; the spherical-titled issues are all from 2018-2022 and several remain unresolved, suggesting the feature is stable but effectively unmaintained.",
+  "uncertainties": [
+    "mrGSplat's own license was not stated on its GitHub page in the fetched content -- distinct from Meshroom/AliceVision's MPL-2.0, and unconfirmed.",
+    "Whether AliceVision's direct 'equirectangular' CameraInit path (vs. split360Images cropping) can actually perform full 6-DOF incremental SfM across multiple moving panorama positions, or is scoped mainly to HDRI panorama stitching/alignment, was not conclusively verified from available docs.",
+    "json87/SphereSfM and kiritio-173/colmap-pano license terms were not found in their README content and should be checked directly before use (COLMAP's own license has GPL-encumbered optional components in some builds).",
+    "Whether gsplat or Brush (the trainers Orbit already vendors) have any native equirectangular/spherical camera ray model, or would require perspective-crop poses regardless of which SfM stack produces them, was not verified this session.",
+    "No official mrGSplat version-numbering or release-tag scheme was found (it appears to track Meshroom develop rather than issuing its own semantic versions), so 'status as of mid-2026' is based on commit/issue counts rather than a dated release note."
+  ],
+  "sources": [
+    {
+      "title": "Release Meshroom 2025.1.0 (2025/08/18) · alicevision/Meshroom",
+      "url": "https://github.com/alicevision/Meshroom/releases/tag/v2025.1.0",
+      "date": "2025-08-19",
+      "key_claims": [
+        "mrGSplat listed as an experimental MeshroomHub plugin providing Gaussian Splat optimization and rendering, requiring developer setup, not installable via the UI yet.",
+        "Meshroom 2025.1.0 introduced an 'Advanced Plugin Architecture' with sub-process isolation for Python nodes and independent local environments.",
+        "MeshroomHub (github.com/meshroomHub) hosts mrGSplat, mrDepthEstimation, mrDenseMotion, mrRoma, mrIntrinsicImageDecomposition, mrDeblurring, mrGeolocation, and a new MrSegmentation AI plugin.",
+        "AliceVision plugin now includes an equirectangular camera model in CameraInit."
+      ],
+      "quotes": [
+        "Advanced Plugin Architecture: Dedicated sub-process isolation for Python nodes",
+        "mrGSplat: Gaussian Splat optimization and rendering"
+      ]
+    },
+    {
+      "title": "Meshroom/CHANGES.md at develop · alicevision/Meshroom",
+      "url": "https://raw.githubusercontent.com/alicevision/meshroom/develop/CHANGES.md",
+      "date": "2025-08-18",
+      "key_claims": [
+        "The equirectangular camera model in CameraInit was actually added in Meshroom 2023.3.0 (2023-12-07), two releases before mrGSplat appeared.",
+        "Meshroom 2020.1.0 (2020-10-09) already displayed equirectangular images as environment maps in Viewer3D, showing spherical handling predates 2025.1 by years.",
+        "mrGSplat and the other MeshroomHub ML plugins are new in the 2025.1.0 entry, framed as showcasing future workflow capability rather than production-ready."
+      ],
+      "quotes": [
+        "Add equirectangular camera model in CameraInit"
+      ]
+    },
+    {
+      "title": "Meshroom 2025.1: Templates, Plugins and Photometric Stereo",
+      "url": "https://digitalproduction.com/2025/08/20/meshroom-2025-1-templates-plugins-and-photometric-stereo/",
+      "date": "2025-08-20",
+      "key_claims": [
+        "Meshroom 2025.1 ships 24 predefined pipeline templates.",
+        "MeshroomHub plugins currently require cloning, dependency installation, and environment-variable setup by hand -- no one-click install."
+      ]
+    },
+    {
+      "title": "GitHub - meshroomHub/mrGSplat",
+      "url": "https://github.com/meshroomHub/mrGSplat",
+      "date": "2026-07",
+      "key_claims": [
+        "mrGSplat wraps nerfstudio's gsplat implementation inside Meshroom nodes: PrepareImagesForGSPlat, GaussianSplattingOptim, GaussianSplattingRender, ConvertGSplatModel, ImageCompo, ImportAlembicCamera, MeshViz.",
+        "Repo has 57 commits and 4 open issues as of the check date, with no pull requests.",
+        "README states pose optimization 'didn't really work' for some experimental nodes.",
+        "No mention of equirectangular/spherical camera handling anywhere in the mrGSplat documentation -- it consumes whatever poses/images the upstream AliceVision SfM node produces."
+      ],
+      "quotes": [
+        "Collection of nodes to run gsplat in meshroom"
+      ]
+    },
+    {
+      "title": "Meshroom/LICENSE-MPL2.md at develop · alicevision/Meshroom",
+      "url": "https://github.com/alicevision/meshroom/blob/develop/LICENSE-MPL2.md",
+      "date": "",
+      "key_claims": [
+        "Meshroom is licensed under the Mozilla Public License Version 2.0."
+      ],
+      "quotes": [
+        "Mozilla Public License Version 2.0"
+      ]
+    },
+    {
+      "title": "AliceVision/COPYING.md at develop · alicevision/AliceVision",
+      "url": "https://github.com/alicevision/AliceVision/blob/develop/COPYING.md",
+      "date": "",
+      "key_claims": [
+        "AliceVision core is MPL-2.0, matching Meshroom's license.",
+        "Optional/bundled dependencies carry other licenses: Ceres-Solver (New BSD), Eigen (MPL2), cxsparse (LGPL), CCTag (MPL2, optional), Clp/CoinUtils (EPL).",
+        "Parts of the multiview and robustEstimation modules derive from libmv (MIT); kvld in src/aliceVision/matching/kvld is BSD-2-Clause."
+      ]
+    },
+    {
+      "title": "OpenSfM doc/source/using.rst",
+      "url": "https://github.com/mapillary/OpenSfM/blob/main/doc/source/using.rst",
+      "date": "",
+      "key_claims": [
+        "OpenSfM supports a 'spherical' (legacy name 'equirectangular') projection type for 360 images, configured via camera_models_overrides.json.",
+        "Docs point to a full worked example: the 'spherical 360 images dataset'.",
+        "export_colmap is listed as a built-in command to 'Export reconstruction to colmap format', but its scope for spherical cameras is not documented at this doc level (verified separately in source)."
+      ],
+      "quotes": [
+        "projection_type\": \"equirectangular\", \"width\": 2000, \"height\": 1000"
+      ]
+    },
+    {
+      "title": "OpenSfM LICENSE",
+      "url": "https://github.com/mapillary/OpenSfM/blob/main/LICENSE",
+      "date": "2014",
+      "key_claims": [
+        "OpenSfM is BSD-2-Clause (Simplified BSD), copyright 2014 mapillary."
+      ],
+      "quotes": [
+        "Copyright (c) 2014, mapillary"
+      ]
+    },
+    {
+      "title": "OpenSfM opensfm/actions/export_colmap.py (via io.py camera mapping)",
+      "url": "https://github.com/mapillary/OpenSfM/blob/main/opensfm/actions/export_colmap.py",
+      "date": "",
+      "key_claims": [
+        "The COLMAP export only maps 'brown'->FULL_OPENCV, 'perspective'->RADIAL, 'fisheye'->RADIAL_FISHEYE, 'fisheye_opencv'->OPENCV_FISHEYE.",
+        "Spherical/panorama projection types are not in the mapping table and trigger a raised ValueError instead of a silent skip or a COLMAP SPHERE mapping.",
+        "There is therefore no automatic OpenSfM-spherical-to-COLMAP converter available for feeding Brush/gsplat."
+      ],
+      "quotes": [
+        "Can't convert {camera.projection_type} to COLMAP"
+      ]
+    },
+    {
+      "title": "OpenSfM Issues #1116 and #1119 (2026 activity sample)",
+      "url": "https://github.com/mapillary/OpenSfM/issues/1116",
+      "date": "2026-02-12",
+      "key_claims": [
+        "Feb 12 2026 issue #1116 is about a deprecated matplotlib.cm.get_cmap() call in bin/import_colmap.py and bin/plot_matches.py, unrelated to the spherical camera model.",
+        "Apr 2 2026 issue #1119 concerns build/debug-symbol stripping, also unrelated to spherical support.",
+        "Spherical-titled issues in the tracker are all from 2018-2022 (#145, #319, #793, #794, #856, #898), with #856 and #898 still open and unresolved, indicating low ongoing maintenance attention specifically to the spherical camera model."
+      ]
+    },
+    {
+      "title": "Spherical Camera Support on COLMAP GUI · Issue #3595 · colmap/colmap",
+      "url": "https://github.com/colmap/colmap/issues/3595",
+      "date": "2025-08-26",
+      "key_claims": [
+        "A user reported the panorama_sfm.py script for spherical cameras 'works great' at the command line even though the GUI lacked a Spherical option as of COLMAP 3.12.",
+        "Issue is closed with no further public resolution detail visible.",
+        "Confirms COLMAP's SPHERE camera-model support was already functional pre-4.1, contextualizing what 'COLMAP 4.1's native spherical mode' builds on."
+      ]
+    },
+    {
+      "title": "SphereSfM README (json87/SphereSfM)",
+      "url": "https://github.com/json87/SphereSfM/blob/main/README.md",
+      "date": "2026",
+      "key_claims": [
+        "SphereSfM is built on top of COLMAP specifically to reconstruct spherical/ERP-format images end-to-end, staying in COLMAP's own format.",
+        "No explicit license file/statement found in the README.",
+        "No stated minimum-image-count guidance or wide-baseline-specific caveats for small panorama sets like 20 images."
+      ],
+      "quotes": [
+        "SfM for sphere images in the ERP format within the framework of ColMap"
+      ]
+    }
+  ]
+}

@@ -1,16 +1,16 @@
 {
-  "topic": "Capturing photos and stitching them into a 3D reconstruction \u2014 the Orbit Capture way",
+  "topic": "Capturing photos and stitching them into a 3D reconstruction — the Orbit Capture way",
   "level": 2,
   "ratio_code": 0.4,
   "code_language": "Python 3.11+ (COLMAP/gsplat pipeline and photogrammetry code books), with Kotlin + Camera2 for on-device capture code books",
-  "audience": "a solo operator + the engineer building their capture tool \u2014 practical, technically literate, not academic.",
+  "audience": "a solo operator + the engineer building their capture tool — practical, technically literate, not academic.",
   "created": "2026-07-16",
   "totals": {
-    "shelves": 2,
-    "books": 100,
-    "code": 40,
-    "essay": 60,
-    "est_words": 150000
+    "shelves": 3,
+    "books": 110,
+    "code": 44,
+    "essay": 66,
+    "est_words": 166500
   },
   "shelves": [
     {
@@ -18,27 +18,27 @@
       "title": "Taking the Pictures: Capture Craft for Reconstruction",
       "throughline": "Everything about physically capturing a building well: routing steps room-to-room, overlap/standoff/parallax, exposure and light control (AE/AWB lock, EV compensation, metering, clipping, banding, white balance across differently-lit areas), sharpness/motion-blur, coverage completeness, and knowing on-site whether a capture will reconstruct.",
       "tier": "applied",
-      "rationale": "Reconstruction quality is decided in the building, not in software \u2014 overlap, standoff, exposure, and blur discipline that's made or broken on-site can't be fixed downstream.",
+      "rationale": "Reconstruction quality is decided in the building, not in software — overlap, standoff, exposure, and blur discipline that's made or broken on-site can't be fixed downstream.",
       "research_seeds": [
-        "COLMAP image overlap requirements for sparse reconstruction \u2014 COLMAP official documentation",
-        "Android Camera2 API CONTROL_AE_LOCK and CONTROL_AWB_LOCK behavior \u2014 Android Developer docs",
-        "photogrammetry standoff distance and minimum object distance for interior capture \u2014 photogrammetry field guides / cultural heritage imaging standards",
-        "Laplacian variance blur detection method \u2014 OpenCV documentation and blur-metric papers",
-        "exposure metering off a mid-tone gray reference \u2014 photography technique references",
-        "fixed Kelvin white balance vs auto white balance lock indoor photography \u2014 camera manufacturer technical docs",
-        "structure-from-motion minimum baseline and parallax requirement \u2014 SfM/photogrammetry literature",
-        "3D Gaussian Splatting training data requirements \u2014 Kerbl et al. 2023 paper",
-        "CameraX vs Camera2 manual exposure and metering region control \u2014 Android CameraX documentation",
-        "indoor photogrammetry room-by-room coverage completeness checklist \u2014 professional photogrammetry field guides",
-        "highlight clipping and histogram banding in digital photography \u2014 exposure technique references",
-        "loop closure in visual SLAM and indoor mapping \u2014 SLAM research literature",
-        "ZIP_STORED vs deflate compression for image archive bundles \u2014 Python zipfile documentation"
+        "COLMAP image overlap requirements for sparse reconstruction — COLMAP official documentation",
+        "Android Camera2 API CONTROL_AE_LOCK and CONTROL_AWB_LOCK behavior — Android Developer docs",
+        "photogrammetry standoff distance and minimum object distance for interior capture — photogrammetry field guides / cultural heritage imaging standards",
+        "Laplacian variance blur detection method — OpenCV documentation and blur-metric papers",
+        "exposure metering off a mid-tone gray reference — photography technique references",
+        "fixed Kelvin white balance vs auto white balance lock indoor photography — camera manufacturer technical docs",
+        "structure-from-motion minimum baseline and parallax requirement — SfM/photogrammetry literature",
+        "3D Gaussian Splatting training data requirements — Kerbl et al. 2023 paper",
+        "CameraX vs Camera2 manual exposure and metering region control — Android CameraX documentation",
+        "indoor photogrammetry room-by-room coverage completeness checklist — professional photogrammetry field guides",
+        "highlight clipping and histogram banding in digital photography — exposure technique references",
+        "loop closure in visual SLAM and indoor mapping — SLAM research literature",
+        "ZIP_STORED vs deflate compression for image archive bundles — Python zipfile documentation"
       ],
       "books": [
         {
           "book": 1,
           "title": "What Makes a Photoset Reconstructable",
-          "scope": "Introduces the four things a photoset must have \u2014 overlap, parallax, exposure consistency, and sharpness \u2014 before any pipeline can reconstruct it.",
+          "scope": "Introduces the four things a photoset must have — overlap, parallax, exposure consistency, and sharpness — before any pipeline can reconstruct it.",
           "type": "essay",
           "difficulty": "foundational",
           "cross_refs": [
@@ -122,7 +122,7 @@
         {
           "book": 8,
           "title": "Reading a Room Before You Shoot It",
-          "scope": "Covers the 10-second visual read of a room \u2014 light sources, blank walls, tight corners \u2014 before deciding how to walk it.",
+          "scope": "Covers the 10-second visual read of a room — light sources, blank walls, tight corners — before deciding how to walk it.",
           "type": "essay",
           "difficulty": "foundational",
           "cross_refs": [
@@ -134,7 +134,7 @@
         {
           "book": 9,
           "title": "What Can Go Wrong: A Field Taxonomy of Bad Captures",
-          "scope": "Catalogs the recurring failure modes \u2014 blur, blank walls, exposure drift, missed coverage \u2014 that this shelf treats in depth.",
+          "scope": "Catalogs the recurring failure modes — blur, blank walls, exposure drift, missed coverage — that this shelf treats in depth.",
           "type": "essay",
           "difficulty": "foundational",
           "cross_refs": [
@@ -362,7 +362,7 @@
         {
           "book": 28,
           "title": "Stairwells, Hallways, and Other Awkward Standoff Geometries",
-          "scope": "Handles the rooms where the 0.3-1 m standoff rule is hard to keep \u2014 narrow stairwells, tight hallways, cramped closets.",
+          "scope": "Handles the rooms where the 0.3-1 m standoff rule is hard to keep — narrow stairwells, tight hallways, cramped closets.",
           "type": "essay",
           "difficulty": "implementation",
           "cross_refs": [
@@ -470,7 +470,7 @@
         {
           "book": 37,
           "title": "Building the Room-by-Room Session State Machine",
-          "scope": "Models a scan as a state machine over rooms \u2014 entering, shooting, coverage-check, complete \u2014 that the rest of the app hangs off of.",
+          "scope": "Models a scan as a state machine over rooms — entering, shooting, coverage-check, complete — that the rest of the app hangs off of.",
           "type": "code",
           "difficulty": "implementation",
           "cross_refs": [
@@ -530,7 +530,7 @@
         {
           "book": 42,
           "title": "Handoff Discipline: What the Operator Owes the Pipeline",
-          "scope": "Sets the minimum bar a bundle must clear \u2014 coverage, exposure log, naming \u2014 before it's fair to hand it to the reconstruction side.",
+          "scope": "Sets the minimum bar a bundle must clear — coverage, exposure log, naming — before it's fair to hand it to the reconstruction side.",
           "type": "essay",
           "difficulty": "implementation",
           "cross_refs": [
@@ -602,7 +602,7 @@
         {
           "book": 48,
           "title": "Adaptive Overlap: When to Shoot Tighter Than 70-80%",
-          "scope": "Explains when to exceed the standard overlap target \u2014 texture-poor rooms, tight stairwells, repeating geometry \u2014 and by how much.",
+          "scope": "Explains when to exceed the standard overlap target — texture-poor rooms, tight stairwells, repeating geometry — and by how much.",
           "type": "essay",
           "difficulty": "advanced",
           "cross_refs": [
@@ -642,22 +642,22 @@
       "title": "Stitching It Together: From Frames to a 3D Scene",
       "throughline": "Turning captured frames into a reconstruction: equirectangular/360 stitching from dual-fisheye, feature matching, COLMAP structure-from-motion pose recovery, bundle adjustment, Gaussian-splat (gsplat) training, loop closure, registration diagnostics, and the bundle/manifest data contract.",
       "tier": "code",
-      "rationale": "A well-captured bundle still needs a deterministic path \u2014 stitch, match, pose, train \u2014 turning frames into a scene, and that path's diagnostics are what tell the field side whether the capture actually worked.",
+      "rationale": "A well-captured bundle still needs a deterministic path — stitch, match, pose, train — turning frames into a scene, and that path's diagnostics are what tell the field side whether the capture actually worked.",
       "research_seeds": [
-        "COLMAP automatic_reconstructor command line documentation \u2014 COLMAP official docs",
-        "COLMAP feature_extractor and matcher options for sequential indoor imagery \u2014 COLMAP official docs",
-        "3D Gaussian Splatting for Real-Time Radiance Field Rendering \u2014 Kerbl et al. 2023 paper",
-        "gsplat training pipeline and API \u2014 gsplat / Nerfstudio project documentation",
-        "equirectangular projection format and 2:1 aspect ratio spec \u2014 panoramic/360 imaging standards",
-        "Insta360 dual-fisheye stitching SDK and equirectangular export \u2014 Insta360 developer documentation",
-        "bundle adjustment in structure from motion explained \u2014 Hartley & Zisserman, Multiple View Geometry",
-        "COLMAP sparse reconstruction registration statistics and output format \u2014 COLMAP official docs",
-        "loop closure detection in structure-from-motion pipelines \u2014 SfM/SLAM research literature",
-        "COLMAP model_converter and camera pose visualization (PLY/COLMAP GUI) \u2014 COLMAP official docs",
-        "Python zipfile and JSON manifest schema design for data bundles \u2014 Python standard library documentation",
-        "NeRF and Gaussian splatting baseline/parallax requirements, degenerate rotation-only capture \u2014 3DGS/NeRF papers",
-        "COLMAP incremental mapping vs. global SfM pipeline comparison \u2014 COLMAP official docs",
-        "panorama stitching quality validation: width, height, and aspect ratio checks \u2014 imaging QA references"
+        "COLMAP automatic_reconstructor command line documentation — COLMAP official docs",
+        "COLMAP feature_extractor and matcher options for sequential indoor imagery — COLMAP official docs",
+        "3D Gaussian Splatting for Real-Time Radiance Field Rendering — Kerbl et al. 2023 paper",
+        "gsplat training pipeline and API — gsplat / Nerfstudio project documentation",
+        "equirectangular projection format and 2:1 aspect ratio spec — panoramic/360 imaging standards",
+        "Insta360 dual-fisheye stitching SDK and equirectangular export — Insta360 developer documentation",
+        "bundle adjustment in structure from motion explained — Hartley & Zisserman, Multiple View Geometry",
+        "COLMAP sparse reconstruction registration statistics and output format — COLMAP official docs",
+        "loop closure detection in structure-from-motion pipelines — SfM/SLAM research literature",
+        "COLMAP model_converter and camera pose visualization (PLY/COLMAP GUI) — COLMAP official docs",
+        "Python zipfile and JSON manifest schema design for data bundles — Python standard library documentation",
+        "NeRF and Gaussian splatting baseline/parallax requirements, degenerate rotation-only capture — 3DGS/NeRF papers",
+        "COLMAP incremental mapping vs. global SfM pipeline comparison — COLMAP official docs",
+        "panorama stitching quality validation: width, height, and aspect ratio checks — imaging QA references"
       ],
       "books": [
         {
@@ -723,7 +723,7 @@
         {
           "book": 6,
           "title": "Equirectangular Projection: Mapping a Sphere onto a 2:1 Rectangle",
-          "scope": "Explains the equirectangular projection format \u2014 a full sphere unwrapped into a 2:1 rectangle \u2014 that the Insta360 lane exports into.",
+          "scope": "Explains the equirectangular projection format — a full sphere unwrapped into a 2:1 rectangle — that the Insta360 lane exports into.",
           "type": "essay",
           "difficulty": "foundational",
           "cross_refs": [
@@ -783,7 +783,7 @@
         {
           "book": 11,
           "title": "Reading a Registration Health Score: <60% Warning, ~95% Healthy",
-          "scope": "Defines the registration health score \u2014 under 60% a warning, around 95% healthy \u2014 and what it actually measures about a reconstruction.",
+          "scope": "Defines the registration health score — under 60% a warning, around 95% healthy — and what it actually measures about a reconstruction.",
           "type": "essay",
           "difficulty": "applied",
           "cross_refs": [
@@ -795,7 +795,7 @@
         {
           "book": 12,
           "title": "Why Some Rooms Register and Others Don't",
-          "scope": "Surveys the common reasons one room's images register cleanly while another's don't \u2014 texture, overlap, exposure, motion.",
+          "scope": "Surveys the common reasons one room's images register cleanly while another's don't — texture, overlap, exposure, motion.",
           "type": "essay",
           "difficulty": "applied",
           "cross_refs": [
@@ -807,7 +807,7 @@
         {
           "book": 13,
           "title": "Diagnosing a Failed COLMAP Run from Its Sparse Output",
-          "scope": "Teaches reading COLMAP's sparse model output \u2014 registered image count, track length, reprojection error \u2014 to locate what failed and where.",
+          "scope": "Teaches reading COLMAP's sparse model output — registered image count, track length, reprojection error — to locate what failed and where.",
           "type": "essay",
           "difficulty": "applied",
           "cross_refs": [
@@ -1059,7 +1059,7 @@
         {
           "book": 34,
           "title": "Baseline Requirements for gsplat: Why Pure Rotation Fails Training",
-          "scope": "Explains concretely what happens when gsplat is handed a rotation-only sequence \u2014 collapsed depth, degenerate splats, failed training.",
+          "scope": "Explains concretely what happens when gsplat is handed a rotation-only sequence — collapsed depth, degenerate splats, failed training.",
           "type": "essay",
           "difficulty": "implementation",
           "cross_refs": [
@@ -1095,7 +1095,7 @@
         {
           "book": 37,
           "title": "From Point Cloud to Splat: What Training Actually Optimizes",
-          "scope": "Explains what gsplat's optimizer is actually adjusting \u2014 splat position, covariance, opacity, color \u2014 as training loss decreases.",
+          "scope": "Explains what gsplat's optimizer is actually adjusting — splat position, covariance, opacity, color — as training loss decreases.",
           "type": "essay",
           "difficulty": "implementation",
           "cross_refs": [
@@ -1167,7 +1167,7 @@
         {
           "book": 43,
           "title": "Common Failure Signatures: Texture-Poor Rooms in the Sparse Model",
-          "scope": "Catalogs how a texture-poor room shows up in the sparse model specifically \u2014 thin point clusters, broken tracks \u2014 versus other failures.",
+          "scope": "Catalogs how a texture-poor room shows up in the sparse model specifically — thin point clusters, broken tracks — versus other failures.",
           "type": "essay",
           "difficulty": "implementation",
           "cross_refs": [
@@ -1258,6 +1258,147 @@
             "Writing an End-to-End Bundle-to-Splat Orchestration Script",
             "Building a Continuous Registration Health Dashboard Across Scans",
             "Automating a Reshoot Request from a Failed Registration"
+          ]
+        }
+      ]
+    },
+    {
+      "shelf": 3,
+      "title": "From 20 Panoramas to a Fly-Through World: The 2026 Frontier",
+      "throughline": "What changed in 2025-2026 for turning a sparse set of still 360 photos into an explorable Gaussian-splat world: COLMAP 4's consolidation, feed-forward geometry models, sparse-view training technique, the new web splat formats, generative fill and its license minefield, and the reference pipeline Orbit Studio should adopt for a 20-panorama bridge capture.",
+      "tier": "frontier",
+      "rationale": "The 360-to-3D field moved faster in the last twelve months than in the three years before it; a studio built on 2024 assumptions (video walks, incremental SfM, raw .splat files) leaves quality and speed on the table for the sparse-still-panorama capture this project now targets.",
+      "research_seeds": [
+        "COLMAP 4.0/4.1 releases: global mapper (GLOMAP merger), ALIKED+LightGlue ONNX, Caspar GPU bundle adjustment, native spherical camera - github.com/colmap/colmap releases",
+        "Feed-forward reconstruction: VGGT/VGGT-Omega, Pi3/Pi3X, MapAnything v1.1.x and its Apache-2.0 checkpoint tier - facebookresearch repos",
+        "Perspective-split conventions for panorama SfM: nerfstudio ns-process-data equirectangular 8/14-view rigs, py360convert, ffmpeg v360",
+        "Panorama-native splatting family: PanoSplatt3R, OmniSplat, PanSplat, OmniGS, 360-GS, ODGS, ErpGS; PanoVGGT/VGGT-360/360-GeoGS papers",
+        "Sparse-view 3DGS regularization: depth priors (Pearson), pseudo-views, DropAnSH-GS, MS-GS appearance embeddings, transient masking",
+        "Open trainers mid-2026: Brush, LichtFeld Studio v0.5.x + Moshpit360 plugin, gsplat main (3DGUT), nerfstudio stall, OpenSplat AGPL",
+        "Web splat stack: PlayCanvas SOG + splat-transform, Niantic SPZ 4, KHR_gaussian_splatting glTF extension, Spark 2.x LOD, SuperSplat 2.2 timeline/render",
+        "Generative fill and repair: HunyuanWorld license territory limits, WorldGen, SPAG4d backends, Difix3D+, GaMO, GSFixer licensing",
+        "Industry moves Feb-Jul 2026: World Labs Marble/World API, Niantic Scaniverse 360 video pipeline, Insta360 x Splatica, Zillow SkyTour, Matterport 3D Exteriors",
+        "Practitioner recipes: realitystack 3DGaussianTools 18-view reproject + YOLO/SAM masking, Mokrushin cubemap workflow, AEC guidance on splats as visual deliverables"
+      ],
+      "books": [
+        {
+          "book": 1,
+          "title": "The Year SfM Collapsed Inward: COLMAP 4, the GLOMAP Merger, and the New Pose Baseline",
+          "scope": "Chronicles COLMAP 4.0/4.1 (2026): global mapper absorbed from GLOMAP, native ALIKED+LightGlue, Caspar GPU bundle adjustment, native spherical cameras - and what each means for a 20-panorama capture.",
+          "type": "essay",
+          "difficulty": "foundational",
+          "cross_refs": [
+            "Splitting the Sphere: Perspective Rigs for Panorama SfM in Practice",
+            "Feed-Forward Geometry: VGGT, MapAnything, and the End of Mandatory Feature Matching",
+            "The 2026 Orbit Studio Upgrade: A Reference Pipeline from Twenty Panoramas to Fly-Through"
+          ]
+        },
+        {
+          "book": 2,
+          "title": "Feed-Forward Geometry: VGGT, MapAnything, and the End of Mandatory Feature Matching",
+          "scope": "The DUSt3R-to-MapAnything lineage: what feed-forward pointmap models do, which licenses permit an open tool, and when they beat classical SfM for sparse wide-baseline captures.",
+          "type": "essay",
+          "difficulty": "foundational",
+          "cross_refs": [
+            "The Year SfM Collapsed Inward: COLMAP 4, the GLOMAP Merger, and the New Pose Baseline",
+            "Panorama-Native Splatting: The Promise and Stall of the Direct-From-Equirect Family",
+            "The 2026 Orbit Studio Upgrade: A Reference Pipeline from Twenty Panoramas to Fly-Through"
+          ]
+        },
+        {
+          "book": 3,
+          "title": "Splitting the Sphere: Perspective Rigs for Panorama SfM in Practice",
+          "scope": "Working code for exploding an equirectangular still into overlapping perspective views - cubemap, nerfstudio 8/14-view, and ring-plus-poles rigs - and why splitting still beats native equirect SfM for sparse sets.",
+          "type": "code",
+          "difficulty": "applied",
+          "cross_refs": [
+            "The Year SfM Collapsed Inward: COLMAP 4, the GLOMAP Merger, and the New Pose Baseline",
+            "Twenty Stations, One Bridge: A Sparse-View Playbook for Outdoor Splats",
+            "Overlap as the Currency of Structure-from-Motion"
+          ]
+        },
+        {
+          "book": 4,
+          "title": "Panorama-Native Splatting: The Promise and Stall of the Direct-From-Equirect Family",
+          "scope": "PanoSplatt3R, OmniSplat, PanSplat and the OmniGS/ODGS lineage: what direct-from-panorama training actually delivers today, the missing licenses and multi-view fusion, and the PanoVGGT-class successors to watch.",
+          "type": "essay",
+          "difficulty": "advanced",
+          "cross_refs": [
+            "Feed-Forward Geometry: VGGT, MapAnything, and the End of Mandatory Feature Matching",
+            "Splitting the Sphere: Perspective Rigs for Panorama SfM in Practice",
+            "The Trainer Field in Mid-2026: Brush, LichtFeld Studio, and the Quiet Stall of Nerfstudio"
+          ]
+        },
+        {
+          "book": 5,
+          "title": "Twenty Stations, One Bridge: A Sparse-View Playbook for Outdoor Splats",
+          "scope": "Code-level techniques that make ~20 outdoor panorama stations reconstruct well: monocular depth regularization, transient masking, appearance embeddings, floater pruning, and sky handling in a gsplat-style training loop.",
+          "type": "code",
+          "difficulty": "advanced",
+          "cross_refs": [
+            "Splitting the Sphere: Perspective Rigs for Panorama SfM in Practice",
+            "Generative Fill and Its License Minefield",
+            "What Makes a Photoset Reconstructable"
+          ]
+        },
+        {
+          "book": 6,
+          "title": "The Trainer Field in Mid-2026: Brush, LichtFeld Studio, and the Quiet Stall of Nerfstudio",
+          "scope": "Surveys the open trainer landscape: Brush's no-CUDA portability, LichtFeld Studio's plugin surge (Moshpit360), gsplat's unreleased main-branch advances, nerfstudio's stall, and how to pick per hardware.",
+          "type": "essay",
+          "difficulty": "applied",
+          "cross_refs": [
+            "Twenty Stations, One Bridge: A Sparse-View Playbook for Outdoor Splats",
+            "Shipping a World: SOG, SPZ 4, and the New Web Splat Stack",
+            "The 2026 Orbit Studio Upgrade: A Reference Pipeline from Twenty Panoramas to Fly-Through"
+          ]
+        },
+        {
+          "book": 7,
+          "title": "Shipping a World: SOG, SPZ 4, and the New Web Splat Stack",
+          "scope": "Working conversion and viewing code for the 2026 delivery formats: splat-transform to SOG/SPZ, Spark 2.x loading and LOD, and a keyframed fly-through camera path with SuperSplat interop.",
+          "type": "code",
+          "difficulty": "applied",
+          "cross_refs": [
+            "The Trainer Field in Mid-2026: Brush, LichtFeld Studio, and the Quiet Stall of Nerfstudio",
+            "The 2026 Orbit Studio Upgrade: A Reference Pipeline from Twenty Panoramas to Fly-Through",
+            "What the Industry Shipped While You Were Capturing: Marble, Scaniverse, and the Open Lane"
+          ]
+        },
+        {
+          "book": 8,
+          "title": "Generative Fill and Its License Minefield",
+          "scope": "Where generative models honestly help a real reconstruction (sky, occlusion shadows, view densification) and where licenses forbid shipping them: HunyuanWorld territories, NVIDIA research terms, WorldGen and SPAG4d backends, and the Difix3D+/GaMO repair cluster.",
+          "type": "essay",
+          "difficulty": "advanced",
+          "cross_refs": [
+            "Twenty Stations, One Bridge: A Sparse-View Playbook for Outdoor Splats",
+            "What the Industry Shipped While You Were Capturing: Marble, Scaniverse, and the Open Lane",
+            "Panorama-Native Splatting: The Promise and Stall of the Direct-From-Equirect Family"
+          ]
+        },
+        {
+          "book": 9,
+          "title": "What the Industry Shipped While You Were Capturing: Marble, Scaniverse, and the Open Lane",
+          "scope": "Feb-Jul 2026 product moves - World Labs Marble, Niantic Scaniverse's video-only 360 tier, Insta360 x Splatica, exterior splats at Zillow and Matterport - and the still-photo photogrammetry lane none of them occupy.",
+          "type": "essay",
+          "difficulty": "foundational",
+          "cross_refs": [
+            "Generative Fill and Its License Minefield",
+            "Shipping a World: SOG, SPZ 4, and the New Web Splat Stack",
+            "The 2026 Orbit Studio Upgrade: A Reference Pipeline from Twenty Panoramas to Fly-Through"
+          ]
+        },
+        {
+          "book": 10,
+          "title": "The 2026 Orbit Studio Upgrade: A Reference Pipeline from Twenty Panoramas to Fly-Through",
+          "scope": "The synthesis: an end-to-end reference pipeline for 20 leveled equirect stills of a bridge - reframe rig, COLMAP 4.1 or MapAnything poses, regularized training, splat-transform packaging, Spark fly-through - with decision points and fallbacks as runnable orchestration code.",
+          "type": "code",
+          "difficulty": "advanced",
+          "cross_refs": [
+            "The Year SfM Collapsed Inward: COLMAP 4, the GLOMAP Merger, and the New Pose Baseline",
+            "Twenty Stations, One Bridge: A Sparse-View Playbook for Outdoor Splats",
+            "Shipping a World: SOG, SPZ 4, and the New Web Splat Stack"
           ]
         }
       ]

@@ -1,0 +1,162 @@
+{
+  "slice": "Browser rendering of Gaussian splats and splat file formats, mid-2026 state — Spark, PlayCanvas SuperSplat/SOG, mkkellogg GaussianSplats3D, Babylon.js, splat-transform, camera-path authoring",
+  "summary": "The mid-2026 web-splat stack has consolidated hard around PlayCanvas's tooling and Spark's renderer, with the old antimatter15-lineage (.splat, mkkellogg/GaussianSplats3D) explicitly deprecated by its own maintainer in favor of Spark. Format-wise, PlayCanvas's SOG (Spatially-Ordered Gaussians, announced Sept 2025, \"the WebP of Gaussian Splatting\") has become the de facto browser-delivery format: WebP-textured, Morton-ordered, GPU-decode-ready, cutting a 1GB PLY to 42MB. It's natively supported by Spark (since late 2025) and Babylon.js v9 (March 26, 2026), and is produced by PlayCanvas's open-source splat-transform CLI, which now reads/writes PLY, SOG, Streamed SOG, SPZ, SPLAT, KSPLAT, GLB, and even bakes voxel-collision octrees and standalone HTML viewers. Niantic Spatial's SPZ format shipped v4 (May 5, 2026) with 3-5x faster encoding, an uncapped point count, and SH degree-4 support, and sits at the center of Khronos's new KHR_gaussian_splatting glTF extension (release-candidate Feb 3, 2026, ratification expected Q2 2026) — making SPZ the better long-term interchange bet even though SOG currently wins for raw in-browser decode. Spark (sparkjs.dev, MIT, World Labs) shipped a major v2.0 (April 2026) LOD \"splat tree\" for 100M+ splat worlds and v2.1 (May 2026), remains WebGL2-only, and has no built-in keyframe timeline — that job now belongs to PlayCanvas SuperSplat, whose Timeline panel (v2.0, Feb 2025) can auto-seed camera keyframes from COLMAP poses and, as of v2.2, renders fly-through MP4s locally in-browser with zero upload. Babylon.js v9 added splat shadows, native SOG loading, and experimental sort-free \"Triangle Splatting.\"",
+  "sources": [
+    {
+      "title": "New Features in 2.0 - Spark",
+      "url": "https://sparkjs.dev/docs/new-features-2.0/",
+      "date": "2026-04",
+      "key_claims": [
+        "Spark 2.0 introduces a Level-of-Detail (LoD) Splat Tree traversed in O(N log N) time for steady frame rate on huge scenes",
+        "Handles scenes with 100M or 1G+ splats via a default 16M-splat GPU memory pool",
+        "Adds a .RAD streamable LoD format for HTTP Range-request loading and a SparkXr WebXR wrapper with hand tracking"
+      ],
+      "quotes": [
+        "can traverse the tree in O(N log N) time",
+        "100 M or 1 G+ splats"
+      ]
+    },
+    {
+      "title": "Releases · sparkjsdev/spark",
+      "url": "https://github.com/sparkjsdev/spark/releases",
+      "date": "2026-05-18",
+      "key_claims": [
+        "v2.1.0 released May 18, 2026 with PLY point-cloud enhancements and a Chrome 149 compatibility fix",
+        "v2.0.0 released April 14, 2026 introducing the LOD system",
+        "v0.1.10 (Oct 25, 2025) added SOGSv2 compression support; v0.1.9 (Sep 22, 2025) added SPZ v3 compatibility"
+      ],
+      "quotes": []
+    },
+    {
+      "title": "PlayCanvas Open Sources SOG: The WebP of Gaussian Splatting",
+      "url": "https://blog.playcanvas.com/playcanvas-open-sources-sog-format-for-gaussian-splatting/",
+      "date": "2025-09",
+      "key_claims": [
+        "SOG stores splat data as WebP images in Morton order for GPU-ready decoding without post-load processing",
+        "A showcase scene compresses 1GB of PLY data (4M gaussians) down to 42MB, a ~95% reduction, roughly 2-3x better than compressed PLY",
+        "Engine support landed in PlayCanvas Engine 2.11.0; spec and reference implementation are open-sourced"
+      ],
+      "quotes": [
+        "The WebP of Gaussian Splatting"
+      ]
+    },
+    {
+      "title": "splat-transform README",
+      "url": "https://github.com/playcanvas/splat-transform/blob/main/README.md",
+      "date": "2026-05",
+      "key_claims": [
+        "Reads PLY, Compressed PLY, SOG, Streamed SOG, SPZ, SPLAT, KSPLAT, LCC, LCC2; writes PLY, Compressed PLY, SOG, Streamed SOG, SPZ, GLB, CSV, HTML Viewer, LOD, Voxel, WebP",
+        "Supports Morton reordering, NaN/Inf stripping, box/sphere/harmonic-band/floater filters, and sparse voxel octree generation for collision",
+        "Installable via npm as @playcanvas/splat-transform, or usable browser-side via WebAssembly at superspl.at/convert"
+      ],
+      "quotes": []
+    },
+    {
+      "title": "SPZ 4 is here: leaner, faster, and more future-proof",
+      "url": "https://www.nianticspatial.com/blog/spz4",
+      "date": "2026-05-05",
+      "key_claims": [
+        "SPZ 4 compresses ~3-5x faster and loads ~1.5-2.1x faster than SPZ3, e.g. 1min8s vs 3min26s encoding a 34M-point dataset",
+        "Replaces the single GZip stream with six parallel ZSTD streams for multi-core compression, removes the old 10M-point cap, and raises SH support to degree 4 with configurable 3/5/8-bit quantization",
+        "Files remain roughly 10x smaller than uncompressed PLY"
+      ],
+      "quotes": [
+        "SPZ 4 compresses about 3-5x faster, loads roughly 1.5-2x faster end-to-end"
+      ]
+    },
+    {
+      "title": "GaussianSplats3D (mkkellogg) — GitHub repository",
+      "url": "https://github.com/mkkellogg/GaussianSplats3D",
+      "date": "2025-01-25",
+      "key_claims": [
+        "Latest tagged release is v0.4.7 (Jan 25, 2025), adding PlayCanvas export and SPZ compression support",
+        "Supports .ply, .splat, and .ksplat formats with built-in orbit camera controls",
+        "README states the project is no longer in active development and directs users to Spark instead"
+      ],
+      "quotes": [
+        "this repo is no longer in active development"
+      ]
+    },
+    {
+      "title": "Babylon.js V9.0: 3DGS Gets Shadows, SOGs, and Triangle Splatting Support Announced",
+      "url": "https://radiancefields.com/babylon.js-v9.0-3dgs-gets-shadows-sogs-and-triangle-splatting-support-announced",
+      "date": "2026-03-26",
+      "key_claims": [
+        "Babylon.js v9.0 (March 26, 2026) adds shadow-casting for Gaussian splat meshes and native loading of the SOG/SOGS format from Fraunhofer HHI",
+        "Adds experimental 'Triangle Splatting' (Univ. of Liège/UCLouvain technique) replacing gaussian ellipsoids with opaque triangles for sort-free depth-correct rendering",
+        "Unifies loading of .splat, .ply, .spz, and .sog through one pipeline; adds orthographic-camera support for splats"
+      ],
+      "quotes": []
+    },
+    {
+      "title": "SuperSplat 2.0 lets you create flythroughs of 3D Gaussian Splats",
+      "url": "https://www.cgchannel.com/2025/02/supersplat-2-0-lets-you-create-flythroughs-of-3dgs-scans/",
+      "date": "2025-02",
+      "key_claims": [
+        "SuperSplat 2.0's Timeline panel lets users set per-frame camera keyframes to build smooth flythrough animations",
+        "SuperSplat can import COLMAP camera poses to auto-generate timeline keyframes recreating the original scan path"
+      ],
+      "quotes": []
+    },
+    {
+      "title": "Render Your Gaussian Splats to Video with SuperSplat 2.2",
+      "url": "https://blog.playcanvas.com/render-your-gaussian-splats-to-video-with-supersplat/",
+      "date": "2025-2026",
+      "key_claims": [
+        "SuperSplat's Render menu exports high-quality video directly from Timeline camera animations, with resolution/bitrate controls and vertical-video export",
+        "Rendering happens entirely locally in-browser; no splat or render data is uploaded to any server"
+      ],
+      "quotes": []
+    },
+    {
+      "title": "Khronos Announces glTF Gaussian Splatting Extension (press release)",
+      "url": "https://www.khronos.org/news/press/gltf-gaussian-splatting-press-release",
+      "date": "2026-02-03",
+      "key_claims": [
+        "KHR_gaussian_splatting release candidate announced Feb 3, 2026 for glTF 2.0, extending mesh primitives with per-gaussian position, orientation, scale, color and opacity",
+        "Ratification expected Q2 2026; contributors include Autodesk, Bentley Systems/Cesium, Esri, Huawei, Niantic Spatial, NVIDIA, and XGRIDS",
+        "Design allows graceful fallback to point-cloud rendering in viewers lacking splat support"
+      ],
+      "quotes": [
+        "helping ensure this powerful new rendering technique can scale across tools, platforms, and the web"
+      ]
+    },
+    {
+      "title": "nianticlabs/spz — GitHub repository (license)",
+      "url": "https://github.com/nianticlabs/spz",
+      "date": "2024-2026",
+      "key_claims": [
+        "SPZ file format library is dual-licensed Apache-2.0 OR MIT",
+        "Originally open-sourced by Niantic in late 2024 as a ~10x-smaller-than-PLY compressed splat format"
+      ],
+      "quotes": []
+    },
+    {
+      "title": "SparkRenderer docs - Spark",
+      "url": "https://sparkjs.dev/docs/spark-renderer/",
+      "date": "2026",
+      "key_claims": [
+        "SparkRenderer requires a THREE.WebGLRenderer (WebGL2) instance and disables antialiasing since it doesn't help splat rendering; no WebGPU path documented",
+        "Offers radial vs Z-depth splat sorting and configurable target splat counts: ~500K-750K for WebXR, 1-1.5M mobile, 2.5M desktop via lodSplatScale"
+      ],
+      "quotes": []
+    }
+  ],
+  "recommendations": [
+    "Standardize the shipped web-viewer artifact on PlayCanvas's .sog (Spatially-Ordered Gaussians) format instead of the current ad-hoc 'artifact.splat' — SOG is Morton-ordered WebP-backed data that decodes GPU-ready with no per-splat CPU unpack, is natively supported by Spark (since v0.1.6, SOGSv2 since v0.1.10) and Babylon.js v9, and PlayCanvas's own showcase shrinks a 1GB PLY to 42MB (~95% smaller) at 4M gaussians — 2-3x better than compressed PLY.",
+    "Keep .ply (or compressed .ply) as the archival/master format straight out of gsplat/Brush training, and insert one conversion step using the open-source @playcanvas/splat-transform CLI (Node) to filter NaN/floaters, Morton-reorder, and emit both the archive PLY and a Streamed SOG (auto-LOD'd if the bridge+roadway scene exceeds 1M gaussians) for the web bundle. This replaces any hand-rolled format-writing code.",
+    "Do not add WebGPU or switch renderers: Spark (sparkjs.dev, MIT, backed by World Labs) is WebGL2-only but actively developed (v2.1.0 May 18 2026, v2.0.0 April 14 2026 added an LOD splat tree for 100M-1B+ splat scenes), and is exactly what mkkellogg explicitly tells GaussianSplats3D users to migrate to since his repo 'is no longer in active development' (last release v0.4.7, Jan 2025). Orbit Studio's existing Spark/three.js viewer choice is already the right one — just feed it .sog instead of raw .splat.",
+    "For keyframed fly-through camera paths, do not build a custom timeline UI in Orbit Studio's own viewer. Instead route trained scenes through the free, open-source SuperSplat editor (superspl.at/editor): its Timeline panel can import the COLMAP camera poses Orbit Studio already computes via pycolmap to auto-seed keyframes matching the real capture path, then let the user hand-adjust and use SuperSplat 2.2's local, no-upload Render menu to export an MP4 fly-through directly in-browser.",
+    "For the interactive (non-video) fly-through experience, export the SuperSplat-authored keyframe/path data and drive it through a thin custom THREE.Camera interpolator inside the existing Spark viewer — Spark is explicitly camera-control-agnostic ('any camera control scheme compatible with THREE.js'), so this is a small integration, not a new subsystem.",
+    "Add Niantic's SPZ (Apache-2.0 OR MIT, github.com/nianticlabs/spz) only as a secondary/interchange export — not the primary web format — for users who want to pull the bridge scene into other engines (Unity, robotics, etc.); SPZ 4 (May 5 2026) is 3-5x faster to encode and now uncaps the old 10M-point limit, and it's the format named in Khronos's KHR_gaussian_splatting glTF extension (release candidate Feb 3, 2026) contributor list, so it's the better long-term portability bet even though SOG currently wins for raw browser decode speed.",
+    "Flag to the user that KHR_gaussian_splatting (glTF 2.0 Gaussian-splat extension, backed by Autodesk/Bentley-Cesium/Esri/Huawei/Niantic Spatial/NVIDIA) is still pre-ratification as of this research (release candidate Feb 2026, ratification 'expected Q2 2026' — actual ratification date unconfirmed) — worth revisiting in a few months but not yet something to build against."
+  ],
+  "uncertainties": [
+    "Whether KHR_gaussian_splatting has actually been ratified by Khronos as of today (July 23, 2026) — only a Feb 3, 2026 release-candidate announcement with ratification 'expected Q2 2026' was confirmed; no ratification-complete announcement was found.",
+    "Whether Spark has shipped any release beyond v2.1.0 (May 18, 2026) between then and July 23, 2026 — the releases page fetch may not reflect the very latest tag.",
+    "Whether Spark has added or roadmapped WebGPU support — current docs describe a WebGL2-only renderer with no WebGPU path mentioned either way.",
+    "Exact mechanism SuperSplat 2.2 uses for local video export (e.g., WebCodecs vs MediaRecorder) was not confirmed from source text.",
+    "Whether Babylon.js's native SOG loader and Spark's SOG loader are cross-compatible with the exact same .sog files (both claim SOG/SOGS support but interop wasn't independently verified).",
+    "Whether splat-transform's 'HTML Viewer' export target uses Spark, PlayCanvas engine, or another renderer under the hood — not stated in the fetched README excerpt."
+  ]
+}

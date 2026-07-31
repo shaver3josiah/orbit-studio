@@ -1,0 +1,133 @@
+{
+  "recommendations": [
+    "Add NVIDIA Difix3D+ as an optional Colab post-training pass: render frames along an interpolated fly-through path through the gsplat/Brush scene, clean them with the nvidia/difix or nvidia/difix_ref checkpoint (single-step SD-Turbo-scale diffusion, the lightest model in this cluster), then feed the cleaned frames back as extra pseudo-GT for a short gsplat/Brush re-optimization. This is the only method in the cluster with public weights, a documented nerfstudio/gsplat integration point, and a footprint plausible on a free T4 -- but disclose in the Orbit Studio README that Difix's checkpoints/code are under NVIDIA's non-commercial research-and-evaluation license (plus a Stability AI community license for a sub-component), so redistribution of trained artifacts should stay non-commercial.",
+    "Do not vendor GVCLab/GSFixer or GSFix3D into the pipeline yet. GSFixer's GitHub repo has no LICENSE file at all (GitHub API reports license:null, i.e. default all-rights-reserved) and its backbone is a 5B-parameter CogVideoX-5B-I2V video-diffusion model run for 50 denoising steps, trained on 8x H20/H100 -- far outside a free T4's 16GB. GSFix3D additionally requires a per-scene diffusion fine-tuning step, inherits the non-commercial Gaussian-Splatting-License plus a RAIL++-M model license, and was only validated on a 24GB RTX 4500 Ada.",
+    "Watch GaMO (github.com/yichuanH/GaMO_official, CC BY 4.0, code already public) as the conceptually closest fit for 'filling gaps between a handful of outdoor viewpoints' -- it reframes sparse-view reconstruction as FOV-expansion/outpainting on top of a DUSt3R+3DGS coarse init and runs in ~8 min/scene on a single RTX 4090 (25x faster than the GuidedVD-3DGS diffusion baseline it beats). It is not yet ready to integrate: the repo still needs 3 separate conda environments (unification was only 'planned for Feb 2026'), ships only an indoor Replica demo, and publishes no outdoor/panorama example or baseline-PSNR-delta table.",
+    "Track but do not build against VidSplat (CC BY 4.0, training-free, adapts pretrained Wan2.1 I2V) and OracleGS (WACV 2026, propose-and-validate MVS-oracle for filtering diffusion hallucinations) -- both target exactly this sparse-outdoor-capture problem and both have permissive-or-unstated licensing, but neither has a confirmed, working public code/checkpoint release as of 2026-07-23 (VidSplat is a ~2-month-old project-page-only preprint; no GitHub repo was found for OracleGS at all). Re-check in a few months.",
+    "Structural note: since Orbit Studio already reframes equirectangular frames into perspective crops before COLMAP/gsplat, any of these repair models would plug in downstream on those perspective renders -- no change needed to the equirect-to-perspective step. But none of the six papers evaluate on true 360/equirect panorama captures; all report PSNR/SSIM/LPIPS on pinhole 3-9-view splits (DL3DV, Mip-NeRF 360, Replica, ScanNet++). Treat any expected PSNR gain as unverified for the 20-still-panorama bridge scenario until tested on the project's own captures."
+  ],
+  "slice": "Diffusion/video-prior artifact repair and view densification for sparse-view 3DGS (Difix3D+, GSFixer, GSFix3D, VidSplat, OracleGS, GaMO)",
+  "summary": "A 'generative repair' cluster for sparse-view 3D Gaussian Splatting has consolidated over the last year, all sharing one mechanism: a diffusion or video-diffusion model synthesizes/cleans novel-view 2D images, which are fed back as extra photometric supervision into standard 3DGS optimization -- meaning every method is a data-augmentation front-end, not a change to the splat trainer itself, so any of them can in principle sit in front of gsplat or Brush unmodified. Maturity and licensing vary sharply. NVIDIA Difix3D+ (CVPR 2025 Oral) is the most usable today: public HuggingFace weights (nvidia/difix, nvidia/difix_ref), a single-step SD-Turbo-scale model (cheap versus the rest), and a documented nerfstudio/gsplat post-processing hook -- but under NVIDIA's non-commercial research license plus a Stability AI sub-license. GSFixer (ICML 2026, GVCLab) and GSFix3D (arXiv 2508.14717) post the strongest artifact-restoration numbers (GSFixer beats Difix3D+ and GenFusion on the new DL3DV-Res benchmark) but need a 5B-parameter CogVideoX-5B video-diffusion backbone trained on H20/H100 clusters (GSFixer) or per-scene diffusion fine-tuning on a 24GB Ada card (GSFix3D) -- neither fits a free T4, and GSFixer ships no LICENSE file at all. GaMO (arXiv 2512.25073, CC BY 4.0, code public) reframes the problem as geometry-aware outpainting and is the best conceptual match for filling gaps between few outdoor viewpoints, running in ~8 min/scene on an RTX 4090, but its repo is still pre-alpha (3 conda envs, indoor-only demo). VidSplat (arXiv 2605.11424, CC BY 4.0, training-free, built on Wan2.1) and OracleGS (arXiv 2509.23258, WACV 2026, MVS-oracle-validated generation) are promising on paper but have no confirmed working public code release yet.</summary>\n<parameter name=\"uncertainties\">[\"Whether GSFixer, GaMO, or VidSplat's underlying diffusion backbones (CogVideoX-5B, MVGenMaster, Wan2.1 I2V) can run inference at all within a free-tier Colab T4's 16GB VRAM was not directly confirmed in any source pulled -- inferred to be too heavy based on stated H100/H20/RTX-4090/24GB test hardware, but not measured.\", \"VidSplat and OracleGS: could not confirm a populated, working public GitHub code/checkpoint repository as of 2026-07-23; only project/paper pages were verified.\", \"Exact PSNR/SSIM numbers for Difix3D+ on Mip-NeRF 360 or other sparse-view splits were not found in the GitHub README (it reports an aggregate '~2x FID improvement' claim); the full CVPR paper PDF likely has per-dataset tables that were not pulled.\", \"None of the six methods have been evaluated on true 360-degree equirectangular panorama captures (all benchmarks use pinhole multi-view splits: DL3DV, Mip-NeRF 360, Replica, ScanNet++), so applicability/PSNR-gain magnitude for 20 still equirect panoramas of a bridge is unverified and would need empirical testing.\", \"GaMO's GitHub license file was not found/specified despite the arXiv paper listing CC BY 4.0 -- the repo's own terms for the code (versus the paper text) were not independently confirmed.\", \"Could not verify whether OracleGS has any code release at all (no GitHub link surfaced in searches or its arXiv abstract page) -- it may still be paper-only.\"]",
+  "sources": [
+    {
+      "title": "GitHub - nv-tlabs/Difix3D: [CVPR 2025 Oral & Best Paper Finalist] Difix3D+",
+      "url": "https://github.com/nv-tlabs/Difix3D",
+      "date": "2025-03",
+      "key_claims": [
+        "Difix is used as 'the final post-processing step at render time', compatible with nerfstudio and gsplat pipelines",
+        "Pretrained checkpoints released on HuggingFace as nvidia/difix and nvidia/difix_ref",
+        "Licensed under a custom NVIDIA License (non-commercial, research/evaluation only) plus a Stability AI Community License component; GitHub reports license as 'Other/NOASSERTION'"
+      ],
+      "quotes": [
+        "use our Difix model as the final post-processing step at render time",
+        "used or intended for use non-commercially"
+      ],
+      "code_refs": [
+        "nv-tlabs/Difix3D README.md",
+        "nv-tlabs/Difix3D LICENSE.txt"
+      ]
+    },
+    {
+      "title": "GSFixer: Improving 3D Gaussian Splatting with Reference-Guided Video Diffusion Priors (ICML 2026)",
+      "url": "https://github.com/GVCLab/GSFixer",
+      "date": "2025-08-13",
+      "key_claims": [
+        "Uses a DiT-based video diffusion model (CogVideoX-5b-I2V) fine-tuned on 1,000 DL3DV-10K scenes with 8x NVIDIA H20 GPUs for ~4 days",
+        "Requires 50 denoising steps at inference, noted by authors as an efficiency limitation",
+        "On the new DL3DV-Res benchmark: PSNR 16.72 vs GenFusion 14.56 and Difix3D+ 14.14",
+        "GitHub API reports license: null -- no LICENSE file present in the repository",
+        "Weights hosted at huggingface.co/flow666/GSFixer; benchmark dataset huggingface.co/datasets/flow666/DL3DV-Res_Benchmark"
+      ],
+      "quotes": [
+        "requires 50 denoising steps"
+      ],
+      "code_refs": [
+        "GVCLab/GSFixer README.md"
+      ]
+    },
+    {
+      "title": "GSFix3D: Diffusion-Guided Repair of Novel Views in Gaussian Splatting",
+      "url": "https://arxiv.org/abs/2508.14717",
+      "date": "2025-08-20",
+      "key_claims": [
+        "Authors: Jiaxin Wei, Stefan Leutenegger, Simon Schaefer",
+        "Combines a fine-tuned latent diffusion model (also called 'GSFixer' in this paper, distinct from the GVCLab ICML repo) with random mask augmentation for inpainting",
+        "Code repo (GSFix3D/GSFix3D) tested on Ubuntu 22.04, CUDA 12.1, NVIDIA RTX 4500 Ada (24GB-class)",
+        "Requires per-scene fine-tuning of the diffusion model before inference",
+        "License stack: Gaussian-Splatting-License (non-commercial) + Apache 2.0 for parts of the codebase + RAIL++-M License for models"
+      ],
+      "quotes": [
+        "Our code and data will be made publicly available"
+      ],
+      "code_refs": [
+        "GSFix3D/GSFix3D README",
+        "arXiv:2508.14717"
+      ]
+    },
+    {
+      "title": "VidSplat: Gaussian Splatting Reconstruction with Geometry-Guided Video Diffusion Priors",
+      "url": "https://arxiv.org/abs/2605.11424",
+      "date": "2026-05-12",
+      "key_claims": [
+        "Training-free framework built on pretrained Wan2.1 I2V video diffusion, no per-scene fine-tuning required",
+        "Uses visibility-based camera pose sampling plus stage-wise denoising to keep generated views 3D-consistent",
+        "DL3DV novel-view synthesis at 6 views: outdoor PSNR 17.49, SSIM 0.561, LPIPS 0.376",
+        "Paper licensed CC BY 4.0; project page at tangjm24.github.io/VidSplat, no confirmed populated GitHub code repo found"
+      ],
+      "quotes": [
+        "training-free, stage-wise denoising strategy"
+      ],
+      "code_refs": [
+        "arXiv:2605.11424"
+      ]
+    },
+    {
+      "title": "OracleGS: Grounding Generative Priors for Sparse-View Gaussian Splatting",
+      "url": "https://arxiv.org/abs/2509.23258",
+      "date": "2025-09-27",
+      "key_claims": [
+        "Authors: Atakan Topaloglu, Kunyi Li, Michael Niemeyer, Nassir Navab, A. Murat Tekalp, Federico Tombari; accepted WACV 2026",
+        "Uses a 'propose-and-validate' strategy: a 3D-aware diffusion model proposes novel views, a repurposed multi-view-stereo model acts as an 'oracle' producing uncertainty maps that weight the 3DGS loss",
+        "Evaluated on Mip-NeRF 360 and NeRF Synthetic; no GitHub code repository was found in searches"
+      ],
+      "quotes": [
+        "Regressive models are geometrically faithful but incomplete, whereas generative models can complete scenes but often introduce structural inconsistencies"
+      ],
+      "code_refs": [
+        "arXiv:2509.23258"
+      ]
+    },
+    {
+      "title": "GaMO: Geometry-aware Multi-view Diffusion Outpainting for Sparse-View 3D Reconstruction",
+      "url": "https://arxiv.org/html/2512.25073",
+      "date": "2026-04-04",
+      "key_claims": [
+        "Authors from National Yang Ming Chiao Tung University (Yi-Chuan Huang et al., incl. Yu-Lun Liu)",
+        "Reframes sparse-view reconstruction as FOV-expansion/outpainting on a DUSt3R + 3DGS coarse initialization, using the MVGenMaster diffusion backbone with opacity masks and Plucker ray embeddings",
+        "Runs in ~8 minutes/scene on a single NVIDIA RTX 4090, a claimed 25x speedup over the GuidedVD-3DGS diffusion baseline (3+ hours)",
+        "Mip-NeRF 360 outdoor sparse-view results: 6-view PSNR 16.74/SSIM 0.393/LPIPS 0.436; 9-view PSNR 17.56/SSIM 0.448/LPIPS 0.381",
+        "Paper licensed CC BY 4.0; code public at github.com/yichuanH/GaMO_official but requires 3 separate conda environments and a hard DUSt3R ViT-Large checkpoint dependency; only an indoor Replica demo is documented"
+      ],
+      "quotes": [
+        "expands the field of view (FOV) to cover unobserved regions while preserving geometric consistency"
+      ],
+      "code_refs": [
+        "arXiv:2512.25073",
+        "github.com/yichuanH/GaMO_official"
+      ]
+    },
+    {
+      "title": "GSFixer (arXiv abstract/HTML)",
+      "url": "https://arxiv.org/abs/2508.09667",
+      "date": "2025-08-13",
+      "key_claims": [
+        "Introduces DL3DV-Res, a new benchmark of artifact frames rendered from low-quality 3DGS reconstructions",
+        "Integrates 2D semantic features (DINOv2) and 3D geometric features (VGGT) of reference views to guide video diffusion restoration"
+      ],
+      "quotes": [],
+      "code_refs": [
+        "arXiv:2508.09667"
+      ]
+    }
+  ]
+}

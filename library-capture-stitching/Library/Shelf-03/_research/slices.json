@@ -1921,6 +1921,421 @@
         "OmniSplat's per-scene VRAM/GPU requirement is not stated in its README or found via search.",
         "Whether Orbit Studio's existing perspective-split + pycolmap/COLMAP step could be pointed directly at MapAnything's Apache-licensed checkpoint today (API compatibility, output format for gsplat training) was not verified -- this slice only confirms MapAnything's license/release cadence, not integration feasibility."
       ]
+    },
+    {
+      "recommendations": [
+        "Do not swap pycolmap out yet: none of the direct-equirect papers use COLMAP for pose recovery (it has no spherical/equirectangular camera model) — they use OpenMVG (OmniGS, ODGS) or OpenSfM (the hobby recipe below). Adopting direct-equirect training means also replacing the SfM stage, which is a bigger, riskier pipeline change than it first appears for only 20 outdoor stills.",
+        "If you want to prototype direct-from-equirect training, start from esw0116/ODGS (MIT, NeurIPS 2024) rather than OmniGS (GPL-3.0, heavier CUDA/LibTorch/OpenCV-CUDA native build) — ODGS is Python/PyTorch-ish, permissively licensed, and closer to your existing gsplat/Brush stack, but expect a stale repo (no commits since Dec 2024) and the need to wire in OpenMVG for poses yourself.",
+        "Treat SC-OmniGS, Spherical-GOF, ErpGS, and TPGS as watch-only for now: each claims strong outdoor or pose-free results but has no runnable public training code as of July 2026 (SC-OmniGS repo is a project webpage only; Spherical-GOF repo has just README+LICENSE with code 'will be released'; ErpGS project page literally says 'Code (Coming Soon)'; TPGS repo has 17 commits but an incomplete README with no working setup instructions).",
+        "Skip the feed-forward pair methods (PanSplat, Splatter-360, OmniSplat) for this goal — they solve 2-view interpolation/generalization, not fusing ~20 wide-baseline stills into one consistent walkable scene, and are validated mainly on indoor synthetic benchmarks (Matterport3D, HM3D, Replica). PanSplat's Insta360-video fine-tune is the most real-world-relevant checkpoint of the three but is still pairwise, not a full-scene reconstruction from N stills.",
+        "Best low-risk experiment: keep your current pycolmap perspective-crop SfM exactly as-is (it is proven on outdoor unbounded scenes), but aggregate the recovered per-crop poses back into one pose per source equirect frame and feed that into an ODGS/OmniGS-style equirect rasterizer for the final gsplat training pass instead of the resampled perspective crops. This captures the no-crop-seam benefit of direct-equirect training without abandoning the SfM stage that already works for you.",
+        "Warn the user up front that 20 stills is sparse for a large outdoor scene (a bridge plus surrounding roadways): every panorama-GS paper surveyed here demonstrates on dozens-to-hundreds of frames or continuous video, not ~20 discrete stills. Recommend either capturing more panoramas spaced along the roadway/under the deck, or leaning on a monocular-depth prior (as LighthouseGS, ErpGS, and the hobbyist SPAG4d tool do) to regularize the sparse regions, regardless of which splat variant is ultimately used.",
+        "For a quick practical spike (not a citation-grade research contribution), inuex35/360-gaussian-splatting is the closest existing recipe to 'N equirect stills -> OpenSfM spherical poses -> panorama-aware 3DGS training' end to end, and worth cloning to see how far it gets on a bridge dataset before investing in any of the CVPR/ICLR papers above — but it is an unpublished hobby repo with unverified maintenance state, so budget time for debugging."
+      ],
+      "slice": "Papers/code that train 3D Gaussian Splatting directly from equirectangular/360 panoramas (no perspective-crop preprocessing) — OmniGS, 360-GS, ODGS, Splatter-360, PanSplat, OmniSplat, ErpGS, PanoGS, TPGS, and newer 2026 work",
+      "summary": "Direct-from-equirect 3DGS is an active but still academic-maturity field as of July 2026. Real, runnable, per-scene optimization code exists for OmniGS (WACV 2025, GPL-3.0, C++/CUDA equirect rasterizer) and ODGS (NeurIPS 2024, MIT, PyTorch) — both require poses from OpenMVG, not COLMAP, since COLMAP has no spherical camera model. 360-GS (Feb 2024) also has public code (LeoDarcy/360GS) using tangent-plane projection with a custom panorama rasterizer, indoor-focused. The self-calibrating/pose-free option that would most help a sparse-still capture, SC-OmniGS (ICLR 2025), has only a project webpage on GitHub, not training code. Newer 2026 work (Spherical-GOF, CylinderSplat, UniTriSplat, PFGS360, ODGS-SLAM) pushes geometry quality and pose-freeness further but is either code-not-yet-released, video-sequence-oriented (not discrete stills), or unverified in this research pass. ErpGS and TPGS address outdoor 360-rig distortion and single-panorama reconstruction respectively, but ErpGS's code is \"coming soon\" and TPGS's repo is incomplete/undocumented. Feed-forward generalizable methods (Splatter-360, PanSplat, OmniSplat) are the most code-complete and well-maintained (pretrained checkpoints, active repos), but solve 2-view interpolation for indoor synthetic benchmarks, not many-view outdoor scene fusion. SPaGS (EGSR/CGF 2025) is notable for an explicit outdoor drone-panorama dataset but ships as a plugin to a heavyweight research framework. Bottom line: perspective-split remains the practical route for Orbit Studio today, primarily because it lets you keep COLMAP for pose recovery; direct-equirect training is promising but not a drop-in replacement.",
+      "sources": [
+        {
+          "title": "GitHub - liquorleaf/OmniGS: [WACV 2025] OmniGS: Fast Radiance Field Reconstruction using Omnidirectional Gaussian Splatting",
+          "url": "https://github.com/liquorleaf/OmniGS",
+          "date": "2025-02",
+          "key_claims": [
+            "GPU-accelerated omnidirectional rasterizer splats 3D Gaussians directly onto equirectangular screen space, no cubemap/tangent-plane approximation needed",
+            "License is GPL-3.0",
+            "Requires known camera poses (longitude-latitude format), demonstrated on 360Roam and EgoNeRF datasets via openMVG-style formatting",
+            "79 stars, 10 forks, 5 open issues, 17 commits, no formal releases as of research date",
+            "Build requires CUDA 11.8, cuDNN 8.9.3, OpenCV 4.7.0 (CUDA-built), LibTorch 2.0.1 — native C++ build, not a simple pip install"
+          ],
+          "quotes": [
+            "there exists some unknown bug for this function"
+          ],
+          "code_refs": [
+            "github.com/liquorleaf/OmniGS"
+          ]
+        },
+        {
+          "title": "GitHub - esw0116/ODGS: [NeurIPS 2024] ODGS: 3D Scene Reconstruction from Omnidirectional Images with 3D Gaussian Splatting",
+          "url": "https://github.com/esw0116/odgs",
+          "date": "2024-12",
+          "key_claims": [
+            "MIT licensed",
+            "Poses obtained via OpenMVG Structure-from-Motion, not COLMAP, for all 6 evaluated datasets",
+            "Evaluated on OmniBlender, Ricoh360, OmniPhotos, 360Roam, OmniScenes, and 360VO datasets (mix of indoor and driving-style capture)",
+            "Claims 100x faster optimization/rendering than NeRF-based omnidirectional baselines",
+            "Last commit December 26, 2024 — no activity in the ~19 months since"
+          ],
+          "quotes": [
+            "performing Structure-from-Motion using OpenMVG"
+          ],
+          "code_refs": [
+            "github.com/esw0116/odgs"
+          ]
+        },
+        {
+          "title": "GitHub - chenyingshu/sc-omnigs: [ICLR 2025] SC-OmniGS: Self-Calibrating Omnidirectional Gaussian Splatting - Web Page",
+          "url": "https://github.com/chenyingshu/sc-omnigs",
+          "date": "2025-02",
+          "key_claims": [
+            "Jointly optimizes 3D Gaussians, omnidirectional camera poses, and camera model without requiring precomputed poses — treats 360 images as a full sphere rather than converting to cube maps",
+            "The GitHub repo is a project webpage only (58.8% CSS, 22.6% JS, 18.6% HTML) — no training code is present, only a link out to a separate project site",
+            "10 commits total, all webpage-related; no license file found in the repo"
+          ],
+          "quotes": [],
+          "code_refs": [
+            "github.com/chenyingshu/sc-omnigs (webpage only, no training code)"
+          ]
+        },
+        {
+          "title": "GitHub - thucz/splatter360: [CVPR 2025] Splatter-360: Generalizable 360 Gaussian Splatting for Wide-baseline Panoramic Images",
+          "url": "https://github.com/thucz/splatter360",
+          "date": "2024-12",
+          "key_claims": [
+            "Feed-forward generalizable method: builds a spherical cost volume via spherical sweep, demonstrated to transfer zero-shot from HM3D-trained weights to Replica dataset scenes without per-scene optimization",
+            "Pretrained checkpoints released via Google Drive, plus training/eval/preprocessing scripts",
+            "26 commits, 7 open issues; license file could not be located (404 on direct LICENSE fetch)",
+            "Trained and evaluated on synthetic indoor datasets HM3D and Replica, not outdoor scenes"
+          ],
+          "quotes": [
+            "Cross-Dataset Generalization"
+          ],
+          "code_refs": [
+            "github.com/thucz/splatter360"
+          ]
+        },
+        {
+          "title": "GitHub - chengzhag/PanSplat: [CVPR'25] PanSplat: 4K Panorama Synthesis with Feed-Forward Gaussian Splatting",
+          "url": "https://github.com/chengzhag/PanSplat",
+          "date": "2025-03",
+          "key_claims": [
+            "MIT licensed, most actively maintained repo of the feed-forward panorama methods surveyed (last commit March 25, 2025, bug fix to WS-PSNR eval)",
+            "Core method takes two wide-baseline 360 panoramas as input; uses a spherical 3D Gaussian pyramid with Fibonacci lattice arrangement",
+            "Pretrained checkpoints released at 512x1024 (Matterport3D, indoor synthetic) and 2048x4096 (4K, needs 24GB+ VRAM), plus fine-tunes on real-world 360Loc and custom Insta360 video footage",
+            "Two-step deferred backpropagation reduces memory footprint enough to train at 4K on a single A100"
+          ],
+          "quotes": [],
+          "code_refs": [
+            "github.com/chengzhag/PanSplat"
+          ]
+        },
+        {
+          "title": "GitHub - esw0116/OmniSplat: [CVPR 2025] OmniSplat: Taming Feed-Forward 3D Gaussian Splatting for Omnidirectional Images with Editable Capabilities",
+          "url": "https://github.com/esw0116/OmniSplat",
+          "date": "2025-06",
+          "key_claims": [
+            "MIT licensed; feed-forward, built on top of MVSplat using its pretrained re10k.ckpt without fine-tuning",
+            "Decomposes omnidirectional images into a Yin-Yang grid for stable cross-view attention, and separates scene elements into editable components",
+            "First code upload was June 6, 2025, so the codebase is only about a year old and self-described as early-stage",
+            "Authors acknowledge a known pixel-misalignment bug during omnidirectional image warping requiring a manual patch to an external library"
+          ],
+          "quotes": [
+            "25.06.06: First code upload",
+            "There will be a pixel misalignment during the omnidirectional image warping"
+          ],
+          "code_refs": [
+            "github.com/esw0116/OmniSplat"
+          ]
+        },
+        {
+          "title": "GitHub - zhijieshen-bjtu/TPGS (You Need a Transition Plane: Bridging Continuous Panoramic 3D Reconstruction with Perspective Gaussian Splatting)",
+          "url": "https://github.com/zhijieshen-bjtu/TPGS",
+          "date": "2025-04",
+          "key_claims": [
+            "Reconstructs 3D from a single equirectangular panorama via cubemap decomposition, adding a 'transition plane' between adjacent cube faces to remove stitching seams",
+            "MIT licensed, 17 commits, 2 open issues, no releases published",
+            "README is incomplete: dependency list, setup instructions, and dataset-prep steps are missing or reference external docs only, despite the paper claiming code and models are available"
+          ],
+          "quotes": [
+            "To start"
+          ],
+          "code_refs": [
+            "github.com/zhijieshen-bjtu/TPGS"
+          ]
+        },
+        {
+          "title": "ErpGS: Equirectangular Image Rendering enhanced with 3D Gaussian Regularization (project page)",
+          "url": "https://gsisaoki.github.io/ERPGS/",
+          "date": "2025-05",
+          "key_claims": [
+            "Targets distortion and rig-obstacle artifacts specific to equirectangular multi-view capture via geometric regularization, scale regularization, and distortion-aware masking",
+            "As of the research date, code is explicitly not yet released",
+            "Qualitative results shown on the project page and OmniBlender ablation dataset appear to be indoor scenes only; no outdoor examples were found"
+          ],
+          "quotes": [
+            "Code (Coming Soon)"
+          ],
+          "code_refs": []
+        },
+        {
+          "title": "GitHub - 1170632760/Spherical-GOF (Spherical-GOF: Geometry-Aware Panoramic Gaussian Opacity Fields for 3D Scene Reconstruction)",
+          "url": "https://github.com/1170632760/Spherical-GOF",
+          "date": "2026-03",
+          "key_claims": [
+            "Performs Gaussian Opacity Field ray sampling directly on the unit sphere rather than via projection-based rasterization, claiming 57% depth-reprojection-error reduction and 21% cycle-inlier-ratio improvement over the strongest baseline",
+            "MIT licensed, but the repo currently contains only .gitignore, LICENSE, README, and an assets folder — 2 commits total, no source implementation files",
+            "References a forthcoming 'OmniRob' dataset that is also not yet released"
+          ],
+          "quotes": [
+            "will be released"
+          ],
+          "code_refs": [
+            "github.com/1170632760/Spherical-GOF (code not yet public)"
+          ]
+        },
+        {
+          "title": "GitHub - nerficg-project/SPaGS (SPaGS: Fast and Accurate 3D Gaussian Splatting for Spherical Panoramas, Computer Graphics Forum 2025)",
+          "url": "https://github.com/nerficg-project/SPaGS",
+          "date": "2025-06",
+          "key_claims": [
+            "MIT licensed; ships as a plugin/module for the separate 'NeRFICG' research framework (installed via ./scripts/install.py -m SPaGS), not a standalone repo",
+            "Introduces exact axis-aligned bounding box calculation for spherical images to speed up omnidirectional ray casting of 3D Gaussians",
+            "Ships a new 'RaR' (Roaming and Rounding) dataset with real outdoor drone-captured scenes (named O_car, O_lion, O_statuary, O_stone, O_windmill) that pair panoramic and simultaneous perspective captures",
+            "Only 1 commit recorded in the SPaGS-specific repo, reflecting its dependency on the larger parent framework"
+          ],
+          "quotes": [],
+          "code_refs": [
+            "github.com/nerficg-project/SPaGS"
+          ]
+        },
+        {
+          "title": "CylinderSplat: 3D Gaussian Splatting with Cylindrical Triplanes for Panoramic Novel View Synthesis (arXiv / ICLR 2026)",
+          "url": "https://arxiv.org/abs/2603.05882",
+          "date": "2026-03",
+          "key_claims": [
+            "Introduces a cylindrical Triplane representation aligned to panoramic/Manhattan-world geometry, with a dual-branch pixel + volume architecture to handle occlusions in sparse-view panoramic capture",
+            "Explicitly designed to flexibly handle a variable number of input views, from a single panorama up to multiple panoramas, which is closer to Orbit Studio's ~20-still use case than pairwise methods",
+            "Paper references code at github.com/wangqww/CylinderSplat, but actual repo contents/completeness were not independently verified in this research pass",
+            "Accepted as an ICLR 2026 conference paper"
+          ],
+          "quotes": [],
+          "code_refs": [
+            "github.com/wangqww/CylinderSplat (existence referenced, contents unverified)"
+          ]
+        },
+        {
+          "title": "GitHub - inuex35/360-gaussian-splatting",
+          "url": "https://github.com/inuex35/360-gaussian-splatting",
+          "date": "",
+          "key_claims": [
+            "Hobbyist end-to-end recipe: runs OpenSfM (bin/opensfm_run_all) with a spherical camera model on a folder of 360 photos to produce a reconstruction.json, then trains a modified 3DGS with a --panorama training flag",
+            "Explicitly chosen because COLMAP does not support the spherical/equirectangular camera model needed for direct pose recovery from 360 stills",
+            "Vendors diff-gaussian-rasterization and simple-knn submodules and offers multiple render modes including an OmniGS-style omnidirectional renderer",
+            "README recommends a smaller densify_grad_threshold (0.00002) specifically for equirectangular projections due to increased memory demands"
+          ],
+          "quotes": [],
+          "code_refs": [
+            "github.com/inuex35/360-gaussian-splatting"
+          ]
+        }
+      ]
+    },
+    {
+      "slice": "Outdoor infrastructure splat quality: sky handling, appearance/exposure correction, anti-aliasing, floater pruning, transient-object masking, nadir/tripod holes, scale calibration/georeferencing",
+      "summary": "Since roughly late 2025, open-source 3DGS tooling has converged on a fairly standard \"outdoor quality checklist\" that is now mostly flag-toggles rather than custom code. gsplat's simple_trainer.py exposes app_opt (per-image appearance embedding), post_processing={bilateral_grid,ppisp} for exposure/white-balance drift, and an antialiased flag implementing Mip-Splatting's 2D/3D filter (though gsplat issue #840 shows it can delete thin high-frequency detail). StopThePop's per-ray depth sorting remains a standalone fork (r4dl/StopThePop), not merged into gsplat/nerfstudio mainline. Sky handling has moved from \"just let it floater\" to explicit sky masks (skyseg U-2-Net/onnx) or dedicated sky Gaussians/skyboxes (spirulae-splat's background_mode=sh, PostShot's sky sphere, the March-2026 R3GW paper). Transient-object handling for moving cars/pedestrians now has both automatic methods (SpotLessSplats' diffusion-feature+residual masking, RobustSplat's delayed-densification + scale-cascaded mask bootstrapping, ICCV 2025) and practical mask-generation tooling (YOLO/SAM2.1/SAM3.1 in stechdrive-3dgs-utils, MIT, v1.25.2 July 2026). Floater pruning has both research methods (TIDI-GS, Clean-GS, both Jan 2026 arXiv) and the de facto manual tool, SuperSplat (MIT, browser-based lasso/crop cleanup). For 360-specific capture, COLMAP 4.1.0 (June 26, 2026) added a native EQUIRECTANGULAR spherical camera model (faster but admittedly less accurate than perspective rendering per COLMAP's own notes), while SPAG-4D and stechdrive-3dgs-utils both use cubemap/pole-cap face-splitting to handle nadir/tripod holes and offer AprilTag-based metric scale calibration as an alternative to GPS EXIF, which Insta360's JPG equirect exports typically lack.",
+      "sources": [
+        {
+          "title": "gsplat (nerfstudio-project) - examples/simple_trainer.py",
+          "url": "https://github.com/nerfstudio-project/gsplat",
+          "date": "2026-06",
+          "key_claims": [
+            "Exposes post_processing: Literal['bilateral_grid','ppisp'] with bilateral_grid_fused and bilateral_grid_shape=(16,16,8) for per-image exposure/white-balance correction",
+            "Exposes app_opt (bool), app_embed_dim=16, app_opt_lr, app_opt_reg for per-image appearance embeddings",
+            "Exposes antialiased (bool) implementing a Mip-Splatting-style 2D filter, and pose_opt/pose_opt_lr for camera pose refinement",
+            "Dataset loader accepts an optional 'mask' field for ignore-region training",
+            "June 2026 changes added faster 3DGUT MCMC rasterization (~30% on A100) and Gaussian-ID rasterization"
+          ],
+          "quotes": [
+            "roughly 30% improvement on the 3DGUT MCMC path on an NVIDIA A100"
+          ],
+          "code_refs": [
+            "examples/simple_trainer.py: post_processing, bilateral_grid_shape, app_opt, app_embed_dim, antialiased, pose_opt"
+          ]
+        },
+        {
+          "title": "Antialiased Rendering Mode Causes Disappearance of Many Small Gaussians (Issue #840)",
+          "url": "https://github.com/nerfstudio-project/gsplat/issues/840",
+          "date": "",
+          "key_claims": [
+            "Switching gsplat's anti-aliasing mode from classic to antialiased (Mip-Splatting-derived) removed fine details like bicycle spokes and leaves",
+            "Behavior appeared inconsistent with the results shown in the original Mip-Splatting paper"
+          ],
+          "quotes": [],
+          "code_refs": []
+        },
+        {
+          "title": "COLMAP Release 4.1.0",
+          "url": "https://github.com/colmap/colmap/releases/tag/4.1.0",
+          "date": "2026-06-26",
+          "key_claims": [
+            "Added native spherical/EQUIRECTANGULAR camera models enabling reconstruction of 360 panoramic images without first rendering perspective views",
+            "Native equirectangular reconstruction is generally faster but less accurate than rendering perspective views (per panorama_sfm example)",
+            "Added Caspar, a GPU bundle-adjustment backend 1-2 orders of magnitude faster than the Ceres CUDA solver for medium/large problems",
+            "COLMAP 4.0.0 released 2026-03-14; 4.1.1 released 2026-07-17 with a feature-matching performance fix"
+          ],
+          "quotes": [
+            "generally faster but less accurate than rendering perspective views",
+            "1-2 orders of magnitude faster than the Ceres CUDA solver"
+          ],
+          "code_refs": [
+            "colmap feature_extractor --ImageReader.mask_path"
+          ]
+        },
+        {
+          "title": "spirulae-splat (harry7557558)",
+          "url": "https://github.com/harry7557558/spirulae-splat",
+          "date": "2026",
+          "key_claims": [
+            "Bilateral grid and PPISP exposure/white-balance correction both enabled by default, disabled via --model.no_use_bilateral_grid / --model.no_use_ppisp",
+            "PPISP is described as giving less color shift than the classic affine bilateral grid, trained with AdaGrad",
+            "Skybox/sky handling via --model.background_mode sh with regularization to balance sky removal vs transparency",
+            "Supports masking to either ignore regions (sky/background) or mask foreground (people/cars) via --model.apply_loss_for_mask",
+            "Three Gaussian primitive types: 3dgs (no AA), mip (Mip-Splatting anti-aliased), 3dgut (default, distortion-aware)",
+            "Licensed GPL-3.0"
+          ],
+          "quotes": [
+            "PPISP (default) gives less color shift"
+          ],
+          "code_refs": [
+            "--model.no_use_bilateral_grid",
+            "--model.bilagrid_shape",
+            "--model.background_mode sh",
+            "--model.apply_loss_for_mask"
+          ]
+        },
+        {
+          "title": "SPAG-4D: 360 Panorama to 3D Gaussian Splats (cedarconnor/SPAG4d)",
+          "url": "https://github.com/cedarconnor/SPAG4d",
+          "date": "2026",
+          "key_claims": [
+            "Converts a single equirectangular panorama into a 3DGS scene via four backends: DA360, DAP, PaGeR (depth-based) and SHARP-360 (Apple's per-face Gaussian prediction model)",
+            "SHARP-360 uses pole-cap faces (looking straight down/up) to fill the holes the horizon ring leaves at nadir and zenith, with tunable seam latitude 10-60 degrees",
+            "Optional OmniRoam refinement generates novel views to fill disocclusion holes",
+            "Core is MIT licensed; PaGeR and SHARP-360 backends carry non-commercial research-only upstream model licenses"
+          ],
+          "quotes": [
+            "Pole-cap faces (looking straight down/up) fill the holes the horizon ring leaves at the nadir and zenith"
+          ],
+          "code_refs": []
+        },
+        {
+          "title": "stechdrive/stechdrive-3dgs-utils",
+          "url": "https://github.com/stechdrive/stechdrive-3dgs-utils",
+          "date": "2026-07-09",
+          "key_claims": [
+            "Windows GUI pipeline turning 360 video/still-image sequences into scale-calibrated 3DGS training assets",
+            "Offers three mask tiers: YOLO/SAM2.1 (fast person masks), YOLO26-sem (Cityscapes classes, defaults to person+sky, extendable to vehicles/vegetation), SAM3.1 (prompt-controlled, can add missed targets like tripods or subtract false positives like signs)",
+            "AprilTag scale calibration: user enters printed tag size and IDs, tool estimates metric scale and rescales camera positions plus point cloud",
+            "Three SfM paths: import existing Metashape/RealityScan results, COLMAP cubemap rig (360 images expanded to cubemap faces), or COLMAP 4.1+ native EQUIRECTANGULAR camera model",
+            "Exports to NeRF JSON/PLY, COLMAP format, LichtFeld Studio, Postshot, and Brush-compatible cubemap datasets",
+            "Latest release v1.25.2, MIT licensed application code, 767 commits"
+          ],
+          "quotes": [
+            "add missed targets such as tripods or subtract false detections such as signs and logos",
+            "COLMAP's native EQUIRECTANGULAR camera model, so no forked COLMAP build is required"
+          ],
+          "code_refs": [
+            "--ImageReader.mask_path",
+            "COLMAP Cubemap Rig mode",
+            "COLMAP 4.1+ Spherical mode"
+          ]
+        },
+        {
+          "title": "SpotLessSplats: Ignoring Distractors in 3D Gaussian Splatting",
+          "url": "https://arxiv.org/pdf/2406.20055",
+          "date": "2025",
+          "key_claims": [
+            "Combines pre-trained Stable Diffusion semantic features with iterative reconstruction residuals to adaptively identify transient distractor regions without manual masks",
+            "Published in ACM Transactions on Graphics 2025",
+            "Targets casual captures with moving people, animals, or changing lighting that break 3DGS's inter-frame consistency assumption"
+          ],
+          "quotes": [],
+          "code_refs": []
+        },
+        {
+          "title": "RobustSplat: Decoupling Densification and Dynamics for Transient-Free 3DGS",
+          "url": "https://github.com/fcyycf/RobustSplat",
+          "date": "2025-06",
+          "key_claims": [
+            "ICCV 2025 paper; delayed Gaussian growth strategy prioritizes static structure before allowing splitting/cloning, reducing overfitting to transient objects early in optimization",
+            "Scale-cascaded mask bootstrapping starts from low-resolution feature-similarity supervision for initial transient masks then refines at high resolution"
+          ],
+          "quotes": [],
+          "code_refs": []
+        },
+        {
+          "title": "Splatfacto-W: A Nerfstudio Implementation of Gaussian Splatting for Unconstrained Photo Collections",
+          "url": "https://arxiv.org/pdf/2407.12306",
+          "date": "2024-07",
+          "key_claims": [
+            "Integrates per-image appearance embeddings (48-dim) and per-Gaussian appearance features (72-dim) plus a spherical-harmonics background model for varying photometric appearance and transient objects",
+            "Improves PSNR by an average of 5.3 dB over vanilla 3DGS on unconstrained (multi-time-of-day) photo collections"
+          ],
+          "quotes": [],
+          "code_refs": []
+        },
+        {
+          "title": "TIDI-GS: Floater Suppression in 3D Gaussian Splatting for Enhanced Indoor Scene Fidelity",
+          "url": "https://arxiv.org/html/2601.09291v1",
+          "date": "2026-01",
+          "key_claims": [
+            "Floaters are defined as Gaussians spatially isolated from the dense/coherent manifolds that valid geometry forms",
+            "Composite pruning score combines spatial isolation with low opacity and low learned importance signals"
+          ],
+          "quotes": [],
+          "code_refs": []
+        },
+        {
+          "title": "Clean-GS: Semantic Mask-Guided Pruning for 3D Gaussian Splatting",
+          "url": "https://arxiv.org/abs/2601.00913",
+          "date": "2026-01",
+          "key_claims": [
+            "Removes background clutter and floaters using sparse semantic masks via whitelist-based spatial filtering plus color-guided validation and outlier removal",
+            "Achieves 60-80% model compression while preserving object quality"
+          ],
+          "quotes": [],
+          "code_refs": []
+        },
+        {
+          "title": "SuperSplat Editor (playcanvas/supersplat) developer docs",
+          "url": "https://developer.playcanvas.com/user-manual/supersplat/editor/",
+          "date": "2026",
+          "key_claims": [
+            "Open-source, browser-based, MIT-licensed editor for cleaning up raw splat captures: trimming floaters, cropping scenes, retouching colors, before publishing",
+            "Provides 8 selection tools: Picker, Lasso, Polygon, Brush, Flood, Eyedropper, Sphere Select, Box Select"
+          ],
+          "quotes": [],
+          "code_refs": []
+        },
+        {
+          "title": "georeferenced_gsplat (manudelu)",
+          "url": "https://github.com/manudelu/georeferenced_gsplat",
+          "date": "",
+          "key_claims": [
+            "Pipeline chaining COLMAP SfM, 3D Gaussian Splatting training, and SuGaR mesh refinement, using drone-image GPS EXIF as the georeferencing anchor",
+            "Converts the COLMAP reconstruction to an ENU (East-North-Up) coordinate frame using the first image's GPS position as reference",
+            "Exports to formats compatible with Cesium Ion and Unreal Engine"
+          ],
+          "quotes": [],
+          "code_refs": []
+        }
+      ],
+      "recommendations": [
+        "Replace the ffmpeg-frame-extraction step (irrelevant for 20 stills) with a cubemap/perspective-face split per panorama before COLMAP, rather than relying on COLMAP 4.1's new native EQUIRECTANGULAR camera model alone -- COLMAP's own 4.1.0 release notes call native spherical reconstruction 'generally faster but less accurate than rendering perspective views,' and with only 20 source stations pose accuracy matters more than speed.",
+        "Add a per-face masking pre-pass before COLMAP feature extraction: sky mask (skyseg U-2-Net/onnx, MIT) + tripod/nadir mask, fed to COLMAP via ImageReader.mask_path so no SfM features are matched on sky or the tripod blob -- directly reduces the floater count gsplat/Brush will otherwise have to prune later.",
+        "If any of the 20 panoramas show moving cars or pedestrians on the roadway, run YOLO/SAM2.1 (or SAM3.1 prompt masks) to produce ignore-region masks and pass them into gsplat's dataset `mask` field (or spirulae-splat's `apply_loss_for_mask`) during training, not just at the COLMAP stage -- this is the same approach stechdrive-3dgs-utils and RobustSplat/SpotLessSplats use to stop transient objects from becoming ghost splats.",
+        "Turn on gsplat's existing appearance-correction flags for training: `app_opt=True` (16-dim per-image embedding) and `post_processing='bilateral_grid'` or `'ppisp'` (spirulae-splat reports PPISP gives less color shift) -- this is a config change, not new code, and directly targets exposure/white-balance drift across 20 shots taken at different times of day.",
+        "A/B test gsplat's `antialiased` (Mip-Splatting) flag on the bridge scene specifically -- gsplat issue #840 documents it deleting thin high-frequency structures (bike spokes, by analogy cables/railings), which matters for a bridge's guardrails and cable geometry; don't assume anti-aliasing is a free win here.",
+        "Add an explicit scale-calibration step since 20 tripod-mounted 360 stills won't carry a GPS track the way drone footage does (Insta360 JPG equirect export typically drops GPS unless a GPX/embed option is explicitly used): either place one printed AprilTag of known size in a couple of frames (as stechdrive-3dgs-utils does) or feed COLMAP's model_aligner one or two known real-world distances (railing post spacing, lane width) as control points -- otherwise the splat is unscaled and can't be measured or georeferenced.",
+        "Add a cheap manual cleanup pass with SuperSplat (browser-based, MIT, playcanvas/supersplat) before shipping artifact.splat: crop scene bounds and lasso-remove stray sky/water floaters -- no new dependency, it's already the community-standard post-processing step.",
+        "For the nadir tripod hole in each of the 20 stations, don't attempt generative inpainting (overkill for 20 stills) -- either mask-and-accept the hole (simplest) or crop/plane-fill it in SuperSplat afterward; reserve pole-cap-with-seam-latitude techniques (SPAG-4D's approach) only if a filled floor patch under each station is actually needed for the fly-through."
+      ],
+      "uncertainties": [
+        "Whether StopThePop's per-ray depth sorting has ever been merged into gsplat, nerfstudio, or any other mainline trainer -- all evidence found shows it remains a standalone reference implementation/fork (r4dl/StopThePop, r4dl/StopThePop-Rasterization); could not confirm any upstream integration.",
+        "Exact GPS/EXIF retention behavior of the Insta360 X4 Air's own equirectangular JPG export path specifically -- only general Insta360 X4 behavior was confirmed (raw .insv/GPX retains GPS, exported JPG/MP4 via software typically does not by default).",
+        "The full expansion/meaning of the 'PPISP' acronym used by gsplat and spirulae-splat as a bilateral-grid alternative was not found in any fetched source.",
+        "Moshpit360 (LichtFeld Studio plugin for one-click 360 video to 3DGS) had no confirmed release date, explicit license, or documented nadir/sky/scale-handling behavior as of the source checked -- described only as 'in the final stages of development.'",
+        "Whether the 'sky segmentation network unifying transformers with a lightweight MLP' phrasing that surfaced in search summaries refers to one specific named 2026 tool/paper or is a generic paraphrase spanning several outdoor-3DGS papers (e.g., R3GW) could not be pinned to a single primary source.",
+        "No primary source specifically benchmarked any of these techniques (bilateral grid, sky masking, transient masking, AA) on a bridge/roadway scene or on Insta360-style 360 still-photo panoramas as opposed to drone/video capture -- the bridge-specific applicability is an inference, not a directly confirmed claim."
+      ]
     }
   ]
 }

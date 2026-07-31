@@ -1,0 +1,155 @@
+{
+  "slice": "Open-source splat trainers and desktop apps, state as of mid-2026 (for Orbit Studio's 20-still-photo 360 bridge pipeline)",
+  "summary": "Four open trainers matter as of July 2026. Brush (ArthurBrussee/brush, Apache-2.0) last tagged v0.3.0 on 2025-09-14 but main is still committed to through 2026-07-20; it's the only one that runs without CUDA (NVIDIA/AMD/Apple via wgpu/Burn, even in-browser), needs COLMAP or nerfstudio-format poses as input, and has no equirectangular/360 handling. LichtFeld Studio (MrNeRF/LichtFeld-Studio, GPL-3.0) is the most active native app: v0.5.0 (2026-03-18) added plugins/MCP, v0.5.3 (2026-06-24, 316 commits) added a Vulkan viewer, VRAM improvements and an Asset Manager; it requires CUDA 12.8+ and an NVIDIA GPU. Its plugin ecosystem is the standout 2026 development for this exact use case: the Moshpit360 plugin (2026-05-23) takes still images or Insta360 video, auto-detects camera/lens, replaces COLMAP's incremental SfM with GLOMAP, and hands off straight to LichtFeld training with no manual config; a separate lichtfeld-360-plugin and a COLMAP-integration plugin exist too. gsplat (Apache-2.0) hasn't tagged a release since v1.5.3 (2025-07-04) but main keeps evolving -- 3DGUT distorted-camera extensions and LiDAR rasterization landed March 2026, ~30% 3DGUT speedup in June 2026 -- none of it yet true equirectangular rasterization (that stays in research papers like SPaGS/Spherical-GOF/UniTriSplat). nerfstudio/splatfacto (Apache-2.0) has stalled: last commit 2025-07-29, last release v1.1.5 (2024-11-11), and splatfacto's rasterizer still can't render fisheye/equirect. OpenSplat (AGPL-3.0) gets commits into 2026-05-31 but hasn't tagged since v1.1.4 (2024-08-22). Foundational context: COLMAP 4.1.0 (2024-06-26) added native spherical/equirectangular camera models for SfM, which is what plugins like lichtfeld-360-plugin build rig-constrained pose estimation on top of. Closed contrast: Jawset Postshot v1.1 (2026-05-13, closed-source) accepts photos/video with auto frame extraction, no confirmed native equirect mode; Epic's RealityScan (free under $1M revenue) added Radiance Field export at v1.5 and handheld-SLAM support at v2.1, but the real splat training still happens in Postshot downstream of RealityScan's alignment.",
+  "sources": [
+    {
+      "title": "Releases · ArthurBrussee/brush",
+      "url": "https://github.com/ArthurBrussee/brush/releases",
+      "date": "2025-09-14",
+      "key_claims": [
+        "Latest tagged release is v0.3.0, published 2025-09-14; earlier tags are 0.2.0 (2025-01-30) and brush-0.0.1 (2024-11-12)",
+        "Cargo.toml on main still reads version 0.3.0; repo license is Apache-2.0",
+        "Main branch received commits as recently as 2026-07-20 and 2026-07-01, so development continues without a new version tag",
+        "x64 Windows builds are provided as release assets"
+      ],
+      "quotes": [
+        "3D Reconstruction for all"
+      ],
+      "code_refs": [
+        "ArthurBrussee/brush releases/tag/v0.3.0"
+      ]
+    },
+    {
+      "title": "Brush — Cross-Platform Local Gaussian Splatting Trainer",
+      "url": "https://radiancefields.com/platforms/brush",
+      "date": "2026",
+      "key_claims": [
+        "Brush runs on NVIDIA, AMD, and Apple Silicon GPUs and can train directly in a WebGPU-compatible browser, so it needs no CUDA install",
+        "Brush takes in COLMAP data or Nerfstudio-format datasets rather than estimating poses itself, so it is not COLMAP-free",
+        "Page itself describes Brush as 'currently a proof of concept' with no published VRAM minimums or benchmark comparisons to gsplat/LichtFeld/Postshot"
+      ],
+      "quotes": [
+        "3D Reconstruction for all"
+      ]
+    },
+    {
+      "title": "GitHub - MrNeRF/LichtFeld-Studio releases",
+      "url": "https://github.com/MrNeRF/LichtFeld-Studio",
+      "date": "2026-06-24",
+      "key_claims": [
+        "Latest release v0.5.3 (2026-06-24) titled 'Vulkan viewer, VRAM improvements, Asset Manager, and countless other things', merging 316 commits",
+        "v0.5.0 (2026-03-18) introduced plugins, an embedded Python runtime, MCP integration, rmlui, and a sequencer",
+        "v0.5.1 (2026-03-31) added viewport splitting and USD import/export; v0.5.2 released 2026-04-21; v0.4.2 (2026-02-03) added undistort and alpha-as-mask",
+        "Repo license is GPL-3.0; training requires CUDA and an NVIDIA GPU (CUDA 12.8+)"
+      ],
+      "quotes": [
+        "Train, inspect, edit, automate, and export 3D Gaussian Splatting scenes from a single native application."
+      ]
+    },
+    {
+      "title": "Core11 Extends Support for LichtFeld Studio Through 2026",
+      "url": "https://radiancefields.com/core11-extends-support-for-lichtfeld-studio-through-2026",
+      "date": "2026",
+      "key_claims": [
+        "Core11 GmbH extended sponsorship of LichtFeld Studio through end of 2026, bringing total sponsorship to €36,500 as a Foundational Sponsor"
+      ]
+    },
+    {
+      "title": "Moshpit360 Brings One-Click 360° Video to 3DGS Plugin to LichtFeld Studio",
+      "url": "https://radiancefields.com/moshpit360-brings-one-click-360%C2%B0-video-to-3dgs-plugin-to-lichtfeld-studio",
+      "date": "2026-05-23",
+      "key_claims": [
+        "Moshpit360 is a free, open-source LichtFeld Studio plugin accepting already-stitched equirectangular 360 video, raw Insta360 .insv files, standard flat video, or a folder of still images",
+        "It replaces COLMAP's incremental SfM pipeline with GLOMAP for faster alignment, auto-detects camera models and lens parameters, checks capture density, then hands off directly to LichtFeld Studio training with no manual configuration"
+      ],
+      "quotes": [
+        "without requiring the user to touch stitching software, COLMAP, or any training configuration"
+      ]
+    },
+    {
+      "title": "Release 4.1.0 · colmap/colmap",
+      "url": "https://github.com/colmap/colmap/releases/tag/4.1.0",
+      "date": "2024-06-26",
+      "key_claims": [
+        "Added spherical (equirectangular) camera models enabling native SfM reconstruction of 360 panoramic images, described as faster but less accurate than rendering perspective views first",
+        "Added Caspar, a GPU bundle-adjustment backend 1-2 orders of magnitude faster than Ceres/CUDA for medium-large problems",
+        "Added wide-FOV camera models: EUCM, FISHEYE, SIMPLE_FISHEYE, DIVISION, RAD_TAN_THIN_PRISM_FISHEYE"
+      ],
+      "quotes": [
+        "Added the spherical (equirectangular) camera models."
+      ]
+    },
+    {
+      "title": "Releases · nerfstudio-project/gsplat",
+      "url": "https://github.com/nerfstudio-project/gsplat/releases",
+      "date": "2025-07-04",
+      "key_claims": [
+        "Latest tagged/pip release is v1.5.3 (2025-07-04); no newer version has been tagged as of 2026-07-23",
+        "Main branch commits continue through 2026-07-20; license is Apache-2.0",
+        "2026 main-branch additions include 3DGUT distorted-camera extensions and per-ray gradients (March), LiDAR rasterization (March), PPISP bilateral-grid alternative (January), and a ~30% 3DGUT speedup on A100 (June)"
+      ],
+      "quotes": [
+        "CUDA accelerated rasterization of gaussian splatting"
+      ]
+    },
+    {
+      "title": "GitHub - pierotofy/OpenSplat",
+      "url": "https://github.com/pierotofy/OpenSplat",
+      "date": "2024-08-22",
+      "key_claims": [
+        "Latest tagged release is v1.1.4 (2024-08-22); repo license is AGPL-3.0",
+        "Main branch still received commits as recently as 2026-05-31, i.e. maintained but not re-tagged in nearly two years",
+        "Documented as supporting Windows, Mac and Linux with CPU/GPU (CUDA) builds"
+      ],
+      "quotes": [
+        "Production-grade 3D gaussian splatting with CPU/GPU support for Windows, Mac and Linux"
+      ]
+    },
+    {
+      "title": "GitHub - nerfstudio-project/nerfstudio",
+      "url": "https://github.com/nerfstudio-project/nerfstudio",
+      "date": "2024-11-11",
+      "key_claims": [
+        "Latest tagged release is v1.1.5 (2024-11-11); most recent commit on main is 2025-07-29 -- no activity in the last year",
+        "License is Apache-2.0",
+        "Splatfacto (nerfstudio's 3DGS method) cannot render fisheye or equirectangular images because its gsplat-based rasterizer assumes a pinhole camera"
+      ]
+    },
+    {
+      "title": "Postshot User Guide - Release Notes",
+      "url": "https://www.jawset.com/docs/d/Postshot+User+Guide/Release+Notes",
+      "date": "2026-05-13",
+      "key_claims": [
+        "Latest version is v1.1, released 2026-05-13",
+        "Postshot is closed-source and accepts JPG/PNG/TIF/EXR/DNG/RAW photos plus MOV/MP4/MKV video with automatic frame extraction",
+        "No explicit equirectangular/360 input mode was found documented on the release-notes page itself"
+      ]
+    },
+    {
+      "title": "RealityScan 2.0 Announced",
+      "url": "https://radiancefields.com/realityscan-2-0-announced",
+      "date": "2026",
+      "key_claims": [
+        "RealityScan (Epic Games) is free for commercial use for individuals/companies under $1M USD annual gross revenue",
+        "RealityScan added Radiance Field (gaussian splat) export starting at v1.5; v2.1 added support for handheld SLAM-based scanners and higher-quality default feature detection",
+        "Typical workflow uses RealityScan for alignment/point-cloud generation and Postshot downstream to actually produce the trained gaussian splat"
+      ]
+    }
+  ],
+  "recommendations": [
+    "Keep the equirect-to-perspective reframe step before pose estimation/training in Orbit Studio: as of mid-2026 no production-ready open trainer (Brush, LichtFeld Studio, gsplat/splatfacto, OpenSplat) does true equirectangular Gaussian rasterization -- that stays research-stage (SPaGS, Spherical-GOF, UniTriSplat, all arXiv papers). For 20 stills, reframing each panorama into 6-8 perspective crops (~120-160 effective views) matters more to reconstruction quality than which trainer you pick.",
+    "Make Brush (ArthurBrussee/brush, Apache-2.0) the local/offline default trainer specifically because it is the only open trainer of the four that needs no CUDA -- it runs on NVIDIA, AMD, Apple, and even in-browser via wgpu/Burn. That is the right fit for 'a Windows laptop user' whose GPU vendor/capability is unknown, which is also the reason the Colab T4 fallback exists in the current pipeline. Brush still expects COLMAP or nerfstudio-format poses as input -- it is not a COLMAP replacement, so pycolmap stays in the pipeline regardless of trainer choice.",
+    "For users confirmed to have an NVIDIA GPU, prefer LichtFeld Studio (GPL-3.0, v0.5.3, 2026-06-24) over Brush: it is the most actively developed native trainer app (Vulkan viewer, Asset Manager, plugin/MCP system, 316 commits in the latest release alone) and its Moshpit360 plugin (2026-05-23) is a direct template for Orbit Studio's own ingestion step -- it already auto-detects camera model, swaps COLMAP's incremental SfM for GLOMAP, and trains a folder of still images or Insta360 footage with zero manual config. Consider replicating that COLMAP->GLOMAP swap in Orbit Studio's own bundle.zip step for faster free-tier Colab runs.",
+    "Deprioritize nerfstudio/splatfacto for new work: no commits since 2025-07-29 and no release since v1.1.5 (2024-11-11). It offers nothing Brush/LichtFeld don't already do better, and its rasterizer still can't handle fisheye/equirect cameras natively.",
+    "Track gsplat's main branch (not its pip releases, which are frozen at v1.5.3 since 2025-07-04) for the 3DGUT distorted-camera path -- it's gaining fisheye/wide-FOV support and a documented ~30% speedup (June 2026), which is relevant if Orbit Studio ever wants to skip the perspective-crop step for wide-angle (not full 360) captures. It is not yet full equirectangular support.",
+    "Note OpenSplat (AGPL-3.0) as the copyleft outlier among the open trainers -- its license is stricter than Brush/gsplat's Apache-2.0 or even LichtFeld's GPL-3.0, worth flagging if Orbit Studio cares about downstream licensing terms, especially since it hasn't had a tagged release since 2024-08-22 despite ongoing commits.",
+    "Use Postshot/RealityScan only as closed-source quality benchmarks, not as pipeline components -- neither has confirmed native equirectangular ingestion, and RealityScan's own splat workflow still routes through Postshot for training."
+  ],
+  "uncertainties": [
+    "Postshot's exact free-tier limits/pricing and whether v1.1 has a native 360/equirectangular import mode were not found on the fetched release-notes/guide pages -- would need to check jawset.com's main product/pricing page directly.",
+    "LichtFeld Studio's minimum/recommended VRAM figure was not stated on any fetched page (only 'CUDA 12.8+, NVIDIA GPU required' was confirmed) -- worth checking the LichtFeld Studio Discord/docs or portal.lichtfeld.io directly for a concrete number.",
+    "Whether gsplat's 3DGUT extensions on main can rasterize a full equirectangular (spherical) camera model, versus only fisheye/wide-FOV distorted pinhole variants, is unclear from documentation -- research papers suggest true panoramic rasterization is still a separate, unmerged research direction as of mid-2026.",
+    "Whether LichtFeld Studio bundles COLMAP or always requires it via a separate plugin (a 'Lichtfeld-COLMAP-Plugin' exists as a distinct GitHub repo, implying COLMAP is not bundled by default) was not conclusively confirmed.",
+    "Brush's Windows distribution form (polished GUI installer vs. a raw precompiled binary/CLI) could not be fully confirmed from the fetched pages beyond an asset named 'brush-app' for Windows; the project self-describes as 'currently a proof of concept.'"
+  ]
+}
