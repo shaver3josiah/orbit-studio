@@ -106,11 +106,17 @@ def run(
 
 
 def run_single_image(project_dir: Path, source: Path, ctx: RunContext) -> dict:
+    return run_multi_image(project_dir, [source], ctx)
+
+
+def run_multi_image(project_dir: Path, sources: list[Path], ctx: RunContext) -> dict:
     out_dir = project_dir / "frames"
     out_dir.mkdir(parents=True, exist_ok=True)
-    ctx.report(10, "copying single equirect image as frame")
-    with Image.open(source) as image:
-        rgb = image.convert("RGB")
-        rgb.save(out_dir / "f_00001.jpg", quality=95)
-    ctx.report(100, "frames complete kept=1 of 1")
-    return {"extracted": 1, "kept": 1}
+    total = len(sources)
+    for index, source in enumerate(sources, start=1):
+        ctx.check_cancelled()
+        with Image.open(source) as image:
+            image.convert("RGB").save(out_dir / f"f_{index:05d}.jpg", quality=95)
+        ctx.report(int(index / total * 100) if total else 100, f"copied panorama {index}/{total}")
+    ctx.report(100, f"frames complete kept={total} of {total}")
+    return {"extracted": total, "kept": total}
