@@ -177,7 +177,58 @@ def save_tour(tour: dict) -> None:
     path = tdir / "tour.json"
     with TOURS_IO_LOCK:
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(tour, indent=2), encoding="utf-8")
+        _write_tour(path, tour)
+
+
+TOUR_SCHEMA_VERSION = 1
+
+
+def _write_tour(path: Path, tour: dict) -> None:
+    """Serialise a tour. Caller must already hold TOURS_IO_LOCK.
+
+    Every write goes through here, so the version stamp goes here too rather
+    than at each of the three call sites that would have to remember it. The
+    field is a marker for a future reader, not a gate: nothing refuses a
+    document for lacking it, because every tour written before today lacks it
+    and they all still load.
+    """
+    tour["v"] = TOUR_SCHEMA_VERSION
+    path.write_text(json.dumps(tour, indent=2), encoding="utf-8")
+
+
+def save_tour_if_current(tour: dict, seen: Optional[str]) -> Optional[dict]:
+    """Write a tour only if nobody else wrote it since the client last read.
+
+    Compare-and-swap under ONE hold of the lock. The version this replaces did
+    the reading in handle_tour_save and the writing in save_tour, each taking
+    and releasing the lock separately, with the request's own body read sitting
+    in between. Every request gets its own thread (ThreadingHTTPServer), so two
+    editors posting the same `updated` both passed the comparison and the later
+    write silently won — which is the exact loss the comparison was added to
+    prevent. Reading the body is still done by the caller, outside the lock; it
+    waits on a client and must not hold the tours directory while it does.
+
+    Returns the written document, or None when the client is working from a
+    version that is no longer on disk.
+    """
+    tdir = tour_dir(tour["id"])
+    if tdir is None:
+        raise ValueError(f"bad tour id {tour['id']!r}")
+    path = tdir / "tour.json"
+    with TOURS_IO_LOCK:
+        try:
+            current = json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            current = {}
+        # A payload with no "updated" at all is a first save or a non-browser
+        # client and is let through unchanged, as it always was.
+        if seen and current.get("updated") and seen != current["updated"]:
+            return None
+        tour["created"] = current.get("created", tour.get("created"))
+        tour["updated"] = datetime.now(timezone.utc).isoformat()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        _write_tour(path, tour)
+    return tour
 
 
 def list_tours() -> list[dict]:
@@ -1052,10 +1103,12 @@ def handle_tour_save(handler: "Handler", tour_id: str) -> None:
     # Two editors on one tour used to overwrite each other in silence, because a
     # save posts the WHOLE document. If the client is working from a version
     # that is no longer the one on disk, refuse rather than clobber; the client
-    # keeps its edits and decides. A payload with no "updated" at all is a
-    # first save or a non-browser client and is let through unchanged.
-    seen = payload.get("updated")
-    if seen and existing.get("updated") and seen != existing["updated"]:
+    # keeps its edits and decides. The comparison and the write happen under one
+    # hold of the lock inside save_tour_if_current — see the note there for why
+    # doing them separately did not actually stop the clobbering.
+    payload["id"] = tour_id
+    written = save_tour_if_current(payload, payload.get("updated"))
+    if written is None:
         send_error(
             handler,
             409,
@@ -1063,12 +1116,8 @@ def handle_tour_save(handler: "Handler", tour_id: str) -> None:
             "this tour was changed somewhere else since you loaded it",
         )
         return
-    payload["id"] = tour_id
-    payload["created"] = existing.get("created", payload.get("created"))
-    payload["updated"] = datetime.now(timezone.utc).isoformat()
-    save_tour(payload)
-    prune_tour_files(payload)
-    send_json(handler, 200, payload)
+    prune_tour_files(written)
+    send_json(handler, 200, written)
 
 
 def handle_tour_delete(handler: "Handler", tour_id: str) -> None:

@@ -532,16 +532,43 @@
   .plan-box {
     position: relative; aspect-ratio: 1; margin: var(--s2) 0;
     background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-sm);
-    /* north is up, and a grid says "sketch" rather than "survey" */
+    /* north is up, and a grid says "sketch" rather than "survey". Ruled at a
+       round number of metres when the plate has a scale — renderPlan sets
+       --plan-grid — and at plain quarters when it does not. */
     background-image: linear-gradient(var(--line) 1px, transparent 1px),
                       linear-gradient(90deg, var(--line) 1px, transparent 1px);
-    background-size: 25% 25%; background-position: -1px -1px;
+    background-size: var(--plan-grid, 25%) var(--plan-grid, 25%);
+    background-position: -1px -1px;
   }
   .plan-box:empty { opacity: 0.5; }
-  /* the structure, under the photos: absolutely positioned so the dots keep
-     using the same percentage coordinates they always did */
-  .plan-deck { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
-  .plan-deck line { stroke: var(--ink-3); stroke-width: 3; stroke-linecap: round; opacity: .45; }
+  /* the structure and the links, under the photos: absolutely positioned so the
+     dots keep using the same percentage coordinates they always did */
+  .plan-lines { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  /* the deck reads as a deck: a band you could drive on, a centreline, and a
+     tick across each end where the abutments are. The band alone is stroked in
+     the plate's own units rather than pixels, so it stays the same width as the
+     kerbs and abutment ticks drawn either side of it at any plate size. */
+  .plan-deck .band { stroke: var(--ink-3); stroke-width: 6; stroke-linecap: butt; opacity: .16; }
+  .plan-deck .edge, .plan-deck .abut { stroke: var(--ink-3); stroke-width: 1.5; opacity: .5; }
+  .plan-deck .mid { stroke: var(--ink-3); stroke-width: 1; stroke-dasharray: 5 5; opacity: .45; }
+  /* a walkable pair is a plain line; a one-way link is dashed and carries the
+     arrow, because from the far side it is a dead end */
+  .plan-edges line { stroke: var(--ink-3); stroke-width: 1.5; opacity: .75; }
+  .plan-edges line.one { stroke-dasharray: 4 3; }
+  .plan-edges line.on { stroke: var(--accent); opacity: 1; stroke-width: 2; }
+  .plan-arrow { fill: var(--ink-3); }
+  /* Where the photo you are editing is looking. Under the dots, quiet enough
+     to read as a direction rather than a second object on the plate. */
+  .plan-facing { fill: var(--accent); opacity: .16; }
+  /* A hairline is not a click target. These are the same edges again, eleven
+     pixels wide and invisible, purely so a link can be cut by pointing at it —
+     and they say so on hover rather than only in the note. */
+  .plan-cuts line { stroke: transparent; stroke-width: 11; pointer-events: stroke; cursor: pointer; }
+  .plan-cuts line:hover { stroke: var(--danger); stroke-opacity: .3; }
+  @media (pointer: coarse) { .plan-cuts line { stroke-width: 18; } }
+  /* the link being drawn by a drag, from the photo to the cursor */
+  .plan-band { stroke: var(--accent); stroke-width: 2; stroke-dasharray: 4 4; }
+  .plan-band[hidden] { display: none; }
   .plan-dot {
     position: absolute; width: 11px; height: 11px; padding: 0;
     transform: translate(-50%, -50%); border-radius: 50%;
@@ -557,17 +584,61 @@
   button.plan-dot:hover { transform: translate(-50%, -50%) scale(1.35); border-color: var(--accent); }
   button.plan-dot:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .plan-dot.on { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-tint); }
-  /* Plant on the deck. A square, because every photo on this plate is a circle
-     and the one thing here that is not a photo should not read as one. */
-  .plan-plant {
-    position: absolute; width: 13px; height: 13px;
-    transform: translate(-50%, -50%) rotate(45deg);
-    border: 2px solid var(--warning); background: transparent;
-    pointer-events: none;
+  /* After .on deliberately: the photo you are editing can also be the one
+     nothing links to, and both facts have to survive on one eleven-pixel mark.
+     Accent fill says "here", danger ring says "and it is not in the walk". */
+  /* colour only, never the border STYLE: dashed already means "this position
+     is a guess", and forcing it solid to say "unreachable" would trade one
+     fact for the other on a mark that has to carry both. */
+  .plan-dot.stray { border-color: var(--danger); }
+  /* How many defects were marked on this photo. --accent-ink is the light-dark
+     pair that stays legible on --defect in both themes — 5.4:1 on the light
+     theme's #C0392B, 6.7:1 on the dark theme's #FF6B5E. Plain white would hold
+     up on the first and fall to 2.8:1 on the second, which is why the count is
+     not simply white. */
+  .plan-def {
+    position: absolute; left: 72%; bottom: 72%;
+    min-width: 14px; height: 14px; padding: 0 3px;
+    border-radius: var(--r-pill); background: var(--defect); color: var(--accent-ink);
+    font-size: var(--t-xs); line-height: 14px; text-align: center;
+    pointer-events: none; box-shadow: 0 0 0 1.5px var(--bg);
+  }
+  /* North was only ever claimed in a source comment; the bar is one grid cell,
+     so a distance can be stepped off the plate instead of guessed at. */
+  .plan-north {
+    position: absolute; right: 7px; top: 9px; pointer-events: none;
+    font-size: var(--t-xs); font-weight: 600; color: var(--ink-3); letter-spacing: .04em;
+  }
+  .plan-north::after {
+    content: ''; position: absolute; left: 50%; top: -6px; transform: translateX(-50%);
+    border-left: 3.5px solid transparent; border-right: 3.5px solid transparent;
+    border-bottom: 6px solid var(--ink-3);
+  }
+  .plan-scale {
+    position: absolute; left: 9px; bottom: 7px; pointer-events: none;
+    font-size: var(--t-xs); line-height: 1.5; color: var(--ink-2);
+    text-align: center; white-space: nowrap;
+  }
+  .plan-scale::before {
+    content: ''; display: block; height: 5px; opacity: .75;
+    border: 1px solid var(--ink-3); border-top: 0;
+  }
+  /* Plant on the deck, drawn as the thing it is: every photo on this plate is a
+     circle, and the one mark that is not a photo should not read as one. */
+  .plan-truck {
+    position: absolute; width: 26px; height: 14px;
+    transform: translate(-50%, -50%);
+    fill: none; stroke: var(--warning); stroke-width: 1.4;
+    pointer-events: none; overflow: visible;
   }
   .plan-dot.dragging {
     cursor: grabbing; transition: none; z-index: 1;
     transform: translate(-50%, -50%) scale(1.5); border-color: var(--accent);
+  }
+  /* the photo a drag is hovering over: drop here and the two get connected */
+  .plan-dot.target {
+    border-color: var(--accent); background: var(--accent-tint);
+    box-shadow: 0 0 0 4px var(--accent-tint); z-index: 1;
   }
   @media (prefers-reduced-motion: reduce) { .plan-dot { transition: none; } }
   /* a coarse pointer cannot hit eleven pixels: grow the target without growing
@@ -2167,6 +2238,40 @@ function planPositions(scenes) {
   };
 }
 
+/* True bearing from one plan position to the next — x east, y north, north up,
+   the same frame planPositions works in. */
+const planBearing = (from, to) => (Math.atan2(to.x - from.x, to.y - from.y) * 180 / Math.PI + 360) % 360;
+
+/* The tour's links as lines to draw between plotted photos.
+
+   A pair is ONE line however many arrows connect it, because two lines lying on
+   top of each other is one line as far as anyone reading the plan can tell. But
+   which way it works is worth keeping: a link placed in one direction only is a
+   dead end from the far side, and on the plan that is the difference between a
+   route and a trap. So `both` says whether it walks in both directions, and
+   `from`/`to` orient the arrow along the one direction that does work. */
+function planEdges(scenes, pts) {
+  const at = new Map((pts || []).map(p => [p.id, p]));
+  const edges = new Map();
+  for (const s of scenes || []) {
+    for (const h of s.hotspots || []) {
+      if (h.type !== 'link' || h.target === s.id) continue;
+      const here = at.get(s.id), there = at.get(h.target);
+      if (!here || !there) continue; /* a link to a deleted scene draws nothing */
+      /* one key per unordered pair, so A->B and B->A meet in the same slot */
+      const flip = s.id > h.target;
+      const key = flip ? `${h.target} ${s.id}` : `${s.id} ${h.target}`;
+      const e = edges.get(key) || { a: flip ? there : here, b: flip ? here : there, ab: false, ba: false };
+      if (flip) e.ba = true; else e.ab = true;
+      edges.set(key, e);
+    }
+  }
+  return [...edges.values()].map(e => ({
+    a: e.a, b: e.b, both: e.ab && e.ba,
+    from: e.ab ? e.a : e.b, to: e.ab ? e.b : e.a,
+  }));
+}
+
 /* A cell Excel will read back as the text that was typed. Quoting handles
    commas, quotes and newlines; the apostrophe handles the other thing, which is
    that Excel treats a leading =, +, - or @ as a formula no matter how it is
@@ -2187,17 +2292,70 @@ function csvCell(v) {
    from. Sorted by code NUMERICALLY, so D10 follows D9 rather than D1. */
 function registerCsv(tour) {
   const rows = [['Code', 'Type', 'Measure', 'Scene', 'Photo stop', 'Element', 'Station', 'Note']];
-  const found = [];
-  for (const s of tour?.scenes || []) {
-    for (const h of s.hotspots || []) {
-      if (h.type === 'defect') found.push([h, s]);
-    }
-  }
-  found.sort((a, b) => (parseInt(a[0].code?.slice(1), 10) || 0) - (parseInt(b[0].code?.slice(1), 10) || 0));
-  for (const [h, s] of found) {
+  const found = tourDefects(tour);
+  found.sort((a, b) => (parseInt(a.h.code?.slice(1), 10) || 0) - (parseInt(b.h.code?.slice(1), 10) || 0));
+  for (const { h, s } of found) {
     rows.push([h.code, h.defect, defectMeasure(h), s.name, s.stop, s.element, s.station, h.note]);
   }
   return rows.map(r => r.map(csvCell).join(',')).join('\r\n');
+}
+
+/* Every defect in the tour, with the photo it was marked on. Lives here rather
+   than beside the paper deliverables it was written for because the register,
+   the photo log, the editor's tally and now the plan all read it, and one
+   collection loop is enough for all four. */
+function tourDefects(tour) {
+  return (tour?.scenes || []).flatMap(s => (s.hotspots || [])
+    .filter(h => h.type === 'defect').map(h => ({ h, s })));
+}
+
+/* How many defects each photo carries. The register is a flat list with no map
+   in it, so this is what puts the findings back on the ground they were found
+   on. A photo with none is absent, not a zero — nothing to draw. */
+function defectCounts(tour) {
+  const out = new Map();
+  for (const { s } of tourDefects(tour)) out.set(s.id, (out.get(s.id) || 0) + 1);
+  return out;
+}
+
+/* A round number of metres to rule the grid and the scale bar at: the 1-2-5
+   sequence, the largest that still fits across the plate at least four times.
+   A grid at a quarter of an arbitrary span is decoration; a grid at 10 m is a
+   measurement, and it is the same pixels either way. */
+function niceMetres(span) {
+  const raw = (Number.isFinite(span) && span > 0 ? span : 1) / 4;
+  const pow = Math.pow(10, Math.floor(Math.log10(raw)));
+  return [5, 2, 1].map(m => m * pow).find(v => v <= raw) || pow;
+}
+
+/* Which way a photo looks, as a compass bearing: where the shutter pointed,
+   turned by however far the tour swings the view on opening — the same sum the
+   viewer's compass needle is drawn from, so the plan and the needle can never
+   disagree. No recorded heading returns null rather than north: a wedge is a
+   claim about which pier this is a shot of, and a guessed one is a wrong one. */
+function facingBearing(scene) {
+  const h = scene?.geo?.heading;
+  if (!Number.isFinite(h)) return null;
+  return +((((h + (scene.view?.yaw || 0)) % 360) + 360) % 360).toFixed(2);
+}
+
+/* The photos the finished tour cannot reach.
+
+   One definition, because there were two and they disagreed. The pre-share
+   check treated the first photo as the front door when no start scene had been
+   chosen; the scene list did not, so it printed a red orphan dot on the very
+   photo a visitor would land on and a warning about a tour that was fine. The
+   check's reading is the right one — something has to be the front door — so
+   that is the one that survives. */
+function strandedScenes(tour) {
+  const scenes = tour?.scenes || [];
+  if (!scenes.length) return [];
+  const linked = new Set();
+  for (const s of scenes) {
+    for (const h of s.hotspots || []) if (h.type === 'link' && h.target) linked.add(h.target);
+  }
+  const startId = tour.settings?.startScene || scenes[0].id;
+  return scenes.filter(s => s.id !== startId && !linked.has(s.id)).map(s => s.id);
 }
 
 /* --- pure helpers end --- */
@@ -2383,12 +2541,9 @@ const NAV_AUDIO_OFF_SVG = '<svg viewBox="0 0 24 24" width="22" height="22" fill=
    over is the standalone export — which only ever runs renderViewer. Leaving
    these in the editor meant the zip a bridge owner archives contained neither
    the defect register nor the photo log, while the docs said it did. Both are
-   built in the browser from the tour document, so they work with no server. */
-function tourDefects(tour) {
-  return (tour?.scenes || []).flatMap(s => (s.hotspots || [])
-    .filter(h => h.type === 'defect').map(h => ({ h, s })));
-}
-
+   built in the browser from the tour document, so they work with no server.
+   tourDefects, which both of them read, moved up into the pure-helper block
+   with the rest of the maths once the plan view wanted it as well. */
 const slugName = v => (v || '').toLowerCase().replace(/[^a-z0-9]+/g, '-')
   .replace(/^-|-$/g, '').slice(0, 40) || 'tour';
 
@@ -3421,7 +3576,7 @@ async function renderEditor(tourId) {
           <button class="btn" id="auto-link" style="width:100%;margin-top:10px">Connect scenes for me</button>
           <button class="btn" id="sort-shot" style="width:100%;margin-top:8px" hidden>Order by capture time</button>
           <p class="scene-note" id="link-summary"></p>
-          <details class="plan" id="plan-section">
+          <details class="plan" id="plan-section" open>
             <summary>Plan view<span class="plan-span num" id="plan-span"></span></summary>
             <div class="plan-box" id="plan-box"></div>
             <p class="scene-note" id="plan-note"></p>
@@ -3616,12 +3771,7 @@ async function renderEditor(tourId) {
   function preflight() {
     const out = [];
     if (!doc.scenes.length) return ['There are no photos in this tour yet.'];
-    const linked = new Set();
-    for (const s of doc.scenes) {
-      for (const h of s.hotspots || []) if (h.type === 'link' && h.target) linked.add(h.target);
-    }
-    const startId = doc.settings?.startScene || doc.scenes[0]?.id;
-    const stranded = doc.scenes.filter(s => s.id !== startId && !linked.has(s.id));
+    const stranded = strandedScenes(doc);
     if (stranded.length) {
       out.push(`${stranded.length} scene${stranded.length > 1 ? 's' : ''} nothing links to — ` +
         `${stranded.length > 1 ? 'they' : 'it'} cannot be reached in the finished tour.`);
@@ -3680,6 +3830,10 @@ async function renderEditor(tourId) {
     const resetBtn = document.getElementById('plan-reset');
     if (!box || !note || !spanEl) return;
     box.innerHTML = '';
+    /* cleared up here, not where it is set: every early return below leaves the
+       plate on screen, and a metre grid left over from the last render would
+       still be ruled at a scale this one has decided it cannot state */
+    box.style.removeProperty('--plan-grid');
     const plan = planPositions(doc.scenes);
     const moved = doc.scenes.filter(s => s.plan).length;
     if (resetBtn) resetBtn.hidden = !moved;
@@ -3703,6 +3857,14 @@ async function renderEditor(tourId) {
     }
     spanEl.textContent = plan.scaled ? `${span} m` : 'not to scale';
 
+    /* Rule the grid at a round number of metres instead of at a quarter of
+       whatever the span happens to be. Same pixels, but now a cell is a
+       distance you can count in rather than a decoration. Without a scale
+       there is nothing honest to rule it at, so the plate falls back to the
+       plain quarters it always had. */
+    const step = plan.scaled ? niceMetres(plan.span) : 0;
+    if (step) box.style.setProperty('--plan-grid', `${(step / plan.span * 100).toFixed(4)}%`);
+
     /* The structure first, then the photos around it. Drawn from the long axis
        of whatever is actually pinned down, so it is the walk's own line rather
        than a bridge shape invented out of nothing — on a site with no GPS at
@@ -3711,16 +3873,85 @@ async function renderEditor(tourId) {
        0-100 viewBox makes the coordinates read as percentages, which is what
        the dots already use. */
     const d = plan.deck;
-    box.append(el(`<svg class="plan-deck" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-      <line x1="${(d.from.u * 100).toFixed(2)}" y1="${(d.from.v * 100).toFixed(2)}"
-            x2="${(d.to.u * 100).toFixed(2)}" y2="${(d.to.v * 100).toFixed(2)}"
-            vector-effect="non-scaling-stroke"/></svg>`));
+    const x1 = d.from.u * 100, y1 = d.from.v * 100, x2 = d.to.u * 100, y2 = d.to.v * 100;
+    /* the deck's own normal, half a deck wide, for the kerb lines and the
+       abutment ticks. The box is square, so a unit here is a unit either way. */
+    const len = Math.hypot(x2 - x1, y2 - y1) || 1;
+    const nx = -(y2 - y1) / len * 3, ny = (x2 - x1) / len * 3;
+    const seg = (ax, ay, bx, by, cls) => `<line class="${cls}" x1="${ax.toFixed(2)}" y1="${ay.toFixed(2)}"
+      x2="${bx.toFixed(2)}" y2="${by.toFixed(2)}"${cls === 'band' ? '' : ' vector-effect="non-scaling-stroke"'}/>`;
+    const edges = planEdges(doc.scenes, plan.pts);
+    const oneWay = edges.filter(e => !e.both).length;
+
+    /* Which way the photo you are editing is looking. Only that one: forty
+       wedges is a hedgehog, and the question a plan gets asked is "which pier
+       is THIS a shot of". Silent when the photo recorded no heading — the plate
+       would otherwise point confidently north at whatever it liked. */
+    const hereAt = plan.pts.find(p => p.id === curSceneId);
+    const facing = facingBearing(curScene());
+    const wedge = hereAt && facing !== null ? (() => {
+      const cu = hereAt.u * 100, cv = hereAt.v * 100, r = 11, half = 15;
+      const arm = a => [cu + r * Math.sin(a * DEG), cv - r * Math.cos(a * DEG)];
+      const [ax, ay] = arm(facing - half), [bx, by] = arm(facing + half);
+      return `<path class="plan-facing" d="M ${cu.toFixed(2)} ${cv.toFixed(2)}
+        L ${ax.toFixed(2)} ${ay.toFixed(2)} A ${r} ${r} 0 0 1 ${bx.toFixed(2)} ${by.toFixed(2)} Z"/>`;
+    })() : '';
+
+    box.append(el(`<svg class="plan-lines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+      <defs><marker id="plan-arrow" class="plan-arrow" viewBox="0 0 8 8" refX="7" refY="4"
+        markerUnits="userSpaceOnUse" markerWidth="4" markerHeight="4" orient="auto">
+        <path d="M0 0 L8 4 L0 8 Z"/></marker></defs>
+      <g class="plan-deck">
+        ${seg(x1, y1, x2, y2, 'band')}
+        ${seg(x1 + nx, y1 + ny, x2 + nx, y2 + ny, 'edge')}
+        ${seg(x1 - nx, y1 - ny, x2 - nx, y2 - ny, 'edge')}
+        ${seg(x1 + nx, y1 + ny, x1 - nx, y1 - ny, 'abut')}
+        ${seg(x2 + nx, y2 + ny, x2 - nx, y2 - ny, 'abut')}
+        ${seg(x1, y1, x2, y2, 'mid')}
+      </g>
+      ${wedge}
+      <g class="plan-edges">${edges.map(e => {
+        /* pulled back off both dots so the line does not grow out of the middle
+           of a photo, and so the arrowhead lands in the open where it reads */
+        const ex = (e.to.u - e.from.u) * 100, ey = (e.to.v - e.from.v) * 100;
+        const l = Math.hypot(ex, ey);
+        const ux = l ? ex / l * 2.6 : 0, uy = l ? ey / l * 2.6 : 0;
+        const lit = e.a.id === curSceneId || e.b.id === curSceneId;
+        /* two photos on the same fix have no line between them to draw, and an
+           arrowhead on a line of no length is just a mark floating on a dot */
+        const cls = [e.both ? '' : 'one', lit ? 'on' : ''].filter(Boolean).join(' ');
+        return `<line class="${cls}"
+          x1="${((e.from.u * 100) + ux).toFixed(2)}" y1="${((e.from.v * 100) + uy).toFixed(2)}"
+          x2="${((e.to.u * 100) - ux).toFixed(2)}" y2="${((e.to.v * 100) - uy).toFixed(2)}"
+          ${e.both || !l ? '' : 'marker-end="url(#plan-arrow)"'} vector-effect="non-scaling-stroke"/>`;
+      }).join('')}</g>
+      <g class="plan-cuts">${edges.map(e => `<line data-a="${esc(e.a.id)}" data-b="${esc(e.b.id)}"
+        x1="${(e.a.u * 100).toFixed(2)}" y1="${(e.a.v * 100).toFixed(2)}"
+        x2="${(e.b.u * 100).toFixed(2)}" y2="${(e.b.v * 100).toFixed(2)}"
+        vector-effect="non-scaling-stroke"><title>Cut this link</title></line>`).join('')}</g>
+      <line class="plan-band" vector-effect="non-scaling-stroke" hidden/>
+    </svg>`));
+
+    /* You can draw a link on this plate, so you can cut one on it. A wrong
+       arrow is visible here long before anybody walks the tour and discovers
+       it, and the fix belonged where the evidence is.
+       ponytail: pointer only — the same link is deletable from the hotspot
+       panel, which is the keyboard path; giving forty hairlines a tab stop
+       each would cost more than it bought. */
+    box.querySelector('.plan-cuts')?.addEventListener('click', ev => {
+      const line = ev.target.closest?.('line[data-a]');
+      if (line) cutLink(line.dataset.a, line.dataset.b);
+    });
 
     /* Past the cap the plate is a dartboard and clicking a four-pixel gap is
        hopeless — but the photo you are ON is never ambiguous, so it stays
        draggable at any count. Otherwise a forty-photo bridge, which is exactly
-       the tour that needs correcting, would be the one you cannot correct. */
+       the tour that needs correcting, would be the one you cannot correct.
+       Every dot carries its id either way: a dot too crowded to pick is still a
+       perfectly good place to DROP one, so linking never hits the cap. */
     const pickable = plan.pts.length <= PLAN_PICKABLE_MAX;
+    const defects = defectCounts(doc);
+    const stray = new Set(strandedScenes(doc));
     for (const p of plan.pts) {
       const s = doc.scenes.find(x => x.id === p.id);
       const on = p.id === curSceneId;
@@ -3728,11 +3959,24 @@ async function renderEditor(tourId) {
       const label = [s?.name, s?.station && `Sta ${s.station}`].filter(Boolean).join(' — ');
       const where = { gps: 'from GPS', manual: 'placed by hand', guess: 'guessed' }[p.kind];
       const pos = `left:${(p.u * 100).toFixed(2)}%;top:${(p.v * 100).toFixed(2)}%`;
+      /* The register is a flat list of findings with no map in it. This is the
+         same findings put back on the ground they were found on, which is what
+         anybody reading the report after the site is gone actually needs. */
+      const nd = defects.get(p.id) || 0;
+      const lost = doc.scenes.length > 1 && stray.has(p.id);
+      const cls = `plan-dot k-${p.kind}${on ? ' on' : ''}${lost ? ' stray' : ''}`;
+      const said = [
+        `${label}, ${where}`,
+        nd ? `${nd} defect${nd === 1 ? '' : 's'}` : '',
+        lost ? 'nothing links to it' : '',
+      ].filter(Boolean).join('. ');
+      const badge = nd ? `<span class="plan-def num">${nd > 9 ? '9+' : nd}</span>` : '';
       const dot = el(live
-        ? `<button class="plan-dot k-${p.kind}${on ? ' on' : ''}" title="${esc(label)} (${where})"
-             aria-label="${esc(label)}, ${where}. Go to it, or drag to move it."
-             aria-current="${on}" style="${pos}"></button>`
-        : `<span class="plan-dot k-${p.kind}${on ? ' on' : ''}" aria-hidden="true" style="${pos}"></span>`);
+        ? `<button class="${cls}" data-plan-id="${esc(p.id)}" title="${esc(said)}"
+             aria-label="${esc(said)}. Go to it, drag to move it, or drop it on another photo to connect them."
+             aria-current="${on}" style="${pos}">${badge}</button>`
+        : `<span class="${cls}" data-plan-id="${esc(p.id)}"
+             aria-hidden="true" style="${pos}">${badge}</span>`);
       if (live) {
         dot.addEventListener('click', () => { if (!dot.dataset.dragged) selectScene(p.id); });
         makeDraggable(dot, box, plan, p.id);
@@ -3745,29 +3989,123 @@ async function renderEditor(tourId) {
        invite anyone to click it as though it were one. */
     if (plan.vehicle) {
       const v = plan.vehicle;
-      box.append(el(`<span class="plan-plant" aria-hidden="true"
-        title="Plant on the deck, crossed from ${v.from} photo${v.from === 1 ? '' : 's'}"
-        style="left:${(v.u * 100).toFixed(2)}%;top:${(v.v * 100).toFixed(2)}%"></span>`));
+      box.append(el(`<svg class="plan-truck" viewBox="0 0 26 14" role="img"
+        aria-label="Plant on the deck, crossed from ${v.from} photo${v.from === 1 ? '' : 's'}"
+        style="left:${(v.u * 100).toFixed(2)}%;top:${(v.v * 100).toFixed(2)}%">
+        <path d="M1 2h13v8H1z"/><path d="M14 5h4l4 3v2h-8z"/>
+        <circle cx="5" cy="11" r="1.6"/><circle cx="11" cy="11" r="1.6"/><circle cx="19" cy="11" r="1.6"/>
+      </svg>`));
+    }
+
+    /* North was only ever asserted in a source comment, and the grid was ruled
+       at a quarter of an arbitrary span. Both are cheap to make true: the bar
+       is one cell of the grid, labelled, so a distance on this plate can be
+       stepped off against it instead of guessed at. */
+    box.append(el(`<span class="plan-north" aria-hidden="true">N</span>`));
+    if (step) {
+      box.append(el(`<span class="plan-scale" aria-hidden="true"
+        style="width:${(step / plan.span * 100).toFixed(4)}%">${+step.toFixed(2)} m</span>`));
     }
 
     const counts = plan.pts.reduce((a, p) => (a[p.kind]++, a), { gps: 0, manual: 0, guess: 0 });
+    const marked = [...defects.values()].reduce((a, n) => a + n, 0);
+    const lostCount = doc.scenes.length > 1 ? stray.size : 0;
     note.textContent = [
+      'Drag a photo to where it stood, drop it on another to connect the two, or click a link to cut it.',
       plan.scaled
-        ? `${counts.gps} from GPS, about ${span} m across.`
-        : 'No photo here carries a GPS fix, so this is the shape of the walk, not its size.',
+        ? `${counts.gps} from GPS, about ${span} m across — each grid square is ${+step.toFixed(2)} m.`
+        : 'No photo here carries a GPS fix, so this is the shape of the walk, not its size, and the grid is only a grid.',
       counts.guess ? `${counts.guess} placed by capture order — drag ${counts.guess > 1 ? 'them' : 'it'} onto the right spot.` : '',
       counts.manual ? `${counts.manual} moved by hand.` : '',
-      plan.vehicle
-        ? `The square is plant on the deck, crossed from ${plan.vehicle.from} photos that saw it — a guess at a big bright object, so check it is the truck and not a skip.`
+      edges.length
+        ? `${edges.length} link${edges.length === 1 ? '' : 's'} drawn between them${oneWay
+          ? `, ${oneWay} of ${oneWay === 1 ? 'which walks' : 'which walk'} one way only — dashed, with the arrow on the end that works.`
+          : '.'}`
+        : 'Nothing is linked yet — connect them here, or use "Connect scenes for me".',
+      lostCount
+        ? `${lostCount} in red — nothing links to ${lostCount === 1 ? 'it' : 'them'}, so ${lostCount === 1 ? 'it is' : 'they are'} in the record but not in the walk.`
         : '',
-      pickable ? '' : 'Too many to click at this size — use Ctrl+K to jump, then drag the highlighted dot.',
+      marked ? `${marked} defect${marked === 1 ? '' : 's'} counted on the photos that carry them.` : '',
+      facing !== null ? 'The wedge is the way this photo looks, from its own compass.' : '',
+      plan.vehicle
+        ? `The truck is plant on the deck, crossed from ${plan.vehicle.from} photos that saw it — a guess at a big bright object, so check it is a truck and not a skip.`
+        : '',
+      pickable ? '' : 'Too many to pick up at this size — use Ctrl+K to jump, then drag the highlighted dot. Any dot can still be dropped on.',
       counts.gps ? 'Phone GPS is good to a few metres, so treat this as a sketch.' : '',
     ].filter(Boolean).join(' ');
   }
 
-  /* Drag a photo to where it actually stood. Committed in metres, not in box
-     fractions, so a later photo widening the site rescales the plate without
-     sliding everything somebody already corrected.
+  /* Cutting a link is the other half of drawing one. Both directions go: half
+     a cut pair leaves a one-way link nobody asked for, which is the exact
+     shape of dead end the plate is meant to expose. scheduleSave enrols it in
+     the undo stack, so Ctrl+Z puts the pair back without anything extra. */
+  function cutLink(aId, bId) {
+    const a = doc.scenes.find(s => s.id === aId), b = doc.scenes.find(s => s.id === bId);
+    if (!a || !b) return;
+    const drop = (from, toId) => {
+      const before = (from.hotspots || []).length;
+      from.hotspots = (from.hotspots || []).filter(h => !(h.type === 'link' && h.target === toId));
+      return before - from.hotspots.length;
+    };
+    if (!(drop(a, b.id) + drop(b, a.id))) return;
+    scheduleSave();
+    refreshMarkers();
+    renderSceneList();
+    if (armedTarget()) renderBuildChips();
+    toast(`Cut the link between "${a.name}" and "${b.name}" — Ctrl+Z puts it back`);
+  }
+
+  /* How near a drop has to land to count as "on that photo" rather than "at
+     that spot". The dot is 11px (20 on a touch screen), so this is the dot and
+     a little forgiveness, not a magnet that swallows nearby placements. */
+  const PLAN_SNAP_PX = 18;
+  const planNodeNear = (pts, at, rect, skipId) => {
+    let best = null, nearest = PLAN_SNAP_PX;
+    for (const p of pts) {
+      if (p.id === skipId) continue;
+      const away = Math.hypot((at.u - p.u) * rect.width, (at.v - p.v) * rect.height);
+      if (away < nearest) { nearest = away; best = p; }
+    }
+    return best;
+  };
+
+  /* Connect two photos from the plan. Both ways, because a one-way arrow is a
+     dead end from the far side — the same reason linkPair exists.
+
+     The plan knows where these two stand, so the outgoing arrow can be aimed at
+     the real bearing between them whenever the photo also knows which way it was
+     facing. Without a heading there is no way to turn a map bearing into a
+     direction inside the photo, so it falls back to the same opening-finding the
+     automatic pass uses, and the arrow is draggable afterwards either way. */
+  function connectOnPlan(plan, fromId, toId) {
+    const from = doc.scenes.find(s => s.id === fromId);
+    const to = doc.scenes.find(s => s.id === toId);
+    if (!from || !to || from === to) return;
+    if (hasLink(from, to.id) && hasLink(to, from.id)) {
+      toast(`"${from.name}" and "${to.name}" are already connected`);
+      return;
+    }
+    const here = plan.pts.find(p => p.id === fromId), there = plan.pts.find(p => p.id === toId);
+    const out = Number.isFinite(from.geo?.heading)
+      ? +wrap180(planBearing(here, there) - from.geo.heading).toFixed(2)
+      : snapToWay(wrap180(from.view?.yaw || 0), from.ways);
+    const made = linkPair(from, to, out, snapToWay(returnYaw(from, to, out), to.ways));
+    scheduleSave();
+    refreshMarkers();
+    renderSceneList();
+    if (armedTarget()) renderBuildChips();
+    toast(`${made > 1 ? 'Linked' : 'Linked back'} "${from.name}" and "${to.name}" — Ctrl+Z undoes it`);
+  }
+
+  /* One drag, two meanings, told apart by where it ends: let go over another
+     photo and the two get connected; let go anywhere else and this photo moves
+     to where you dropped it. No mode to remember, and the plate says which one
+     is about to happen — over a photo, the dot springs home and a line follows
+     the cursor instead.
+
+     A move is committed in metres, not in box fractions, so a later photo
+     widening the site rescales the plate without sliding everything somebody
+     already corrected.
      The plate re-fits after each drop, so dragging a dot beyond the current
      extent does shift the others — unavoidable when the view auto-fits, and
      preferable to a plan that runs off its own edge. */
@@ -3777,6 +4115,9 @@ async function renderEditor(tourId) {
       ev.preventDefault();
       const rect = box.getBoundingClientRect();
       if (!rect.width || !rect.height) return;
+      const home = plan.pts.find(p => p.id === id);
+      const band = box.querySelector('.plan-band');
+      let onto = null;
       /* Capture keeps the events coming when the cursor leaves the dot, which
          it does immediately. It is an improvement, not a requirement — and
          when it throws (no active pointer with that id) an unguarded call
@@ -3788,19 +4129,35 @@ async function renderEditor(tourId) {
           u: clamp((e.clientX - rect.left) / rect.width, 0, 1),
           v: clamp((e.clientY - rect.top) / rect.height, 0, 1),
         };
+        onto = planNodeNear(plan.pts, at, rect, id);
+        for (const other of box.querySelectorAll('.plan-dot.target')) other.classList.remove('target');
+        if (onto) box.querySelector(`.plan-dot[data-plan-id="${CSS.escape(onto.id)}"]`)?.classList.add('target');
         dot.classList.add('dragging');
-        dot.style.left = `${(at.u * 100).toFixed(2)}%`;
-        dot.style.top = `${(at.v * 100).toFixed(2)}%`;
+        /* over a photo this is a link, not a move: put the dot back where it
+           belongs and let the rubber band carry the gesture instead */
+        const to = onto && home ? home : at;
+        dot.style.left = `${(to.u * 100).toFixed(2)}%`;
+        dot.style.top = `${(to.v * 100).toFixed(2)}%`;
+        if (band && home) {
+          band.toggleAttribute('hidden', !onto);
+          band.setAttribute('x1', (home.u * 100).toFixed(2));
+          band.setAttribute('y1', (home.v * 100).toFixed(2));
+          band.setAttribute('x2', (at.u * 100).toFixed(2));
+          band.setAttribute('y2', (at.v * 100).toFixed(2));
+        }
       };
       const up = () => {
         dot.removeEventListener('pointermove', move);
         dot.removeEventListener('pointerup', up);
         dot.removeEventListener('pointercancel', up);
         dot.classList.remove('dragging');
+        band?.toggleAttribute('hidden', true);
+        for (const other of box.querySelectorAll('.plan-dot.target')) other.classList.remove('target');
         if (!at) return;
         /* the click that follows this pointer sequence would otherwise also
            jump the editor to the scene, which is not what a drag asked for */
         dot.dataset.dragged = '1';
+        if (onto) { connectOnPlan(plan, id, onto.id); return; }
         const s = doc.scenes.find(x => x.id === id);
         if (s) {
           s.plan = plan.toMetres(at.u, at.v);
@@ -3984,10 +4341,7 @@ async function renderEditor(tourId) {
     }
     /* a scene nothing links to is unreachable in the finished tour unless it is
        the one visitors start on — worth a mark rather than a silent dead end */
-    const reachable = new Set([doc.settings.startScene]);
-    for (const s of doc.scenes) {
-      for (const h of s.hotspots || []) if (h.type === 'link') reachable.add(h.target);
-    }
+    const stranded = new Set(strandedScenes(doc));
     /* ----- grouping -----
        A flat rail is right for an apartment and a scroll for a bridge. Grouped
        by the photo stop each scene is already tagged with, so this is a pure
@@ -4032,7 +4386,7 @@ async function renderEditor(tourId) {
 
     doc.scenes.forEach((s, i) => {
       const isStart = doc.settings.startScene === s.id;
-      const orphan = doc.scenes.length > 1 && !reachable.has(s.id);
+      const orphan = doc.scenes.length > 1 && stranded.has(s.id);
       const row = el(`
         <div class="scene-row${s.id === curSceneId ? ' active' : ''}">
           <button class="scene-pick" data-a="pick" aria-current="${s.id === curSceneId}"
@@ -4113,9 +4467,9 @@ async function renderEditor(tourId) {
        out loud rather than leaving to be discovered by walking it */
     const line = document.getElementById('reach-notice');
     if (line) {
-      const stranded = doc.scenes.filter(s => !reachable.has(s.id)).length;
-      line.textContent = stranded && doc.scenes.length > 1
-        ? `${stranded} scene${stranded === 1 ? '' : 's'} nothing links to — a visitor could never reach ${stranded === 1 ? 'it' : 'them'}.`
+      const n = stranded.size;
+      line.textContent = n && doc.scenes.length > 1
+        ? `${n} scene${n === 1 ? '' : 's'} nothing links to — a visitor could never reach ${n === 1 ? 'it' : 'them'}.`
         : '';
     }
   }

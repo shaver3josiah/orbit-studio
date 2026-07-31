@@ -24,33 +24,87 @@ if (from < 0 || to < 0 || to < from) {
   throw new Error('tour/index.html no longer fences its pure-helper block — see the markers named in this test');
 }
 const source = html.slice(from, to);
-for (const name of ['panoDataFor', 'gpanoCoverage', 'readGps', 'bearing', 'metresBetween',
-  'panoProfile', 'guessNavigableYaws', 'sunPosition', 'solarHeading',
-  'correlateYaw', 'yawBetween', 'packProfile', 'unpackProfile', 'principalAxis', 'triangulate', 'separateMarks',
-  'snapToWay', 'fmtIn', 'defectMeasure', 'defectNeedsMeasure', 'nextDefectCode',
-  'csvCell', 'registerCsv', 'planPositions']) {
-  if (!source.includes(`function ${name}`)) throw new Error(`extracted block is missing ${name}`);
+
+/* There used to be two hand-written lists here: a required-names check that
+   looked for the literal text "function NAME" (so nine helpers written as
+   `const NAME = ...` could vanish from the fence without this test ever
+   noticing) and a hand-written export statement (which could omit a helper,
+   or export one — clamp did exactly this — that nobody then destructured
+   into scope). The two drifted from the source and from each other on their
+   own schedules, and both failures were silent. Instead, every top-level
+   declaration in the fenced block is found by regex and exported under its
+   own name, so there is only one list, and it is never more than one read of
+   the source out of date. Only top-level declarations count: the pattern is
+   anchored to the start of a line, and every declaration written directly in
+   this fence sits at column 0 — an indented `const` or `function` belongs to
+   another function's body, not the module's surface (checked by hand against
+   this fence before relying on it: every one of the ~70 top-level names sits
+   at column 0, and every nested one is indented). */
+const DECL = /^(?:function (\w+)\(|const (\w+) =|let (\w+) =)/gm;
+const names = [];
+const fnNames = [];
+for (let m; (m = DECL.exec(source)); ) {
+  names.push(m[1] || m[2] || m[3]);
+  if (m[1]) fnNames.push(m[1]);
+}
+
+/* If the regex stops matching — the fence markers move, the block gets
+   wrapped in an IIFE, the formatting changes — this notices by the derived
+   list shrinking drastically rather than by checks quietly vanishing. 30 is
+   comfortably below the ~70 names the fence currently yields, so ordinary
+   growth of the block never trips it, but losing the fence entirely would. */
+if (names.length < 30) {
+  throw new Error(
+    `only ${names.length} top-level declarations were found in the fenced block, too few to be real — ` +
+    'the derivation regex or the fence markers are probably broken, and silently exporting nothing would ' +
+    'make every check below vanish instead of fail'
+  );
 }
 
 const helpers = await import(
-  'data:text/javascript,' + encodeURIComponent(
-    `${source}\nexport { clamp, isPartial, vFovOf, panoDataFor, gpanoCoverage, readGps, bearing,` +
-    ` metresBetween, wrap180, panoProfile, guessNavigableYaws, snapToWay,` +
-    ` sunPosition, solarHeading, correlateYaw, yawBetween, packProfile, unpackProfile,` +
-    ` principalAxis, triangulate, separateMarks,` +
-    ` fmtIn, defectMeasure, defectNeedsMeasure, nextDefectCode, DEFECT_TYPES, DEFECT_MEASURE,` +
-    ` DEPTH_STEPS, WIDTH_STEPS, csvCell, registerCsv, planPositions };`
-  )
+  'data:text/javascript,' + encodeURIComponent(`${source}\nexport { ${names.join(', ')} };`)
 );
+
+/* Only the names the checks below actually reference need pulling into local
+   scope — destructuring all of the derived exports would just import noise,
+   since most of them are tuning constants private to one function (SUN_MIN_ALT,
+   VEHICLE_MIN_LUM and the like). But this list is still written by hand, so a
+   rename in tour/index.html could otherwise leave a name destructured as
+   undefined rather than erroring, and a check comparing against undefined can
+   pass for the wrong reason instead of failing outright. Checking membership
+   against the derived export list first turns that into one loud error before
+   any check runs, rather than a quiet, misleading pass. */
+const USED = [
+  'isPartial', 'vFovOf', 'panoDataFor', 'gpanoCoverage', 'readGps', 'bearing', 'metresBetween', 'wrap180',
+  'panoProfile', 'guessNavigableYaws', 'snapToWay',
+  'sunPosition', 'solarHeading', 'correlateYaw', 'yawBetween', 'packProfile', 'unpackProfile',
+  'principalAxis', 'triangulate', 'separateMarks',
+  'fmtIn', 'defectMeasure', 'defectNeedsMeasure', 'nextDefectCode', 'DEFECT_TYPES', 'DEFECT_MEASURE',
+  'DEPTH_STEPS', 'WIDTH_STEPS', 'csvCell', 'registerCsv', 'planPositions', 'planEdges', 'planBearing',
+  'tourDefects', 'defectCounts', 'niceMetres', 'facingBearing', 'strandedScenes',
+];
+const missingFromExports = USED.filter(name => !(name in helpers));
+if (missingFromExports.length) {
+  throw new Error(`destructured below but not among the derived exports: ${missingFromExports.join(', ')}`);
+}
 const {
   isPartial, vFovOf, panoDataFor, gpanoCoverage, readGps, bearing, metresBetween, wrap180,
   panoProfile, guessNavigableYaws, snapToWay,
   sunPosition, solarHeading, correlateYaw, yawBetween, packProfile, unpackProfile,
   principalAxis, triangulate, separateMarks,
   fmtIn, defectMeasure, defectNeedsMeasure, nextDefectCode, DEFECT_TYPES, DEFECT_MEASURE,
-  DEPTH_STEPS, WIDTH_STEPS, csvCell, registerCsv, planPositions,
+  DEPTH_STEPS, WIDTH_STEPS, csvCell, registerCsv, planPositions, planEdges, planBearing,
+  tourDefects, defectCounts, niceMetres, facingBearing, strandedScenes,
 } = helpers;
 
+/* --- checks begin here (tests/tour_pano_test.mjs coverage check reads up to
+   this marker and no further back). The coverage check near the end of this
+   file searches only from this point onward, so a helper's name merely
+   appearing in the derivation or the destructuring above can never count as
+   the helper having been exercised: the destructuring names every helper this
+   file uses, by construction, and cutting that scaffolding out of the search
+   is the only way "destructured but never actually asserted against" is
+   distinguishable from "checked". --- */
 let failures = 0;
 function check(ok, label) {
   console.log(`${ok ? 'ok  ' : 'FAIL'}  ${label}`);
@@ -923,6 +977,240 @@ check(Number.isFinite(principalAxis([{ x: 3, y: 3 }]).dx), 'one point does not p
 const deckSpan = Math.hypot(strip.deck.to.u - strip.deck.from.u, strip.deck.to.v - strip.deck.from.v);
 check(deckSpan > 0.1 && strip.deck.from.u >= -0.01 && strip.deck.to.u <= 1.01,
   'the drawn structure spans the plate and stays inside it');
+
+/* ---------- the links drawn on the plan ---------- */
+
+const link = to => ({ type: 'link', target: to });
+const pts3 = planPositions([geoScene('a', 40, -75), geoScene('b', 40, -74.999), geoScene('c', 40, -74.998)]).pts;
+
+check(planEdges([], pts3).length === 0 && planEdges(undefined, undefined).length === 0,
+  'no scenes and no positions draw no lines');
+
+/* A->B and B->A is ONE line: two drawn on top of each other read as one anyway */
+const paired = planEdges([
+  { id: 'a', hotspots: [link('b')] },
+  { id: 'b', hotspots: [link('a')] },
+  { id: 'c' },
+], pts3);
+check(paired.length === 1, 'a pair linked both ways is one line, not two');
+check(paired[0].both, 'and it is marked as walkable in both directions');
+
+/* one arrow only: still one line, but it knows which end works */
+const oneWay = planEdges([{ id: 'a', hotspots: [link('c')] }, { id: 'b' }, { id: 'c' }], pts3);
+check(oneWay.length === 1 && !oneWay[0].both, 'a link placed one way only is not marked both');
+check(oneWay[0].from.id === 'a' && oneWay[0].to.id === 'c', 'and the arrow points the way that works');
+const backOnly = planEdges([{ id: 'a' }, { id: 'b' }, { id: 'c', hotspots: [link('a')] }], pts3);
+check(backOnly[0].from.id === 'c' && backOnly[0].to.id === 'a',
+  'the arrow follows the link, not the order the ids happen to sort in');
+
+/* the things that must not draw a line to nowhere */
+check(planEdges([{ id: 'a', hotspots: [link('gone')] }, { id: 'b' }], pts3).length === 0,
+  'a link to a deleted scene draws nothing');
+check(planEdges([{ id: 'a', hotspots: [link('a')] }, { id: 'b' }], pts3).length === 0,
+  'a link to itself draws nothing');
+check(planEdges([{ id: 'a', hotspots: [{ type: 'defect', target: 'b' }] }, { id: 'b' }], pts3).length === 0,
+  'a defect is not a link, whatever else it carries');
+check(planEdges([{ id: 'a', hotspots: [link('b'), link('b')] }, { id: 'b' }], pts3).length === 1,
+  'two arrows from the same photo to the same photo are still one line');
+
+/* the bearing the plan hands a new link. x east, y north, north up. */
+check(near(planBearing({ x: 0, y: 0 }, { x: 0, y: 10 }), 0, 1e-9), 'due north reads as 0');
+check(near(planBearing({ x: 0, y: 0 }, { x: 10, y: 0 }), 90, 1e-9), 'due east reads as 90');
+check(near(planBearing({ x: 0, y: 0 }, { x: 0, y: -10 }), 180, 1e-9), 'due south reads as 180');
+check(near(planBearing({ x: 0, y: 0 }, { x: -10, y: 0 }), 270, 1e-9), 'due west reads as 270, never negative');
+
+/* ---------- what the plate has to say about itself ---------- */
+
+/* the grid and the scale bar are drawn at a round number of metres, from the
+   1-2-5 sequence, big enough to be worth reading and small enough to fit */
+check(niceMetres(100) === 20, '100 m across gets a 20 m grid');
+check(niceMetres(40) === 10, '40 m gets 10 m');
+check(niceMetres(4) === 1, '4 m gets 1 m');
+check(niceMetres(0.4) < 1 && niceMetres(0.4) > 0, 'a plate under a metre still gets a positive step');
+check(niceMetres(3000) === 500, 'a viaduct gets a 500 m grid rather than 750 lines');
+check([1, 2, 5].includes(niceMetres(2000) / Math.pow(10, Math.floor(Math.log10(niceMetres(2000))))),
+  'every step is a 1, a 2 or a 5 — never a 3 or a 7');
+for (const bad of [0, -50, NaN, undefined, Infinity]) {
+  check(Number.isFinite(niceMetres(bad)) && niceMetres(bad) > 0,
+    `a span of ${bad} still yields a finite positive step rather than a NaN grid`);
+}
+for (const span of [3, 17, 61, 240, 999, 4321]) {
+  check(niceMetres(span) * 3 <= span,
+    `a ${span} m plate gets a step that fits across it at least three times, so a grid is a grid`);
+}
+
+/* ---------- defects, per photo, for the plan ---------- */
+
+const defect = code => ({ type: 'defect', code });
+check(defectCounts({ scenes: [] }).size === 0, 'a tour with no scenes counts nothing');
+check(defectCounts(null).size === 0, 'a missing tour does not throw');
+const counted = defectCounts({ scenes: [
+  { id: 'a', hotspots: [defect('D1'), defect('D2'), link('b')] },
+  { id: 'b', hotspots: [link('a')] },
+  { id: 'c' },
+] });
+check(counted.get('a') === 2, 'two defects on one photo count as two');
+check(!counted.has('b') && !counted.has('c'),
+  'a photo with no defects is absent rather than present as a zero');
+
+/* ---------- which way the photo was looking ---------- */
+
+/* heading is where the camera pointed when the shutter fired; view.yaw is how
+   far the tour turns it on open. The plan needs the sum, wrapped to a compass. */
+check(facingBearing({ geo: { heading: 90 }, view: { yaw: 30 } }) === 120, 'heading plus view yaw');
+check(facingBearing({ geo: { heading: 350 }, view: { yaw: 30 } }) === 20, 'and it wraps past north');
+check(facingBearing({ geo: { heading: 90 } }) === 90, 'no view yaw means the photo opens where it was shot');
+check(facingBearing({ geo: { heading: 10 }, view: { yaw: -30 } }) === 340, 'a negative yaw never reads as negative');
+check(facingBearing({ view: { yaw: 30 } }) === null, 'no heading means no wedge, not a wedge pointing north');
+check(facingBearing({}) === null && facingBearing(null) === null, 'nothing known draws nothing');
+check(facingBearing({ geo: { heading: 0 }, view: { yaw: 0 } }) === 0,
+  'due north is 0, not null — a real heading of zero is not a missing heading');
+
+/* ---------- the photos the finished tour cannot reach ---------- */
+
+check(strandedScenes(null).length === 0 && strandedScenes({ scenes: [] }).length === 0,
+  'an empty tour strands nobody');
+const reach = { settings: { startScene: 'a' }, scenes: [
+  { id: 'a', hotspots: [link('b')] },
+  { id: 'b', hotspots: [link('a')] },
+  { id: 'c' },
+] };
+check(strandedScenes(reach).join() === 'c', 'a photo nothing links to is stranded');
+check(!strandedScenes(reach).includes('a'), 'the start scene is never stranded — it is the front door');
+/* the disagreement this helper exists to end: with no startScene chosen, the
+   scene list used to treat NOTHING as the front door and put a red orphan dot
+   on the very first photo, while the pre-share check said the tour was fine */
+check(!strandedScenes({ scenes: [{ id: 'a' }, { id: 'b', hotspots: [link('a')] }] }).includes('a'),
+  'with no startScene set the first photo is the front door, not an orphan');
+check(strandedScenes({ scenes: [{ id: 'a' }, { id: 'b', hotspots: [link('a')] }] }).join() === 'b',
+  'and the photo nothing links to is still stranded');
+check(strandedScenes({ settings: { startScene: 'gone' }, scenes: [{ id: 'a' }, { id: 'b' }] }).join() === 'a,b',
+  'a startScene pointing at a deleted photo strands everything rather than silently excusing one');
+
+/* ---------- the tour document, as a contract ----------
+
+   tests/fixtures/tour-v1.json is one tour carrying every field the code reads.
+   It exists because the document's shape was, until now, defined only by the
+   `?.` chains that happened to read it: ~15 tour-level fields, ~16 per scene
+   and ~19 per hotspot, none of them written down anywhere, and a server that
+   validates exactly one thing about a save — that `scenes` is a list.
+
+   A schema document nobody updates is worse than none, so this is not one. It
+   is a real document run through the real readers, which means a renamed or
+   dropped field fails a check here instead of quietly becoming undefined in
+   the editor six months from now. */
+const fixture = JSON.parse(readFileSync(join(root, 'tests', 'fixtures', 'tour-v1.json'), 'utf8'));
+
+check(fixture.v === 1, 'the fixture declares the schema version the server stamps');
+check(fixture.scenes.length === 3, 'the fixture is three scenes: a full equirect, a partial sweep and a snapshot');
+
+/* every shape of panorama the app accepts, told apart by the same predicate
+   the viewer uses to decide whether to crop the sphere */
+check(isPartial(fixture.scenes[0]) === false, 'a scene with no pano block reads as a full sphere');
+check(isPartial(fixture.scenes[1]) === true && isPartial(fixture.scenes[2]) === true,
+  'a phone sweep and an ordinary snapshot both read as partial');
+check(Number.isFinite(panoDataFor(fixture.scenes[1])({ width: 4096, height: 1536 }).fullWidth),
+  'the fixture partial scene produces a usable crop rather than NaN');
+
+/* the metadata fields, read the way the app reads them */
+check(facingBearing(fixture.scenes[1]) === 92.7, 'a scene with a recorded heading reports a facing');
+check(facingBearing(fixture.scenes[2]) === null, 'a scene with no geo block reports none');
+check(unpackProfile(fixture.scenes[0].prof)?.W === 64,
+  'the stored column profile is real packed data and unpacks to its two bands');
+
+/* the plan view, over a document that mixes GPS fixes with a hand placement */
+const fixturePlan = planPositions(fixture.scenes);
+check(fixturePlan.scaled, 'two GPS fixes give the fixture plan a scale');
+check(fixturePlan.pts.find(p => p.id === 's-abutment').kind === 'manual',
+  'the scene carrying a plan block is placed by hand, not guessed');
+check(fixturePlan.vehicle === null,
+  'one vehicle sighting is not a crossing, so the fixture draws no truck');
+const fixtureEdges = planEdges(fixture.scenes, fixturePlan.pts);
+check(fixtureEdges.filter(e => e.both).length === 1 && fixtureEdges.filter(e => !e.both).length === 1,
+  'the fixture walks one pair both ways and reaches the abutment one way only');
+check(strandedScenes(fixture).length === 0, 'every scene in the fixture is reachable');
+
+/* the defect register, end to end over a real document */
+check(tourDefects(fixture).length === 3, 'the fixture carries three defects across two scenes');
+check(tourDefects(fixture).every(d => d.h && d.s), 'each one comes back paired with the photo it was marked on');
+check(defectCounts(fixture).get('s-deck') === 2, 'and they count per photo for the plan');
+check(nextDefectCode(fixture.scenes) === 'D4', 'the next code follows the highest already used');
+const fixtureRows = registerCsv(fixture).split('\r\n');
+check(fixtureRows.length === 4, 'the register is a header and one row per defect');
+check(fixtureRows[1].startsWith('D1,Spall,"1/2 in deep, reinforcement exposed"'),
+  'and the measurement column reads the way the field-sketch tool words it');
+/* Every measurement in the fixture has to be one the editor can actually
+   record. An earlier draft used a 1.5 in depth, which is not on DEPTH_STEPS
+   and which fmtIn renders "3/2 in" — an improper fraction no inspector writes.
+   A fixture that documents an unreachable document documents nothing. */
+const onList = (v, steps) => steps.some(([n]) => n === v);
+check(tourDefects(fixture).every(({ h }) =>
+  (h.depthIn === undefined || onList(h.depthIn, DEPTH_STEPS))
+  && (h.widthIn === undefined || onList(h.widthIn, WIDTH_STEPS))),
+  'every fixture measurement is one the editor can actually record');
+
+/* ---------- every helper actually gets exercised ----------
+   Deriving the export list mechanically fixes the two ways the old
+   hand-written lists drifted (a const helper the old existence check could
+   not see, and an export nobody destructured). It does not fix a helper
+   being added to the fence and then never checked by anything at all — that
+   gap produces no import-time error, so it gets its own check: every
+   FUNCTION the derivation found must appear, as a whole word, somewhere in
+   the checks above.
+
+   Functions only, deliberately. The first version of this demanded a mention
+   of every top-level name, which swept in three dozen private tuning
+   constants — SUN_MIN_ALT, VEHICLE_MIN_LUM, DECLUTTER_GAP and the like. The
+   only way to satisfy that is to write `check(SUN_MIN_ALT === 7)`, a check
+   that asserts a constant equals itself, passes forever, and fails the moment
+   somebody tunes the one number it exists to let them tune. A gate that can
+   only be satisfied by writing worthless checks trains people to write
+   worthless checks, so it covers behaviour — functions — and the constants
+   are covered where they actually bite, inside the functions that read them.
+
+   INDIRECT is the deliberate escape hatch, and it is deliberately noisy to
+   use. These are internal steps of a parser whose behaviour is asserted
+   through its public entry point: the EXIF chunk walkers are exercised by
+   every readGps check against a real JPEG, PNG and WebP buffer. A new helper
+   is not allowed to join this list by accident — the check fails until
+   somebody either writes it a check or writes its name here on purpose, and
+   the second one is a decision with a reviewer's name on it. */
+const INDIRECT = new Set([
+  /* EXIF/XMP container walking, all exercised through readGps and its
+     malformed-buffer refusals against real JPEG, PNG and WebP bytes */
+  'jpegTiff', 'pngTiff', 'webpTiff', 'findExifTiff', 'tiffCursor',
+  /* the DateTimeOriginal reader, exercised through readGps's utc assertions */
+  'readShotTime',
+]);
+const selfText = readFileSync(fileURLToPath(import.meta.url), 'utf8');
+const CHECKS_FROM = '/* --- checks begin here';
+const checksAt = selfText.indexOf(CHECKS_FROM);
+if (checksAt < 0) {
+  throw new Error('the "checks begin here" marker used by the coverage check is missing from this file');
+}
+/* Searching only from the marker onward, rather than the whole file, is what
+   stops this from self-certifying. Above the marker, the destructuring
+   assignment necessarily names every helper this file uses — that is what
+   destructuring IS — so searching the whole file would make "pulled into
+   scope" indistinguishable from "checked". Cutting the scaffolding out is
+   what lets a helper that is destructured but never actually asserted
+   against anywhere show up as unexercised, instead of quietly certifying
+   itself via its own name in the destructuring line above. (Naming specific
+   examples in this comment would be the same mistake in miniature — this
+   comment sits after the marker too, so any helper name written here would
+   count as a mention of itself.) */
+const checksText = selfText.slice(checksAt);
+const unexercised = fnNames.filter(name =>
+  !INDIRECT.has(name) && !new RegExp(`\\b${name}\\b`).test(checksText));
+check(unexercised.length === 0, unexercised.length
+  ? `every pure helper in the fence is exercised by at least one check (never mentioned: ${unexercised.join(', ')})`
+  : 'every pure helper in the fence is exercised by at least one check');
+/* The escape hatch must not outlive what it excuses: a name left in INDIRECT
+   after its helper is gone is a lie about coverage that reads as coverage. */
+const staleIndirect = [...INDIRECT].filter(name => !fnNames.includes(name));
+check(staleIndirect.length === 0, staleIndirect.length
+  ? `INDIRECT names a helper the fence no longer has: ${staleIndirect.join(', ')}`
+  : 'nothing is excused from the coverage check that has since been deleted');
 
 console.log(failures ? `\n${failures} check(s) failed` : '\nall checks passed');
 process.exit(failures ? 1 : 0);

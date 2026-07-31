@@ -235,9 +235,40 @@ A forty-panorama bridge is a maze, so:
   the plate without sliding anything you have already fixed. *Undo my
   placements* clears them all. A guessed dot is a starting position, never a
   surveyed coordinate, and the plate says so.
+  **Every link the tour has is drawn between the dots**, so the walk reads as a
+  route rather than a scatter. A pair that walks both ways is a plain line; a
+  link placed one way only is dashed and carries an arrow on the end that
+  works, because from the far side it is a dead end. Links touching the photo
+  you are editing are picked out in the accent colour.
+  **Drop one dot on another and the two get connected**, both ways, in one
+  gesture — while the drag is over another photo the dot springs back home and
+  a dashed line follows the cursor, so the plate says which of the two things
+  is about to happen. The outgoing arrow is aimed at the real bearing between
+  the two positions whenever the photo also knows which way it was facing, and
+  falls back to the same opening-finding the automatic pass uses when it does
+  not. One Ctrl+Z undoes it. A dot too crowded to pick up is still a perfectly
+  good thing to drop on, so linking never hits the pickable cap.
+  **Click a link to cut it.** Both directions go, because half a cut pair
+  leaves a one-way link nobody asked for. Ctrl+Z puts it back. Pointer only —
+  the hotspot panel's delete button is the keyboard equivalent.
+  The structure is drawn as a deck — a band with kerbs and an abutment tick
+  across each end — along that long axis.
+  **The grid is ruled in metres**, at a round 1-2-5 step, with a scale bar and
+  a north mark to step distances off against. Without a GPS fix anywhere there
+  is no scale to state, so it falls back to plain quarters and says so.
+  **A photo carrying defects wears the count**, so the register's findings sit
+  on the ground they were found on rather than only in a flat CSV. **A photo
+  nothing links to gets a red ring** — it is in the record but not in the walk.
+  That reachability now has one definition shared with the scene list and the
+  pre-share check; the scene list used to disagree with the other two and put
+  an orphan dot on the very photo a visitor would land on whenever no start
+  scene had been chosen.
+  **The photo you are editing shows a wedge** for the way it looks, from the
+  same heading-plus-view-yaw sum the viewer's compass needle uses. Only that
+  one photo, and only when it recorded a heading.
   If two or more photos both see the plant on the deck and both know which way
   they were facing, the bearings are crossed and the vehicle is drawn as a
-  square. Near-parallel bearings cross at a point far too sensitive to be worth
+  truck. Near-parallel bearings cross at a point far too sensitive to be worth
   anything, so those are refused rather than drawn.
 - The viewer shows a **compass** whenever a photo has a heading — recorded by
   the camera, or worked out from the sun (below).
@@ -327,21 +358,44 @@ files immediately.
 
 ## Checks
 
+Everything, in one command:
+
+```bash
+test.bat
+```
+
+Runs all three suites in order, prints each one's output rather than swallowing
+it, and exits non-zero if any of them fails. Node is optional — if it is not
+installed the panorama and plan-view maths are reported as skipped, and skipped
+still counts as a failure so the gap cannot pass unnoticed. The three can still
+be run one at a time:
+
 ```bash
 python tests/tour_smoke_test.py
 ```
 
-35 checks across the tour API: CRUD, upload validation, the prune grace
+45 checks across the tour API: CRUD, upload validation, the prune grace
 window, path-traversal and malformed-id rejection, oversize rejection,
 duplicate, the export bundle's contents and its provenance manifest, and the
 409 a save from a stale version now gets instead of silently overwriting a
 second editor.
 
+Two of those groups are newer and worth naming. The stale-save check no longer
+posts its two saves one after another — the one interleaving that cannot fail —
+but fires eight simultaneous saves through a barrier, all carrying the same
+`updated`, and requires exactly one 200 and seven 409s. Against the previous
+implementation, which compared and wrote under two separate holds of the lock,
+that check fails on roughly two runs in five with several winners at once.
+And the export is no longer checked only by its table of contents: the zip is
+opened, the injected `window.ORBIT_STATIC_TOUR` is parsed and matched against
+the tour, every import-map target is required to be present in the zip, and
+every media file the document references is required to have been bundled.
+
 ```bash
 node tests/tour_pano_test.mjs
 ```
 
-212 checks on the coverage geometry, GPano XMP reading, EXIF GPS parsing (from
+282 checks on the coverage geometry, GPano XMP reading, EXIF GPS parsing (from
 JPEG APP1, and now PNG eXIf and WebP EXIF chunks too, plus the UTC timestamp
 the sun reading needs), bearing maths, the walkable-direction guess that
 suggests where hotspots go, the solar position (against published Meeus worked
@@ -351,6 +405,45 @@ one, the bearing crossing and its refusal to cross near-parallel lines, the
 hotspot separation geometry, the defect register's measurement phrasing and
 code numbering, the CSV writer (including the leading `=` Excel would otherwise
 execute), and the plan-view projection including the drag round-trip.
+
+This suite lifts its subjects straight out of `tour/index.html` — the block
+between the two `pure helpers` marker comments — so a copy here could never
+drift from the real thing. The list of what to lift is no longer written by
+hand: every top-level declaration in the fence is found by regex and exported
+under its own name, which removed two hand-maintained lists that had already
+drifted from the source and from each other. Two guards keep that honest. A
+name used below but no longer in the fence throws before any check runs, rather
+than reading as `undefined` and letting a check pass for the wrong reason. And
+every *function* in the fence must be mentioned by at least one check, so a
+helper cannot be added and then quietly never exercised. Functions only,
+because the only way to satisfy that gate for a private tuning constant is to
+assert that the constant equals itself, which locks in the one number it exists
+to let somebody change. The handful of parser internals exercised only through
+their public entry point are listed in `INDIRECT`, and a name left there after
+its helper is deleted is itself a failing check.
+
+```bash
+python tests/test_stdlib_boot.py
+```
+
+The one check on the property the whole install story rests on: that the server
+imports and serves with numpy and Pillow absent. It guards the lazy-import
+boundary that keeps the 360 tours running on a machine that never ran the splat
+pipeline's setup.
+
+### The tour document
+
+`tests/fixtures/tour-v1.json` is one tour carrying every field the code reads —
+tour, settings, inspection, all sixteen scene fields and all of the hotspot
+fields across a link, an info, a url and three defects. It is the schema, and it
+is executable: the pure-helper suite runs the real readers over it, so a field
+that gets renamed or dropped fails a check instead of quietly becoming
+`undefined` somewhere. A schema document nobody updates is worse than none; this
+one cannot go stale without going red.
+
+Saved documents carry `v: 1`. Nothing refuses a document for lacking it — every
+tour written before today lacks it and they all still load — it is a marker for
+whoever has to write the first migration.
 
 `python tests/seed_demo_tour.py` builds a demo tour with three generated
 panoramas and a hotspot ring, useful for looking at the viewer without a
