@@ -686,6 +686,9 @@ check(fmtIn(0.125) === '1/8 in', 'an eighth reduces');
 check(fmtIn(0.5) === '1/2 in', 'a half reduces');
 check(fmtIn(1) === '1 in', 'a whole inch drops the fraction');
 check(fmtIn(2) === '2 in', 'two whole inches drop the fraction');
+check(fmtIn(1.5) === '1 1/2 in', 'an inch and a half is a mixed number, the way the sketch tool words it');
+check(fmtIn(2.75) === '2 3/4 in', 'and the fraction still reduces past two inches');
+check(fmtIn(1.0625) === '1 1/16 in', 'a sixteenth over an inch keeps its sixteenth');
 check(fmtIn(0) === '' && fmtIn(undefined) === '', 'no measurement renders as nothing, not NaN');
 
 check(defectMeasure({ defect: 'Spall', depthIn: 0.5 }) === '1/2 in deep', 'a spall reads as a depth');
@@ -945,6 +948,26 @@ const noneLocated = planPositions([{ id: 'a' }, { id: 'b' }, { id: 'c' }]);
 check(noneLocated.pts.length === 3, 'a tour with no GPS at all still gets a plan to correct');
 check(!noneLocated.scaled, 'but it is explicitly NOT to scale, because nothing here knows the size');
 check(noneLocated.pts.every(p => p.kind === 'guess'), 'and every dot on it is a guess');
+check(!noneLocated.oriented, 'and with no fix the plate does not claim to know north');
+
+/* Dragging dots is how a GPS-less layout gets corrected, and the drop stores
+   metres read out of the nominal frame. Two of those are still not a
+   measurement — the plan must not flip to "scaled" because a human tidied it. */
+const draggedBlind = planPositions([
+  { id: 'a', plan: { x: 5, y: 0 } },
+  { id: 'b', plan: { x: -5, y: 0 } },
+]);
+check(!draggedBlind.scaled, 'two hand-placed dots with no GPS anywhere do not invent a scale');
+check(!draggedBlind.oriented, 'nor a north');
+
+/* The other side of that coin: hand-correcting a GPS dot must not surrender
+   the scale, because the fixes that sized the frame are still in the photos. */
+const corrected = planPositions([
+  { id: 'a', geo: { lat: 40, lon: -75 }, plan: { x: 3, y: 4 } },
+  { id: 'b', geo: { lat: 40, lon: -75.001 }, plan: { x: 60, y: -2 } },
+]);
+check(corrected.scaled, 'hand-correcting both GPS dots keeps the scale the fixes established');
+check(corrected.oriented, 'and the north they established');
 
 /* a hand-placed position outranks GPS, because a human said so */
 const dragged = planPositions([
@@ -1139,10 +1162,10 @@ const fixtureRows = registerCsv(fixture).split('\r\n');
 check(fixtureRows.length === 4, 'the register is a header and one row per defect');
 check(fixtureRows[1].startsWith('D1,Spall,"1/2 in deep, reinforcement exposed"'),
   'and the measurement column reads the way the field-sketch tool words it');
-/* Every measurement in the fixture has to be one the editor can actually
-   record. An earlier draft used a 1.5 in depth, which is not on DEPTH_STEPS
-   and which fmtIn renders "3/2 in" — an improper fraction no inspector writes.
-   A fixture that documents an unreachable document documents nothing. */
+/* Every measurement in the fixture stays on the quick-step lists — the common
+   path an inspector actually taps. The Exact field can record between-step
+   values too, and fmtIn words those as mixed numbers ("1 1/2 in"), but the
+   fixture documents the ordinary document, not the edge of the input. */
 const onList = (v, steps) => steps.some(([n]) => n === v);
 check(tourDefects(fixture).every(({ h }) =>
   (h.depthIn === undefined || onList(h.depthIn, DEPTH_STEPS))

@@ -255,7 +255,10 @@ A forty-panorama bridge is a maze, so:
   across each end — along that long axis.
   **The grid is ruled in metres**, at a round 1-2-5 step, with a scale bar and
   a north mark to step distances off against. Without a GPS fix anywhere there
-  is no scale to state, so it falls back to plain quarters and says so.
+  is no scale to state and no north to know — and hand-tidying the dots does
+  not change that — so it falls back to plain quarters, drops the north mark,
+  and says so. Two real fixes are what size the site; correcting a GPS dot by
+  hand keeps the scale they established.
   **A photo carrying defects wears the count**, so the register's findings sit
   on the ground they were found on rather than only in a flat CSV. **A photo
   nothing links to gets a red ring** — it is in the record but not in the walk.

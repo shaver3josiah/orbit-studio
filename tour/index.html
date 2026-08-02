@@ -2046,8 +2046,12 @@ function fmtIn(v) {
   const sixteenths = Math.round(v * 16);
   if (sixteenths % 16 === 0) return `${sixteenths / 16} in`;
   const gcd = (a, b) => (b ? gcd(b, a % b) : a);
-  const d = gcd(sixteenths, 16);
-  return `${sixteenths / d}/${16 / d} in`;
+  const rem = sixteenths % 16;
+  const d = gcd(rem, 16);
+  const whole = Math.floor(sixteenths / 16);
+  /* past an inch it is a mixed number — "1 1/2 in", the way the sketch tool
+     writes it and an inspector reads it, never an improper "3/2 in" */
+  return `${whole ? `${whole} ` : ''}${rem / d}/${16 / d} in`;
 }
 
 /* The register's Measure column, and the marker tooltip. */
@@ -2177,10 +2181,13 @@ function planPositions(scenes) {
     }
   }
 
-  /* the structure's axis, from whatever is actually pinned down. With nothing
-     pinned there is no scale either, so pick a nominal one and say so. */
+  /* the structure's axis, from whatever is actually pinned down. Scale is a
+     stricter claim: only the distance between two real GPS fixes is a
+     measurement. Two hand-dragged dots alone must NOT flip the plan to
+     "scaled" — the metres a drag stores are read out of whatever frame it was
+     dropped in, which with no fix anywhere is the nominal one below. */
   const anchors = [...placed.values()];
-  const scaled = anchors.length >= 2;
+  const scaled = located.length >= 2;
   const axis = anchors.length ? principalAxis(anchors) : { mx: 0, my: 0, dx: 1, dy: 0 };
   const along = p => (p.x - axis.mx) * axis.dx + (p.y - axis.my) * axis.dy;
   const ts = anchors.map(along);
@@ -2234,7 +2241,7 @@ function planPositions(scenes) {
   return {
     pts: pts.map(p => ({ ...p, ...toBox(p) })),
     deck: { from: end(tMin), to: end(tMax) },
-    span, scaled, toMetres, vehicle,
+    span, scaled, oriented: !!origin, toMetres, vehicle,
   };
 }
 
@@ -2916,6 +2923,14 @@ async function renderViewer(tourId) {
     return;
   }
   document.title = `${tour.name} — Orbit Tour`;
+
+  /* handle_tour_save only checks that scenes is a list, so a hand-edited doc
+     can put anything inside it. A shapeless entry used to make the viewer
+     throw before it drew anything — a blank page with no way out. Keep only
+     real scenes, the way export_manifest already does; links to anything
+     dropped self-heal in sceneToNode's dangling-link filter. */
+  tour.scenes = (tour.scenes || []).filter(s =>
+    s && typeof s === 'object' && s.id && typeof s.id === 'string' && s.file && typeof s.file === 'string');
 
   if (!(tour.scenes || []).length) {
     app.innerHTML = `<div class="center-note">
@@ -4000,8 +4015,9 @@ async function renderEditor(tourId) {
     /* North was only ever asserted in a source comment, and the grid was ruled
        at a quarter of an arbitrary span. Both are cheap to make true: the bar
        is one cell of the grid, labelled, so a distance on this plate can be
-       stepped off against it instead of guessed at. */
-    box.append(el(`<span class="plan-north" aria-hidden="true">N</span>`));
+       stepped off against it instead of guessed at. Only when honest, though:
+       with no GPS fix anywhere the frame has no north, so no N is worn. */
+    if (plan.oriented) box.append(el(`<span class="plan-north" aria-hidden="true">N</span>`));
     if (step) {
       box.append(el(`<span class="plan-scale" aria-hidden="true"
         style="width:${(step / plan.span * 100).toFixed(4)}%">${+step.toFixed(2)} m</span>`));
@@ -4013,8 +4029,10 @@ async function renderEditor(tourId) {
     note.textContent = [
       'Drag a photo to where it stood, drop it on another to connect the two, or click a link to cut it.',
       plan.scaled
-        ? `${counts.gps} from GPS, about ${span} m across — each grid square is ${+step.toFixed(2)} m.`
-        : 'No photo here carries a GPS fix, so this is the shape of the walk, not its size, and the grid is only a grid.',
+        ? `Sized by GPS: about ${span} m across — each grid square is ${+step.toFixed(2)} m.`
+        : counts.gps
+          ? `${counts.gps} from GPS — two fixes are needed to size the site, so this is its shape, not its size.`
+          : 'No photo here carries a GPS fix, so this is the shape of the walk, not its size, and the grid is only a grid.',
       counts.guess ? `${counts.guess} placed by capture order — drag ${counts.guess > 1 ? 'them' : 'it'} onto the right spot.` : '',
       counts.manual ? `${counts.manual} moved by hand.` : '',
       edges.length
