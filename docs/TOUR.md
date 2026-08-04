@@ -225,7 +225,9 @@ A forty-panorama bridge is a maze, so:
 
 - **Ctrl+K** jumps to any scene or defect by name, station, element or code.
 - The scene list **groups itself by photo stop** past eight scenes.
-- **Plan view**, under the scene list, draws the structure's own long axis and
+- **Plan view**, under the scene list — or full size over the panorama via
+  the toolbar's **Map** button (**M**), which is the comfortable place to do
+  everything below — draws the structure's own long axis and
   places every photo around it, north up, with the site's real proportions and
   the distance across it. Three kinds of dot, told apart by their drawing and
   counted in the note underneath: solid for a GPS fix, hollow and dashed for a

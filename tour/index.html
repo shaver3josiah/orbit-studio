@@ -458,6 +458,54 @@
     background: var(--scrim-strong); backdrop-filter: blur(8px);
   }
 
+  /* The same plan plate the sidebar carries, lifted over the panorama and
+     given the room the job actually needs — see toggleMap(). The summary is
+     collapse chrome for the sidebar; out here the map IS the view. */
+  .map-view {
+    position: absolute; inset: 0; z-index: var(--z-tryout);
+    background: var(--bg); display: flex; flex-direction: column;
+    animation: map-in var(--dur-base) var(--ease-out);
+  }
+  @keyframes map-in { from { opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { .map-view { animation: none; } }
+  .map-head {
+    display: flex; align-items: center; gap: var(--s3) var(--s5); flex-wrap: wrap;
+    padding: var(--s3) var(--s5); border-bottom: 1px solid var(--line);
+    background: var(--surface);
+  }
+  .map-head h2 { margin: 0; font-size: var(--t-lg); font-weight: 600; }
+  .map-head .map-close { margin-left: auto; }
+  /* the dot vocabulary, said once, where there is room to say it */
+  .map-legend {
+    display: flex; flex-wrap: wrap; gap: var(--s2) var(--s4);
+    margin: 0; padding: 0; list-style: none;
+    font-size: var(--t-sm); color: var(--ink-2);
+  }
+  .map-legend li { display: flex; align-items: center; gap: var(--s2); }
+  .lg {
+    width: 11px; height: 11px; border-radius: 50%; flex: none;
+    background: var(--surface); border: 2px solid var(--ink-3);
+  }
+  .lg-guess { border-style: dashed; background: transparent; }
+  .lg-manual { background: var(--ink-3); }
+  .lg-on { background: var(--accent); border-color: var(--accent); }
+  .lg-stray { border-color: var(--danger); }
+  .map-scroll {
+    flex: 1; overflow: auto; display: grid; place-items: center; padding: var(--s5);
+  }
+  .map-sheet { width: min(70vh, 92vw); }
+  .map-view summary { display: none; }
+  .map-view .plan-dot { width: 15px; height: 15px; }
+  /* names fit out here — on the sidebar plate they would bury the dots */
+  .map-view .plan-dot[data-name]::after {
+    content: attr(data-name); position: absolute; top: calc(100% + 4px); left: 50%;
+    transform: translateX(-50%); max-width: 120px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    font-size: var(--t-xs); line-height: 1.3; color: var(--ink-2);
+    background: var(--bg); padding: 0 4px; border-radius: var(--r-xs);
+    pointer-events: none;
+  }
+
   /* hotspots are draggable in the editor only — in the viewer they are buttons */
   #edit-psv .psv-marker { cursor: grab; }
   /* nothing else says "you can pick this up", so hover has to */
@@ -3592,7 +3640,9 @@ async function renderEditor(tourId) {
           <button class="btn" id="sort-shot" style="width:100%;margin-top:8px" hidden>Order by capture time</button>
           <p class="scene-note" id="link-summary"></p>
           <details class="plan" id="plan-section" open>
-            <summary>Plan view<span class="plan-span num" id="plan-span"></span></summary>
+            <summary>Plan view<span class="plan-span num" id="plan-span"></span><button
+              type="button" class="icon-btn" id="plan-expand" title="Open full size (M)"
+              aria-label="Open the map full size">&#x2922;</button></summary>
             <div class="plan-box" id="plan-box"></div>
             <p class="scene-note" id="plan-note"></p>
             <button class="btn" id="plan-reset" style="width:100%" hidden>Undo my placements</button>
@@ -3987,10 +4037,10 @@ async function renderEditor(tourId) {
       ].filter(Boolean).join('. ');
       const badge = nd ? `<span class="plan-def num">${nd > 9 ? '9+' : nd}</span>` : '';
       const dot = el(live
-        ? `<button class="${cls}" data-plan-id="${esc(p.id)}" title="${esc(said)}"
+        ? `<button class="${cls}" data-plan-id="${esc(p.id)}" data-name="${esc(label)}" title="${esc(said)}"
              aria-label="${esc(said)}. Go to it, drag to move it, or drop it on another photo to connect them."
              aria-current="${on}" style="${pos}">${badge}</button>`
-        : `<span class="${cls}" data-plan-id="${esc(p.id)}"
+        : `<span class="${cls}" data-plan-id="${esc(p.id)}" data-name="${esc(label)}"
              aria-hidden="true" style="${pos}">${badge}</span>`);
       if (live) {
         dot.addEventListener('click', () => { if (!dot.dataset.dragged) selectScene(p.id); });
@@ -4221,6 +4271,10 @@ async function renderEditor(tourId) {
   });
   fileInput.addEventListener('change', () => { addScenes([...fileInput.files]); fileInput.value = ''; });
   document.getElementById('auto-link').addEventListener('click', autoLink);
+  /* a button inside a <summary> would otherwise also toggle the fold */
+  document.getElementById('plan-expand').addEventListener('click', e => {
+    e.preventDefault(); e.stopPropagation(); toggleMap(true);
+  });
   document.getElementById('plan-reset')?.addEventListener('click', () => {
     for (const s of doc.scenes) delete s.plan;
     scheduleSave();
@@ -4655,6 +4709,7 @@ async function renderEditor(tourId) {
           <button class="btn" id="set-view">Set start view from here</button>
           <button class="btn" id="undo-btn" title="Undo (Ctrl+Z)" disabled>Undo</button>
           <button class="btn" id="redo-btn" title="Redo (Ctrl+Shift+Z)" disabled>Redo</button>
+          <button class="btn" id="open-map" title="Open the map full size (M)">Map</button>
           <button class="btn primary" id="start-tour" title="Walk your own tour (T)">Start tour</button>
           <button class="btn" id="help-btn" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts">?</button>
           <span class="hint" id="hint"></span>
@@ -4671,6 +4726,7 @@ async function renderEditor(tourId) {
       document.getElementById('add-info').addEventListener('click', () => startPlacing('info'));
       document.getElementById('add-url').addEventListener('click', () => startPlacing('url'));
       document.getElementById('add-defect').addEventListener('click', () => startPlacing('defect'));
+      document.getElementById('open-map').addEventListener('click', () => toggleMap());
       document.getElementById('start-tour').addEventListener('click', startTour);
       document.getElementById('undo-btn').addEventListener('click', undo);
       document.getElementById('redo-btn').addEventListener('click', redo);
@@ -4820,12 +4876,57 @@ async function renderEditor(tourId) {
      viewer code, so what you walk is exactly what a visitor gets. */
   const closeTryout = () => document.querySelector('.tryout')?.remove();
 
+  /* ----- the map, big -----
+     The plan plate in the sidebar is where a tour gets stitched together, and
+     at sidebar width it is a postage stamp. This lifts the SAME element into
+     an overlay over the panorama — same DOM node, so renderPlan(), the drag
+     handlers and Undo all keep working — and hands it back to the sidebar on
+     close. renderPlan() re-runs after each move because the declutter pass
+     spaces crowded dots in pixels, and the right spacing at 288px is not the
+     right spacing at 900px. */
+  const mapOpen = () => document.querySelector('.map-view');
+  function toggleMap(want = !mapOpen()) {
+    const plan = document.getElementById('plan-section');
+    if (!plan) return;
+    if (!want) {
+      const ov = mapOpen();
+      if (!ov) return;
+      document.getElementById('link-summary').after(plan);
+      ov.remove();
+      renderPlan();
+      document.getElementById('open-map')?.focus();
+      return;
+    }
+    if (mapOpen()) return;
+    const ov = el(`<div class="map-view" role="region" aria-label="Map">
+      <header class="map-head">
+        <h2>Map</h2>
+        <ul class="map-legend">
+          <li><span class="lg" aria-hidden="true"></span>GPS fix</li>
+          <li><span class="lg lg-guess" aria-hidden="true"></span>guessed — drag it home</li>
+          <li><span class="lg lg-manual" aria-hidden="true"></span>placed by hand</li>
+          <li><span class="lg lg-on" aria-hidden="true"></span>the photo you are editing</li>
+          <li><span class="lg lg-stray" aria-hidden="true"></span>not in the walk yet</li>
+        </ul>
+        <button class="btn map-close" title="Back to editing (Esc)">Back to editing</button>
+      </header>
+      <div class="map-scroll"><div class="map-sheet"></div></div>
+    </div>`);
+    ov.querySelector('.map-sheet').append(plan);
+    plan.open = true;
+    ov.querySelector('.map-close').addEventListener('click', () => toggleMap(false));
+    document.getElementById('main-pane').append(ov);
+    renderPlan();
+    ov.querySelector('.map-close').focus();
+  }
+
   async function startTour() {
     while (saveInFlight) await new Promise(r => setTimeout(r, 120));
     if (dirty || saveTimer) {
       if (!await saveNow()) toast('Could not save — you are walking the last saved version', true);
     }
     closeTryout();
+    toggleMap(false);
     setPlacing(null);
     closeHotspotPanel();
     const box = el(`<div class="tryout">
@@ -4872,6 +4973,7 @@ async function renderEditor(tourId) {
     if (modalOpen()) return;
     if (drawerOpen()) { setDrawer(false); return; }
     if (document.querySelector('.tryout')) { closeTryout(); return; }
+    if (mapOpen()) { toggleMap(false); return; }
     if (armedTarget()) exitBuildMode();
     else if (placing) setPlacing(null);
     else closeHotspotPanel({ restore: true });
@@ -4892,6 +4994,7 @@ async function renderEditor(tourId) {
     ['D', 'Place a defect'],
     ['U', 'Place a URL hotspot'],
     ['[  ]', 'Previous / next scene'],
+    ['M', 'Open the map full size'],
     ['T', 'Start the tour'],
     ['S', 'Save now'],
     ['Ctrl+Z', 'Undo'],
@@ -5048,6 +5151,7 @@ async function renderEditor(tourId) {
     else if (e.key === '[') stepScene(-1);
     else if (e.key === ']') stepScene(1);
     else if (k === 't') startTour();
+    else if (k === 'm') toggleMap();
     else if (k === 's') saveNow();
     else return;
     e.preventDefault();
