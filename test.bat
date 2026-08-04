@@ -63,6 +63,17 @@ echo.
 %PY% tests/test_stdlib_boot.py
 if errorlevel 1 set "FAILED=!FAILED! stdlib"
 
+REM The splat side. This one drives the whole flythrough pipeline end to end -
+REM equirect video in, frames, v360 reframing, bundle.zip out - plus keyframe
+REM save/load and the .ply to .splat conversion the notebook's result lands on.
+REM It was written but never wired in here, so "the tests" only ever meant the
+REM tour. It needs numpy and Pillow; the tour checks above deliberately do not.
+echo.
+echo ==^> splat pipeline ^(python tests/smoke_test.py^)
+echo.
+%PY% tests/smoke_test.py
+if errorlevel 1 set "FAILED=!FAILED! splat"
+
 echo.
 if defined FAILED (
   echo   FAILED:!FAILED!
