@@ -81,7 +81,7 @@ const USED = [
   'principalAxis', 'triangulate', 'separateMarks',
   'fmtIn', 'defectMeasure', 'defectNeedsMeasure', 'nextDefectCode', 'DEFECT_TYPES', 'DEFECT_MEASURE',
   'DEPTH_STEPS', 'WIDTH_STEPS', 'csvCell', 'registerCsv', 'planPositions', 'planEdges', 'planBearing',
-  'tourDefects', 'defectCounts', 'niceMetres', 'facingBearing', 'aimFromPoint', 'headingForAim',
+  'tourDefects', 'defectCounts', 'niceMetres', 'facingBearing', 'aimFromPoint', 'headingForAim', 'aimGeometry',
   'strandedScenes',
 ];
 const missingFromExports = USED.filter(name => !(name in helpers));
@@ -95,7 +95,7 @@ const {
   principalAxis, triangulate, separateMarks,
   fmtIn, defectMeasure, defectNeedsMeasure, nextDefectCode, DEFECT_TYPES, DEFECT_MEASURE,
   DEPTH_STEPS, WIDTH_STEPS, csvCell, registerCsv, planPositions, planEdges, planBearing,
-  tourDefects, defectCounts, niceMetres, facingBearing, aimFromPoint, headingForAim,
+  tourDefects, defectCounts, niceMetres, facingBearing, aimFromPoint, headingForAim, aimGeometry,
   strandedScenes,
 } = helpers;
 
@@ -1207,6 +1207,18 @@ check(headingForAim({ view: { yaw: 30 } }, 10) === 340,
   'the stored heading wraps rather than going negative');
 check(headingForAim({}, 90) === 90 && headingForAim(null, 90) === 90,
   'a photo with no opening view stores the bearing as given');
+
+/* the shape the arrow is actually drawn as, in plate percentages */
+const northArrow = aimGeometry({ u: 0.5, v: 0.5 }, 0);
+check(near(northArrow.tx, 50, 0.01) && near(northArrow.ty, 50 - 9, 0.01),
+  `an arrow at 0 points straight up the plate, AIM_LEN from the dot (got ${northArrow.tx}, ${northArrow.ty})`);
+check(near(aimGeometry({ u: 0.5, v: 0.5 }, 90).tx, 59, 0.01), 'and at 90 it points right');
+check(northArrow.gy > northArrow.ty,
+  'the shaft starts short of the tip, clear of the dot, so a press near the middle still picks the photo up');
+/* the head is two barbs BEHIND the tip, or the arrow would point at nothing */
+const barbY = northArrow.d.split(' ').map(Number).filter(Number.isFinite);
+check(barbY.length === 6 && barbY[1] > northArrow.ty && barbY[5] > northArrow.ty,
+  'and both barbs sit behind the tip rather than beyond it');
 
 /* ---------- working out the bearings nobody recorded ----------
  * Two means that do not need the camera to have known anything: carrying a

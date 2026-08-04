@@ -507,8 +507,9 @@
      and the grid are all in percentages, so growing the sheet is the whole of
      zooming — nothing re-lays-out, and .map-scroll pans what no longer fits. */
   .map-sheet { width: calc(min(70vh, 92vw) * var(--map-zoom, 1)); }
-  .map-zoom { display: flex; align-items: center; gap: var(--s2); font-size: var(--t-sm); color: var(--ink-2); }
+  .map-zoom, .map-opt { display: flex; align-items: center; gap: var(--s2); font-size: var(--t-sm); color: var(--ink-2); }
   .map-zoom input { width: 120px; }
+  .map-opt select { font-size: var(--t-sm); padding: 2px var(--s2); }
   /* `.plan > summary` below is the same specificity and comes later, so this
      has to out-weigh it or the overlay wears the sidebar's collapse chrome —
      a second "Plan view" title and an expand button already expanded. */
@@ -2542,6 +2543,30 @@ const aimFromPoint = (from, at) =>
 const headingForAim = (scene, aim) =>
   +(((((aim - (scene?.view?.yaw || 0)) % 360) + 360) % 360)).toFixed(2);
 
+/* The arrow each photo wears on the plan, in plate units — which are
+   percentages, and the plate is square, so one unit is one unit either way.
+   AIM_GAP is why the shaft starts clear of the dot: a press near the middle
+   should still pick the photo up rather than turn it.
+
+   One definition, because it is used three times over — to draw every arrow,
+   to redraw the one being dragged, and by design/plan-view-20.html to show
+   what twenty of them look like at once. Two copies would drift, and the first
+   symptom would be an arrow jumping the moment you took hold of it. */
+const AIM_LEN = 9, AIM_HEAD = 3.4, AIM_GAP = 4.5;
+function aimGeometry(p, deg) {
+  const rad = deg * Math.PI / 180;
+  const arm = r => [p.u * 100 + r * Math.sin(rad), p.v * 100 - r * Math.cos(rad)];
+  const [gx, gy] = arm(AIM_GAP), [tx, ty] = arm(AIM_LEN);
+  const barb = a => {
+    const b = a * Math.PI / 180;
+    return `${(tx + AIM_HEAD * Math.sin(b)).toFixed(2)} ${(ty - AIM_HEAD * Math.cos(b)).toFixed(2)}`;
+  };
+  return {
+    gx, gy, tx, ty,
+    d: `M ${barb(deg + 155)} L ${tx.toFixed(2)} ${ty.toFixed(2)} L ${barb(deg - 155)}`,
+  };
+}
+
 /* ---------- working out the bearings nobody recorded ----------
 
    Three things could already give a photo a bearing, and all three depend on
@@ -4166,23 +4191,19 @@ async function renderEditor(tourId) {
   const PLAN_PICKABLE_MAX = 24;
   /* Wide enough for a long viaduct and its approaches, far short of a bad fix. */
   const PLAN_MAX_SPAN_M = 5000;
+  /* Past this many dots the names under them stop being labels and become a
+     smear: at twenty photos on a 500px plate, seven pairs of them overlap and
+     none of the seven can be read. So they switch themselves off, and the
+     control in the map header switches them back on — or onto something
+     shorter, which is usually the better answer anyway. */
+  const PLAN_LABEL_MAX = 12;
 
-  /* The arrow each photo wears, in plate units (which are percentages, and the
-     plate is square). AIM_GAP is why the shaft starts clear of the dot: a press
-     near the middle should still pick the photo up rather than turn it.
-     One definition, used both to draw the arrows and to redraw one mid-turn —
-     two copies of this would drift and the arrow would jump on first drag. */
-  const AIM_LEN = 9, AIM_HEAD = 3.4, AIM_GAP = 4.5;
-  function aimGeometry(p, deg) {
-    const arm = r => [p.u * 100 + r * Math.sin(deg * DEG), p.v * 100 - r * Math.cos(deg * DEG)];
-    const [gx, gy] = arm(AIM_GAP), [tx, ty] = arm(AIM_LEN);
-    const barb = a =>
-      `${(tx + AIM_HEAD * Math.sin(a * DEG)).toFixed(2)} ${(ty - AIM_HEAD * Math.cos(a * DEG)).toFixed(2)}`;
-    return {
-      gx, gy, tx, ty,
-      d: `M ${barb(deg + 155)} L ${tx.toFixed(2)} ${ty.toFixed(2)} L ${barb(deg - 155)}`,
-    };
-  }
+  /* How the map is being WORKED, as opposed to what it contains. Deliberately
+     not in doc.settings: none of it describes the tour, and a colleague opening
+     the same tour should not inherit somebody else's label choice. Lives as
+     long as the editor is open. */
+  let planLabels = null;     /* null = decide from the crowd, else name|stop|station|none */
+  let planMoveOnly = false;  /* true = a drag always moves, and never links */
 
   function renderPlan() {
     const box = document.getElementById('plan-box');
@@ -4351,11 +4372,20 @@ async function renderEditor(tourId) {
 
     const defects = defectCounts(doc);
     const stray = new Set(strandedScenes(doc));
+    /* What the dots wear under themselves. Names are the right answer for six
+       photos and the wrong one for twenty, and on a bridge the useful caption
+       is often the station or the photo stop rather than "IMG_0412" — so this
+       is a choice, with a default that reads the crowd. */
+    const labelMode = planLabels ?? (plan.pts.length > PLAN_LABEL_MAX ? 'none' : 'name');
     for (const p of plan.pts) {
       const s = doc.scenes.find(x => x.id === p.id);
       const on = p.id === curSceneId;
       const live = pickable || on;
       const label = [s?.name, s?.station && `Sta ${s.station}`].filter(Boolean).join(' — ');
+      /* the caption is a display choice; `label` above stays the full thing, so
+         turning captions off never takes the name away from a screen reader */
+      const caption = { name: s?.name, stop: s?.stop, station: s?.station && `Sta ${s.station}` }[labelMode] || '';
+      const named = caption ? ` data-name="${esc(caption)}"` : '';
       const where = { gps: 'from GPS', manual: 'placed by hand', guess: 'guessed' }[p.kind];
       const pos = `left:${(p.u * 100).toFixed(2)}%;top:${(p.v * 100).toFixed(2)}%`;
       /* The register is a flat list of findings with no map in it. This is the
@@ -4371,10 +4401,10 @@ async function renderEditor(tourId) {
       ].filter(Boolean).join('. ');
       const badge = nd ? `<span class="plan-def num">${nd > 9 ? '9+' : nd}</span>` : '';
       const dot = el(live
-        ? `<button class="${cls}" data-plan-id="${esc(p.id)}" data-name="${esc(label)}" title="${esc(said)}"
-             aria-label="${esc(said)}. Go to it, drag to move it, or drop it on another photo to connect them."
+        ? `<button class="${cls}" data-plan-id="${esc(p.id)}"${named} title="${esc(said)}"
+             aria-label="${esc(said)}. Go to it, drag to move it${planMoveOnly ? '' : ', or drop it on another photo to connect them'}."
              aria-current="${on}" style="${pos}">${badge}</button>`
-        : `<span class="${cls}" data-plan-id="${esc(p.id)}" data-name="${esc(label)}"
+        : `<span class="${cls}" data-plan-id="${esc(p.id)}"${named}
              aria-hidden="true" style="${pos}">${badge}</span>`);
       if (live) {
         dot.addEventListener('click', () => { if (!dot.dataset.dragged) selectScene(p.id); });
@@ -4427,8 +4457,11 @@ async function renderEditor(tourId) {
        telling you, and running the two together made one long paragraph nobody
        finishes. The instructions sit above the map, the findings below it. */
     if (how) {
-      how.textContent = 'Drag a photo to where it stood, drop it on another to connect the two, '
-        + 'or click a link to cut it. Each photo carries an arrow for the way it looks — drag the arrow to turn it. '
+      how.textContent = (planMoveOnly
+        ? 'Drag a photo to where it stood; move-only is on, so dropping it on another will not link them. '
+          + 'Click a link to cut it. '
+        : 'Drag a photo to where it stood, drop it on another to connect the two, or click a link to cut it. ')
+        + 'Each photo carries an arrow for the way it looks — drag the arrow to turn it. '
         + 'The arrow keys nudge a selected photo and turn a selected arrow; hold Shift for bigger steps.';
     }
     note.textContent = [
@@ -4461,6 +4494,10 @@ async function renderEditor(tourId) {
         ? `The truck is plant on the deck, crossed from ${plan.vehicle.from} photos that saw it — a guess at a big bright object, so check it is a truck and not a skip.`
         : '',
       pickable ? '' : 'Too many to pick up at this size — use Ctrl+K to jump, then drag the highlighted dot. Any dot can still be dropped on.',
+      /* said once, when it happens, rather than left as a silent disappearance */
+      planLabels === null && labelMode === 'none'
+        ? `Names are off above ${PLAN_LABEL_MAX} photos because they overlap into a smear — the map header puts them back, or swaps them for the station or the photo stop.`
+        : '',
       counts.gps ? 'Phone GPS is good to a few metres, so treat this as a sketch.' : '',
     ].filter(Boolean).join(' ');
   }
@@ -4694,7 +4731,11 @@ async function renderEditor(tourId) {
           u: clamp((e.clientX - rect.left) / rect.width, 0, 1),
           v: clamp((e.clientY - rect.top) / rect.height, 0, 1),
         };
-        onto = planNodeNear(plan.pts, at, rect, id);
+        /* Move-only turns the second meaning off. The no-mode default is still
+           right for six photos — you can see what you are about to hit — but at
+           twenty the dots are close enough that a move keeps landing on a
+           neighbour and drawing a link nobody asked for. */
+        onto = planMoveOnly ? null : planNodeNear(plan.pts, at, rect, id);
         for (const other of box.querySelectorAll('.plan-dot.target')) other.classList.remove('target');
         if (onto) box.querySelector(`.plan-dot[data-plan-id="${CSS.escape(onto.id)}"]`)?.classList.add('target');
         dot.classList.add('dragging');
@@ -5433,6 +5474,17 @@ async function renderEditor(tourId) {
           <li><span class="lg lg-stray" aria-hidden="true"></span>not in the walk yet</li>
           <li><span class="lg lg-aim" aria-hidden="true"></span>which way it looks — drag to turn</li>
         </ul>
+        <label class="map-opt">Labels
+          <select aria-label="What each photo is labelled with">
+            <option value="name">Name</option>
+            <option value="stop">Photo stop</option>
+            <option value="station">Station</option>
+            <option value="none">None</option>
+          </select>
+        </label>
+        <label class="map-opt" title="Dragging a photo onto another will not link them">
+          <input type="checkbox" id="map-moveonly"> Move only
+        </label>
         <label class="map-zoom">Zoom
           <input type="range" min="1" max="4" step="0.25" value="1" aria-label="Zoom the map">
         </label>
@@ -5446,6 +5498,16 @@ async function renderEditor(tourId) {
        property and the scroll box handles the rest — no re-render */
     ov.querySelector('.map-zoom input').addEventListener('input', e => {
       ov.style.setProperty('--map-zoom', e.target.value);
+    });
+    /* The select opens showing what is actually on the plate, including the
+       choice the crowd made for you — otherwise it reads "Name" over a plate
+       with no names on it, and the first thing you do is prove it wrong. */
+    const labelSel = ov.querySelector('.map-opt select');
+    labelSel.value = planLabels ?? (doc.scenes.length > PLAN_LABEL_MAX ? 'none' : 'name');
+    labelSel.addEventListener('change', e => { planLabels = e.target.value; renderPlan(); });
+    ov.querySelector('#map-moveonly').addEventListener('change', e => {
+      planMoveOnly = e.target.checked;
+      renderPlan(); /* the dots' own aria-label says which of the two a drag will do */
     });
     ov.querySelector('.map-close').addEventListener('click', () => toggleMap(false));
     document.getElementById('main-pane').append(ov);

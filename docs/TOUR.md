@@ -315,8 +315,25 @@ A forty-panorama bridge is a maze, so:
   Nothing there overwrites a bearing that already exists, **This scene** says
   which of the two produced each one, every result is a turnable arrow, and
   Ctrl+Z undoes the lot.
-  **Zoom**, in the full-size map's header, grows the plate up to 4× and pans it
-  in its scroll box, for a viaduct with forty photos on it.
+  The full-size map's header carries three controls for working a crowded
+  plate. **Zoom** grows it up to 4× and pans it in its scroll box. **Labels**
+  chooses what each dot says under itself — name, photo stop, station, or
+  nothing. Past twelve photos it starts on *None*, because at twenty the names
+  overlap into a smear (seven overlapping pairs on a 500px plate, none of them
+  readable) and the note says so rather than letting them quietly vanish; on a
+  bridge the station is usually the caption you wanted anyway. **Move only**
+  turns off the drop-to-link half of a drag: the no-mode default is right for
+  six photos, where you can see what you are about to hit, but at twenty the
+  dots are close enough that a move keeps landing on a neighbour and drawing a
+  link nobody asked for. None of the three is saved into the tour — they
+  describe how you are working, not what the tour contains.
+
+  [design/plan-view-20.html](../design/plan-view-20.html) is the whole plate
+  carrying a twenty-photo bridge, as one self-contained page that needs no
+  server: the fastest way to see whether a change reads at the size a real job
+  makes it. Rebuild it with `node design/plan_preview.mjs` after changing the
+  plate — it lifts the stylesheet and the pure helpers straight out of
+  `tour/index.html`, so its geometry and colours are the ones that ship.
   If two or more photos both see the plant on the deck and both know which way
   they were facing, the bearings are crossed and the vehicle is drawn as a
   truck. Near-parallel bearings cross at a point far too sensitive to be worth
