@@ -2144,7 +2144,11 @@ const THEME_STORAGE_KEY = "orbit-studio-theme";
 const LAST_PROJECT_STORAGE_KEY = "orbit-studio-last-project";
 const HEALTH_TIMEOUT_MS = 1200;
 const DEMO_ARTIFACT_URL = "./demo/demo.splat";
-const NOTEBOOK_URL = "./notebooks/OrbitStudio_Colab.ipynb";
+// Colab, not the local file. "./notebooks/..." resolved against the server, which
+// serves the raw .ipynb as application/x-ipynb+json - so the one button whose whole
+// job is to hand you to the GPU opened a page of JSON instead. Same target as the
+// README badge; it reads the notebook from GitHub, so main must carry the fix.
+const NOTEBOOK_URL = "https://colab.research.google.com/github/shaver3josiah/orbit-studio/blob/main/notebooks/OrbitStudio_Colab.ipynb";
 const DEMO_KEYFRAMES = [
   { pos: [3.4, 1.4, 3.1], target: [0, 0.6, 0] },
   { pos: [-2.6, 1.9, -3.2], target: [0, 0.4, 0] }
