@@ -81,7 +81,7 @@ const USED = [
   'principalAxis', 'triangulate', 'separateMarks',
   'fmtIn', 'defectMeasure', 'defectNeedsMeasure', 'nextDefectCode', 'DEFECT_TYPES', 'DEFECT_MEASURE',
   'DEPTH_STEPS', 'WIDTH_STEPS', 'csvCell', 'registerCsv', 'planPositions', 'planEdges', 'planBearing',
-  'tourDefects', 'defectCounts', 'niceMetres', 'facingBearing', 'aimFromPoint', 'headingForAim', 'aimGeometry',
+  'tourDefects', 'defectCounts', 'niceMetres', 'facingBearing', 'aimFromPoint', 'headingForAim', 'AIM_DART',
   'strandedScenes',
 ];
 const missingFromExports = USED.filter(name => !(name in helpers));
@@ -95,7 +95,7 @@ const {
   principalAxis, triangulate, separateMarks,
   fmtIn, defectMeasure, defectNeedsMeasure, nextDefectCode, DEFECT_TYPES, DEFECT_MEASURE,
   DEPTH_STEPS, WIDTH_STEPS, csvCell, registerCsv, planPositions, planEdges, planBearing,
-  tourDefects, defectCounts, niceMetres, facingBearing, aimFromPoint, headingForAim, aimGeometry,
+  tourDefects, defectCounts, niceMetres, facingBearing, aimFromPoint, headingForAim, AIM_DART,
   strandedScenes,
 } = helpers;
 
@@ -1208,17 +1208,27 @@ check(headingForAim({ view: { yaw: 30 } }, 10) === 340,
 check(headingForAim({}, 90) === 90 && headingForAim(null, 90) === 90,
   'a photo with no opening view stores the bearing as given');
 
-/* the shape the arrow is actually drawn as, in plate percentages */
-const northArrow = aimGeometry({ u: 0.5, v: 0.5 }, 0);
-check(near(northArrow.tx, 50, 0.01) && near(northArrow.ty, 50 - 9, 0.01),
-  `an arrow at 0 points straight up the plate, AIM_LEN from the dot (got ${northArrow.tx}, ${northArrow.ty})`);
-check(near(aimGeometry({ u: 0.5, v: 0.5 }, 90).tx, 59, 0.01), 'and at 90 it points right');
-check(northArrow.gy > northArrow.ty,
-  'the shaft starts short of the tip, clear of the dot, so a press near the middle still picks the photo up');
-/* the head is two barbs BEHIND the tip, or the arrow would point at nothing */
-const barbY = northArrow.d.split(' ').map(Number).filter(Number.isFinite);
-check(barbY.length === 6 && barbY[1] > northArrow.ty && barbY[5] > northArrow.ty,
-  'and both barbs sit behind the tip rather than beyond it');
+/* The dart is a constant path now, turned by a CSS rotation, so there is no
+   per-frame geometry left to get wrong. Its PROPORTIONS are still a claim,
+   though — "tip two dot-diameters out, tail clear of the dot" — and those are
+   what a careless edit would quietly break. Drawn in a box four diameters
+   square, so one diameter is 25 units and the dot's own edge is 12.5 out. */
+const dartPts = [];
+{
+  const n = AIM_DART.match(/-?\d+(?:\.\d+)?/g).map(Number);
+  for (let i = 0; i < n.length; i += 2) dartPts.push({ x: n[i], y: n[i + 1] });
+}
+check(dartPts.length === 4, `the dart is four points (got ${dartPts.length})`);
+check(dartPts[0].x === 50 && dartPts[0].y === 0,
+  'its tip is 50 units up the centreline — two dot-diameters, which is the proportion asked for');
+const dartTail = Math.max(...dartPts.map(q => q.y));
+check(dartTail > 12.5 && dartTail < 35,
+  `and its tail stops clear of the 12.5-unit dot without floating off into the plate (got ${dartTail})`);
+const xs = dartPts.map(q => q.x);
+check(Math.abs(Math.max(...xs) + Math.min(...xs) - 100) < 0.01,
+  'it is symmetric about that centreline, or every photo would look slightly off to one side of where it points');
+check(dartPts.filter(q => q.y > 0 && q.y < dartTail).length === 2,
+  'and it is notched rather than a plain triangle — the two barbs sit ahead of the tail');
 
 /* ---------- working out the bearings nobody recorded ----------
  * Two means that do not need the camera to have known anything: carrying a

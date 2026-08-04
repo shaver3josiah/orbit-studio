@@ -229,23 +229,6 @@ function draw() {
     x2="\${bx.toFixed(2)}" y2="\${by.toFixed(2)}"\${cls === 'band' ? '' : ' vector-effect="non-scaling-stroke"'}/>\`;
   const edges = planEdges(SCENES, plan.pts);
 
-  const aims = plan.pts.map(p => {
-    const s = SCENES.find(x => x.id === p.id);
-    const bear = facingBearing(s);
-    const a = aimGeometry(p, bear ?? 0);
-    const ends = \`x1="\${a.gx.toFixed(2)}" y1="\${a.gy.toFixed(2)}" x2="\${a.tx.toFixed(2)}" y2="\${a.ty.toFixed(2)}"\`;
-    const said = bear === null
-      ? \`\${s.name} has no bearing yet. Drag this arrow, or press the arrow keys, to say which way it looks.\`
-      : \`\${s.name} looks \${Math.round(bear)} degrees. Drag this arrow, or press the arrow keys, to change it.\`;
-    return \`<g class="aim\${p.id === curSceneId ? ' on' : ''}\${bear === null ? ' unset' : ''}"
-      data-aim-id="\${esc(p.id)}" tabindex="0" role="slider" aria-valuemin="0" aria-valuemax="359"
-      aria-valuenow="\${Math.round(bear ?? 0)}" aria-label="\${esc(said)}">
-      <title>\${esc(bear === null ? 'Not aimed yet — drag to turn' : Math.round(bear) + '° — drag to turn')}</title>
-      <line class="grab" \${ends} vector-effect="non-scaling-stroke"/>
-      <line class="shaft" \${ends} vector-effect="non-scaling-stroke"/>
-      <path class="head" vector-effect="non-scaling-stroke" d="\${a.d}"/></g>\`;
-  }).join('');
-
   box.append(el(\`<svg class="plan-lines" viewBox="0 0 100 100" preserveAspectRatio="none">
     <defs aria-hidden="true"><marker id="plan-arrow" class="plan-arrow" viewBox="0 0 8 8" refX="7" refY="4"
       markerUnits="userSpaceOnUse" markerWidth="4" markerHeight="4" orient="auto">
@@ -269,8 +252,25 @@ function draw() {
         x2="\${((e.to.u * 100) - ux).toFixed(2)}" y2="\${((e.to.v * 100) - uy).toFixed(2)}"
         \${e.both || !l ? '' : 'marker-end="url(#plan-arrow)"'} vector-effect="non-scaling-stroke"/>\`;
     }).join('')}</g>
-    <g class="plan-aims">\${aims}</g>
   </svg>\`));
+
+  /* arrows before dots, so a defect badge is never buried under one */
+  for (const p of plan.pts) {
+    const s = SCENES.find(x => x.id === p.id);
+    const bear = facingBearing(s);
+    const said = bear === null
+      ? \`\${s.name} has no bearing yet. Drag this arrow, or press the arrow keys, to say which way it looks.\`
+      : \`\${s.name} looks \${Math.round(bear)} degrees. Drag this arrow, or press the arrow keys, to change it.\`;
+    const mark = el(\`<button class="plan-aim\${p.id === curSceneId ? ' on' : ''}\${bear === null ? ' unset' : ''}"
+      data-aim-id="\${esc(p.id)}" role="slider" aria-valuemin="0" aria-valuemax="359"
+      aria-valuenow="\${Math.round(bear ?? 0)}" aria-label="\${esc(said)}"
+      title="\${esc(bear === null ? 'Not aimed yet — drag to turn' : Math.round(bear) + '° — drag to turn')}"
+      style="left:\${(p.u * 100).toFixed(2)}%;top:\${(p.v * 100).toFixed(2)}%"
+      ><svg viewBox="0 0 100 100" aria-hidden="true"><path d="\${AIM_DART}"/></svg></button>\`);
+    mark.style.transform = \`translate(-50%, -50%) rotate(\${bear ?? 0}deg)\`;
+    box.append(mark);
+    wireAim(mark, box, plan);
+  }
 
   const defects = defectCounts({ scenes: SCENES });
   const stray = new Set(strandedScenes({ scenes: SCENES, settings: { startScene: SCENES[0].id } }));
@@ -310,7 +310,6 @@ function draw() {
       style="width:\${(step / plan.span * 100).toFixed(4)}%">\${+step.toFixed(2)} m</span>\`));
   }
 
-  for (const g of box.querySelectorAll('.plan-aims .aim')) wireAim(g, box, plan);
 
   const counts = plan.pts.reduce((a, p) => (a[p.kind]++, a), { gps: 0, manual: 0, guess: 0 });
   const aimed = plan.pts.filter(p => facingBearing(SCENES.find(s => s.id === p.id)) !== null).length;
@@ -372,14 +371,8 @@ function wireMove(dot, box, plan, id) {
 function wireAim(g, box, plan) {
   const p = plan.pts.find(x => x.id === g.dataset.aimId);
   const scene = SCENES.find(x => x.id === g.dataset.aimId);
-  const head = g.querySelector('.head');
   const drawAt = deg => {
-    const a = aimGeometry(p, deg);
-    for (const line of g.querySelectorAll('.shaft, .grab')) {
-      line.setAttribute('x1', a.gx.toFixed(2)); line.setAttribute('y1', a.gy.toFixed(2));
-      line.setAttribute('x2', a.tx.toFixed(2)); line.setAttribute('y2', a.ty.toFixed(2));
-    }
-    head.setAttribute('d', a.d);
+    g.style.transform = \`translate(-50%, -50%) rotate(\${deg.toFixed(1)}deg)\`;
     g.classList.remove('unset');
     g.setAttribute('aria-valuenow', String(Math.round(deg)));
   };
@@ -388,7 +381,7 @@ function wireAim(g, box, plan) {
     scene.geo.heading = headingForAim(scene, aim);
     scene.geo.headingFrom = 'hand';
     draw();
-    box.querySelector('.plan-aims .aim[data-aim-id="' + CSS.escape(p.id) + '"]')?.focus();
+    box.querySelector('.plan-aim[data-aim-id="' + CSS.escape(p.id) + '"]')?.focus();
   };
   g.addEventListener('pointerdown', ev => {
     ev.preventDefault(); ev.stopPropagation();

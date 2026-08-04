@@ -280,11 +280,14 @@ A forty-panorama bridge is a maze, so:
   scene had been chosen.
   **Every photo wears an arrow for the way it looks, and you can turn it.**
   The direction is the same heading-plus-view-yaw sum the viewer's compass
-  needle uses; the photo you are editing has its arrow in the accent colour and
-  the rest are quiet hairlines. A photo that never recorded a heading gets a
-  dashed stub instead — "not aimed yet" must not look like "aimed due north" —
-  and only on the photos you can currently pick up, since a handle nobody can
-  reach is just clutter.
+  needle uses. It is a filled dart whose tip sits two dot-diameters out, sized
+  off the dot rather than off the plate, so zooming never inflates the arrows
+  away from the marks they belong to. The photo you are editing has its arrow
+  in the accent colour and the rest are quiet; a photo that never recorded a
+  heading gets a hollow one instead, exactly as a hollow dot means "guessed" —
+  "not aimed yet" must not look like "aimed due north". Hollow arrows appear
+  only on the photos you can currently pick up, since a handle nobody can reach
+  is just clutter.
   **Drag an arrow round to say which way that photo faces**, or focus it and
   press the arrow keys (Shift for 15° instead of 5°). That is the only way to
   give a bearing to a tour whose camera never recorded one, and it feeds

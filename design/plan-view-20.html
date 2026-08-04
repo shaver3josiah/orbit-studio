@@ -523,7 +523,7 @@
   .map-view .plan-how { font-size: var(--t-md); margin-bottom: var(--s3); text-wrap: pretty; }
   .map-view #plan-note { font-size: var(--t-sm); margin-top: var(--s3); text-wrap: pretty; }
   .map-view #plan-reset, .map-view #plan-aim { width: auto; margin-top: var(--s3); }
-  .map-view .plan-dot { width: 15px; height: 15px; }
+  .map-view .plan-box { --plan-dot: 15px; }
   /* names fit out here — on the sidebar plate they would bury the dots */
   .map-view .plan-dot[data-name]::after {
     content: attr(data-name); position: absolute; top: calc(100% + 4px); left: 50%;
@@ -638,27 +638,42 @@
   .plan-edges line.one { stroke-dasharray: 4 3; }
   .plan-edges line.on { stroke: var(--accent); opacity: 1; stroke-width: 2; }
   .plan-arrow { fill: var(--ink-3); }
-  /* Which way each photo looks, as a vector you can take hold of and turn.
-     Quiet by default and accented only on the photo being edited: forty arrows
-     all shouting is the hedgehog this plate used to avoid by drawing none. */
-  .plan-aims .shaft, .plan-aims .head { stroke: var(--ink-3); fill: none; opacity: .6; }
-  .plan-aims .head { stroke-linecap: round; stroke-linejoin: round; }
-  .plan-aims .aim.on .shaft, .plan-aims .aim.on .head { stroke: var(--accent); opacity: 1; }
-  /* "not aimed yet" and "aimed due north" must not look the same, or the plate
-     starts asserting a bearing for every photo that never recorded one */
-  .plan-aims .aim.unset .shaft { stroke-dasharray: 2.5 2.5; }
-  .plan-aims .aim.unset .shaft, .plan-aims .aim.unset .head { opacity: .3; }
-  /* the handle: a hairline is not a grab target. Starts clear of the dot so a
-     press near the middle still picks the photo up rather than turning it. */
-  .plan-aims .grab {
-    stroke: transparent; stroke-width: 7; pointer-events: stroke;
+  /* Which way each photo looks, as a filled dart you can take hold of and turn.
+
+     Sized off the dot, not off the plate: the marks on this plate are UI rather
+     than terrain, so they hold their size as you zoom, and an arrow measured in
+     plate percent would have drifted from a fixed-pixel dot at every zoom step
+     until it was twelve dot-widths long at 4x. Its tip sits two dot-diameters
+     out and its tail clears the dot, so it reads as belonging to that photo
+     without ever covering it.
+
+     Filled, blunt and slightly notched rather than a thin chevron: at 30px a
+     hairline arrow is a scratch, and a shape with some body to it is legible at
+     a glance across twenty of them. Round joins do the softening, which is
+     cheaper and truer than drawing curves. */
+  .plan-aim {
+    position: absolute; padding: 0; border: 0; background: none;
+    width: calc(var(--plan-dot) * 4); height: calc(var(--plan-dot) * 4);
+    color: var(--ink-3);
+    /* the shape re-enables hits; the box must not, or it would swallow the dot
+       it is centred on and picking a photo up would turn it instead */
+    pointer-events: none;
     cursor: grab; touch-action: none;
   }
-  .plan-aims .aim:hover .shaft, .plan-aims .aim:hover .head { stroke: var(--accent); opacity: 1; }
-  .plan-aims .aim:focus { outline: none; }
-  .plan-aims .aim:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-  .plan-aims .aim.turning .grab { cursor: grabbing; }
-  @media (pointer: coarse) { .plan-aims .grab { stroke-width: 12; } }
+  .plan-aim svg { display: block; width: 100%; height: 100%; }
+  .plan-aim path {
+    fill: currentColor; stroke: currentColor; stroke-width: 4; stroke-linejoin: round;
+    pointer-events: auto;
+  }
+  /* Hollow says "no bearing yet", exactly as a hollow dot says "guessed" — the
+     plate already has that vocabulary and this is the same claim about the same
+     photo. Never a lighter grey: these carry meaning, so they hold the 3:1 a
+     meaningful graphic owes its background, in both themes. */
+  .plan-aim.unset path { fill: none; }
+  .plan-aim.on, .plan-aim:hover, .plan-aim:focus-visible { color: var(--accent); }
+  .plan-aim:focus { outline: none; }
+  .plan-aim:focus-visible { outline: 2px solid var(--accent); outline-offset: -6px; border-radius: var(--r-sm); }
+  .plan-aim.turning { cursor: grabbing; }
   /* A hairline is not a click target. These are the same edges again, eleven
      pixels wide and invisible, purely so a link can be cut by pointing at it —
      and they say so on hover rather than only in the note. */
@@ -668,8 +683,13 @@
   /* the link being drawn by a drag, from the photo to the cursor */
   .plan-band { stroke: var(--accent); stroke-width: 2; stroke-dasharray: 4 4; }
   .plan-band[hidden] { display: none; }
+  /* One number for how big a photo's mark is. The arrow beside it is sized off
+     this too, so "the arrow is twice the dot across" stays true at every place
+     the dot changes size — the full-size map and coarse pointers both reset it
+     rather than restating the arrow's own dimensions. */
+  .plan-box { --plan-dot: 11px; }
   .plan-dot {
-    position: absolute; width: 11px; height: 11px; padding: 0;
+    position: absolute; width: var(--plan-dot); height: var(--plan-dot); padding: 0;
     transform: translate(-50%, -50%); border-radius: 50%;
     background: var(--surface); border: 2px solid var(--ink-3); cursor: pointer;
     transition: transform var(--dur-fast) var(--ease-out);
@@ -959,7 +979,7 @@
     /* the panel the breakpoint exists to create was never covered */
     .side .btn, .share-row .btn, .side a.btn { min-height: 44px; }
     .insp > summary, .plan > summary, .sgroup > summary, .preflight > summary { min-height: 44px; }
-    .plan-dot { width: 20px; height: 20px; }
+    .plan-box { --plan-dot: 20px; }
     .start-btn { min-height: 44px; }
   }
   @media (prefers-reduced-motion: reduce) {
@@ -2499,29 +2519,15 @@ const aimFromPoint = (from, at) =>
 const headingForAim = (scene, aim) =>
   +(((((aim - (scene?.view?.yaw || 0)) % 360) + 360) % 360)).toFixed(2);
 
-/* The arrow each photo wears on the plan, in plate units — which are
-   percentages, and the plate is square, so one unit is one unit either way.
-   AIM_GAP is why the shaft starts clear of the dot: a press near the middle
-   should still pick the photo up rather than turn it.
+/* The dart every photo wears on the plan, drawn once and then only ever
+   rotated. Its box is four dot-diameters square with the dot at the centre, so
+   in this 100-unit viewBox one dot-diameter is 25 units and the centre is 50.
 
-   One definition, because it is used three times over — to draw every arrow,
-   to redraw the one being dragged, and by design/plan-view-20.html to show
-   what twenty of them look like at once. Two copies would drift, and the first
-   symptom would be an arrow jumping the moment you took hold of it. */
-const AIM_LEN = 9, AIM_HEAD = 3.4, AIM_GAP = 4.5;
-function aimGeometry(p, deg) {
-  const rad = deg * Math.PI / 180;
-  const arm = r => [p.u * 100 + r * Math.sin(rad), p.v * 100 - r * Math.cos(rad)];
-  const [gx, gy] = arm(AIM_GAP), [tx, ty] = arm(AIM_LEN);
-  const barb = a => {
-    const b = a * Math.PI / 180;
-    return `${(tx + AIM_HEAD * Math.sin(b)).toFixed(2)} ${(ty - AIM_HEAD * Math.cos(b)).toFixed(2)}`;
-  };
-  return {
-    gx, gy, tx, ty,
-    d: `M ${barb(deg + 155)} L ${tx.toFixed(2)} ${ty.toFixed(2)} L ${barb(deg - 155)}`,
-  };
-}
+   The tip lands 50 units out — two dot-diameters, the whole point of the
+   shape's proportions — and the notched tail stops 18.5 out, comfortably clear
+   of the 12.5-unit dot it belongs to. Points north at rotation 0, which is what
+   lets a bearing be applied as a plain CSS rotate with no maths at all. */
+const AIM_DART = 'M 50 0 L 60.5 22.5 L 50 31.5 L 39.5 22.5 Z';
 
 /* ---------- working out the bearings nobody recorded ----------
 
@@ -3466,23 +3472,6 @@ function draw() {
     x2="${bx.toFixed(2)}" y2="${by.toFixed(2)}"${cls === 'band' ? '' : ' vector-effect="non-scaling-stroke"'}/>`;
   const edges = planEdges(SCENES, plan.pts);
 
-  const aims = plan.pts.map(p => {
-    const s = SCENES.find(x => x.id === p.id);
-    const bear = facingBearing(s);
-    const a = aimGeometry(p, bear ?? 0);
-    const ends = `x1="${a.gx.toFixed(2)}" y1="${a.gy.toFixed(2)}" x2="${a.tx.toFixed(2)}" y2="${a.ty.toFixed(2)}"`;
-    const said = bear === null
-      ? `${s.name} has no bearing yet. Drag this arrow, or press the arrow keys, to say which way it looks.`
-      : `${s.name} looks ${Math.round(bear)} degrees. Drag this arrow, or press the arrow keys, to change it.`;
-    return `<g class="aim${p.id === curSceneId ? ' on' : ''}${bear === null ? ' unset' : ''}"
-      data-aim-id="${esc(p.id)}" tabindex="0" role="slider" aria-valuemin="0" aria-valuemax="359"
-      aria-valuenow="${Math.round(bear ?? 0)}" aria-label="${esc(said)}">
-      <title>${esc(bear === null ? 'Not aimed yet — drag to turn' : Math.round(bear) + '° — drag to turn')}</title>
-      <line class="grab" ${ends} vector-effect="non-scaling-stroke"/>
-      <line class="shaft" ${ends} vector-effect="non-scaling-stroke"/>
-      <path class="head" vector-effect="non-scaling-stroke" d="${a.d}"/></g>`;
-  }).join('');
-
   box.append(el(`<svg class="plan-lines" viewBox="0 0 100 100" preserveAspectRatio="none">
     <defs aria-hidden="true"><marker id="plan-arrow" class="plan-arrow" viewBox="0 0 8 8" refX="7" refY="4"
       markerUnits="userSpaceOnUse" markerWidth="4" markerHeight="4" orient="auto">
@@ -3506,8 +3495,25 @@ function draw() {
         x2="${((e.to.u * 100) - ux).toFixed(2)}" y2="${((e.to.v * 100) - uy).toFixed(2)}"
         ${e.both || !l ? '' : 'marker-end="url(#plan-arrow)"'} vector-effect="non-scaling-stroke"/>`;
     }).join('')}</g>
-    <g class="plan-aims">${aims}</g>
   </svg>`));
+
+  /* arrows before dots, so a defect badge is never buried under one */
+  for (const p of plan.pts) {
+    const s = SCENES.find(x => x.id === p.id);
+    const bear = facingBearing(s);
+    const said = bear === null
+      ? `${s.name} has no bearing yet. Drag this arrow, or press the arrow keys, to say which way it looks.`
+      : `${s.name} looks ${Math.round(bear)} degrees. Drag this arrow, or press the arrow keys, to change it.`;
+    const mark = el(`<button class="plan-aim${p.id === curSceneId ? ' on' : ''}${bear === null ? ' unset' : ''}"
+      data-aim-id="${esc(p.id)}" role="slider" aria-valuemin="0" aria-valuemax="359"
+      aria-valuenow="${Math.round(bear ?? 0)}" aria-label="${esc(said)}"
+      title="${esc(bear === null ? 'Not aimed yet — drag to turn' : Math.round(bear) + '° — drag to turn')}"
+      style="left:${(p.u * 100).toFixed(2)}%;top:${(p.v * 100).toFixed(2)}%"
+      ><svg viewBox="0 0 100 100" aria-hidden="true"><path d="${AIM_DART}"/></svg></button>`);
+    mark.style.transform = `translate(-50%, -50%) rotate(${bear ?? 0}deg)`;
+    box.append(mark);
+    wireAim(mark, box, plan);
+  }
 
   const defects = defectCounts({ scenes: SCENES });
   const stray = new Set(strandedScenes({ scenes: SCENES, settings: { startScene: SCENES[0].id } }));
@@ -3547,7 +3553,6 @@ function draw() {
       style="width:${(step / plan.span * 100).toFixed(4)}%">${+step.toFixed(2)} m</span>`));
   }
 
-  for (const g of box.querySelectorAll('.plan-aims .aim')) wireAim(g, box, plan);
 
   const counts = plan.pts.reduce((a, p) => (a[p.kind]++, a), { gps: 0, manual: 0, guess: 0 });
   const aimed = plan.pts.filter(p => facingBearing(SCENES.find(s => s.id === p.id)) !== null).length;
@@ -3609,14 +3614,8 @@ function wireMove(dot, box, plan, id) {
 function wireAim(g, box, plan) {
   const p = plan.pts.find(x => x.id === g.dataset.aimId);
   const scene = SCENES.find(x => x.id === g.dataset.aimId);
-  const head = g.querySelector('.head');
   const drawAt = deg => {
-    const a = aimGeometry(p, deg);
-    for (const line of g.querySelectorAll('.shaft, .grab')) {
-      line.setAttribute('x1', a.gx.toFixed(2)); line.setAttribute('y1', a.gy.toFixed(2));
-      line.setAttribute('x2', a.tx.toFixed(2)); line.setAttribute('y2', a.ty.toFixed(2));
-    }
-    head.setAttribute('d', a.d);
+    g.style.transform = `translate(-50%, -50%) rotate(${deg.toFixed(1)}deg)`;
     g.classList.remove('unset');
     g.setAttribute('aria-valuenow', String(Math.round(deg)));
   };
@@ -3625,7 +3624,7 @@ function wireAim(g, box, plan) {
     scene.geo.heading = headingForAim(scene, aim);
     scene.geo.headingFrom = 'hand';
     draw();
-    box.querySelector('.plan-aims .aim[data-aim-id="' + CSS.escape(p.id) + '"]')?.focus();
+    box.querySelector('.plan-aim[data-aim-id="' + CSS.escape(p.id) + '"]')?.focus();
   };
   g.addEventListener('pointerdown', ev => {
     ev.preventDefault(); ev.stopPropagation();
