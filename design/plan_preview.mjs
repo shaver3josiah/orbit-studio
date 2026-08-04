@@ -189,7 +189,7 @@ ${css}
       <label class="map-opt" title="Dragging a photo onto another will not link them">
         <input type="checkbox" id="moveonly"> Move only
       </label>
-      <label class="map-zoom">Zoom
+      <label class="map-zoom" title="Pinch on a trackpad, or Ctrl+scroll, to zoom about the pointer">Zoom
         <input type="range" min="1" max="4" step="0.25" value="1" id="zoom" aria-label="Zoom the map">
       </label>
     </header>
@@ -415,9 +415,36 @@ function wireAim(g, box, plan) {
   });
 }
 
-document.getElementById('zoom').addEventListener('input', e => {
-  document.querySelector('.map-view').style.setProperty('--map-zoom', e.target.value);
+/* zoom about the pointer — the same handler the editor runs, and the reason it
+   measures twice rather than doing arithmetic on scroll offsets is written up
+   at toggleMap() in tour/index.html */
+const ov = document.querySelector('.map-view');
+const scroll = ov.querySelector('.map-scroll');
+const zoomInput = document.getElementById('zoom');
+let mapZoom = 1;
+const setZoom = (want, ax, ay) => {
+  const z = Math.min(+zoomInput.max, Math.max(+zoomInput.min, want));
+  if (z === mapZoom) return;
+  const plate = document.getElementById('plan-box');
+  const was = plate.getBoundingClientRect();
+  const fx = was.width ? (ax - was.left) / was.width : 0.5;
+  const fy = was.height ? (ay - was.top) / was.height : 0.5;
+  mapZoom = z;
+  ov.style.setProperty('--map-zoom', String(z));
+  zoomInput.value = String(z);
+  const now = plate.getBoundingClientRect();
+  scroll.scrollLeft += now.left - (ax - fx * now.width);
+  scroll.scrollTop += now.top - (ay - fy * now.height);
+};
+zoomInput.addEventListener('input', e => {
+  const r = scroll.getBoundingClientRect();
+  setZoom(+e.target.value, r.left + r.width / 2, r.top + r.height / 2);
 });
+scroll.addEventListener('wheel', e => {
+  if (!e.ctrlKey && !e.metaKey) return;
+  e.preventDefault();
+  setZoom(mapZoom * Math.exp(-e.deltaY * 0.012), e.clientX, e.clientY);
+}, { passive: false });
 const labelSel = document.getElementById('labels');
 labelSel.value = SCENES.length > PLAN_LABEL_MAX ? 'none' : 'name';
 labelSel.addEventListener('change', e => { planLabels = e.target.value; draw(); });

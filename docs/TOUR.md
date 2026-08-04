@@ -316,7 +316,14 @@ A forty-panorama bridge is a maze, so:
   which of the two produced each one, every result is a turnable arrow, and
   Ctrl+Z undoes the lot.
   The full-size map's header carries three controls for working a crowded
-  plate. **Zoom** grows it up to 4× and pans it in its scroll box. **Labels**
+  plate. **Zoom** grows it up to 4×. **Pinch on a trackpad**, or Ctrl+scroll,
+  does the same thing about the pointer — what is under the cursor stays under
+  it — and the slider follows along as the readout. Two fingers with no
+  modifier is an ordinary scroll and pans the plate, as it always did; nothing
+  intercepts it. The pointer anchor is exact in any direction the plate is big
+  enough to scroll, and on a wide window that is up-and-down from the start but
+  side-to-side only past about 2.4×, below which the plate still fits across
+  the map and grows from its middle instead. **Labels**
   chooses what each dot says under itself — name, photo stop, station, or
   nothing. Past twelve photos it starts on *None*, because at twenty the names
   overlap into a smear (seven overlapping pairs on a 500px plate, none of them
