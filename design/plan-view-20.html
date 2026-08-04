@@ -2317,17 +2317,59 @@ function triangulate(sightings) {
   return { x: (a22 * b1 - a12 * b2) / d, y: (a11 * b2 - a12 * b1) / d };
 }
 
+/* Wide enough for a long viaduct and its approaches, far short of a bad fix. */
+const PLAN_MAX_SPAN_M = 5000;
+
+/* "191,829 m away" is a number; "192 km away" is a fact somebody can act on. */
+const niceAway = m => (m >= 10000 ? `${Math.round(m / 1000)} km` : `${m.toLocaleString()} m`);
+
 function planPositions(scenes) {
   const list = scenes || [];
   if (list.length < 2) return null; /* one dot is not a plan */
-  const located = list.filter(s => Number.isFinite(s.geo?.lat) && Number.isFinite(s.geo?.lon));
+  const hasFix = s => Number.isFinite(s.geo?.lat) && Number.isFinite(s.geo?.lon);
+  const fixed = list.filter(hasFix);
+
+  /* ---- a fix that is not on this structure ----
+
+     A phone hands back the lock it had, not the lock it should have: indoors,
+     under a deck, or straight after driving from the last site, one photo in a
+     set comes back with a position miles from the rest. One of those used to
+     take the WHOLE plate down — the span blew past the sanity cap and the
+     editor drew nothing at all, so nine good photos were hidden by the tenth.
+     That is a worse failure than the confident wrong map it was guarding
+     against, because it hides the evidence instead of the error.
+
+     So the outlier is dropped rather than the plate. What gets dropped keeps
+     its GPS on the scene untouched — it simply stops being used to place a dot,
+     and falls through to the same capture-order guess as a photo that never had
+     a fix, where it can be dragged home.
+
+     The centre it is measured from is the MEDOID: the fix whose median distance
+     to all the others is smallest, which is to say the one standing deepest in
+     the crowd. A mean would be dragged toward the outlier by the outlier. A
+     component-wise median is worse than it looks — with an even number of fixes
+     it combines one photo's latitude with another's longitude and can land at a
+     corner where nobody stood, which on two photos put the "centre" 160 km from
+     one and 76 km from the other and threw out both.
+
+     And below three fixes nothing is rejected at all, because there is no
+     majority to appeal to: with two photos a long way apart, one of them is
+     wrong and the data cannot say which. */
+  const median = arr => { const a = [...arr].sort((x, y) => x - y); return a[a.length >> 1] ?? 0; };
+  const centre = fixed.length < 3 ? null : fixed
+    .map(s => ({ s, spread: median(fixed.filter(o => o !== s).map(o => metresBetween(s.geo, o.geo))) }))
+    .sort((a, b) => a.spread - b.spread)[0].s.geo;
+  const located = centre ? fixed.filter(s => metresBetween(centre, s.geo) <= PLAN_MAX_SPAN_M) : fixed;
+  const strays = fixed.filter(s => !located.includes(s))
+    .map(s => ({ id: s.id, away: Math.round(metresBetween(centre, s.geo)) }));
+  const onSite = new Set(located.map(s => s.id));
   const origin = located[0]?.geo || null;
 
   const placed = new Map();
   for (const s of list) {
     if (Number.isFinite(s.plan?.x) && Number.isFinite(s.plan?.y)) {
       placed.set(s.id, { id: s.id, x: s.plan.x, y: s.plan.y, kind: 'manual' });
-    } else if (origin && Number.isFinite(s.geo?.lat) && Number.isFinite(s.geo?.lon)) {
+    } else if (origin && onSite.has(s.id)) {
       const d = metresBetween(origin, s.geo);
       const b = bearing(origin, s.geo) * Math.PI / 180;
       placed.set(s.id, { id: s.id, x: d * Math.sin(b), y: d * Math.cos(b), kind: 'gps' });
@@ -2394,7 +2436,7 @@ function planPositions(scenes) {
   return {
     pts: pts.map(p => ({ ...p, ...toBox(p) })),
     deck: { from: end(tMin), to: end(tMax) },
-    span, scaled, oriented: !!origin, toMetres, vehicle,
+    span, scaled, oriented: !!origin, toMetres, vehicle, strays,
   };
 }
 
@@ -2571,9 +2613,21 @@ const AIM_DART = 'M 50 0 L 60.5 22.5 L 50 31.5 L 39.5 22.5 Z';
    nothing about two turns both being right, and in practice it killed every
    chain at the second hop because a legitimate match sits around 0.4. */
 const HEADING_MATCH_HOPS = 3;
+/* How far two photos may disagree about where a third one points before the
+   answer is thrown away. Three hops of honest column-level error is a couple of
+   degrees, so twenty leaves room for that and still catches a genuine
+   contradiction — which is a mismatch, not a rounding error. */
+const HEADING_MATCH_SPREAD = 20;
 /* Two links from one photo that cannot agree within this are not evidence of
    anything, and their average would be a number with no source. */
 const HEADING_PLAN_SPREAD = 25;
+/* How far apart two photos have to stand before the bearing between them is
+   worth anything. Phone GPS is good to a few metres, so two dots four metres
+   apart have a bearing that can be sixty degrees wrong — the shorter the
+   baseline, the more of it is error. Ten metres keeps the worst case near
+   twenty degrees, which is a direction; below that it is noise wearing a
+   number. */
+const HEADING_PLAN_BASELINE_M = 10;
 
 /* A bearing this photo was TOLD, as against one worked out for it below. Only
    the told ones seed the search, and only they are left alone: a derived
@@ -2648,17 +2702,26 @@ function deriveHeadings(scenes, pts, cache) {
     frontier = next;
   }
 
-  /* Nothing is proposed that is already there. Re-deriving is how a derived
-     bearing follows its source, but re-SAVING an unchanged one on every pass
-     would mark the tour dirty for no reason and put an empty step in Undo. */
-  const same = (s, deg) => Number.isFinite(s.geo?.heading)
-    && Math.abs(wrap180(s.geo.heading - deg)) < 0.01;
-
-  const out = [];
-  list.forEach((s, i) => {
-    if (seed[i] || heading[i] === null || same(s, heading[i])) return;
-    out.push({ id: s.id, heading: +heading[i].toFixed(2), from: 'match', hops: hops[i] });
-  });
+  /* ---- and then made to answer to every neighbour, not just its own route ----
+     The search takes the best route to each photo and stops. That is fine when
+     there is one route and wrong when there are several: two photos can each
+     match this one confidently and still disagree about where it points, and
+     the winner-takes-all rule would pick one and never notice. Any photo whose
+     neighbours cannot agree on it within HEADING_MATCH_SPREAD gets nothing,
+     which is the same rule the plan pass already applies to two links that
+     contradict each other. */
+  for (let j = 0; j < list.length; j++) {
+    if (seed[j] || heading[j] === null) continue;
+    for (let k = 0; k < list.length; k++) {
+      if (k === j || heading[k] === null) continue;
+      const t = turn.get(`${k} ${j}`);
+      if (t === undefined) continue;
+      if (Math.abs(wrap180(wrap360(heading[k] - t) - heading[j])) > HEADING_MATCH_SPREAD) {
+        heading[j] = null;
+        break;
+      }
+    }
+  }
 
   /* ---- pass two: what the links and the plan already say ----
      Only where BOTH ends are really placed. A dot laid out by capture order is
@@ -2666,14 +2729,25 @@ function deriveHeadings(scenes, pts, cache) {
      invention wearing the clothes of a measurement. */
   const at = new Map((pts || []).map(p => [p.id, p]));
   const real = id => at.get(id)?.kind === 'gps' || at.get(id)?.kind === 'manual';
-  const covered = new Set(out.map(o => o.id));
+  const answer = list.map((s, i) => (seed[i] || heading[i] === null ? null
+    : { heading: heading[i], from: 'match', hops: hops[i] }));
   list.forEach((s, i) => {
-    if (seed[i] || covered.has(s.id) || !real(s.id)) return;
+    if (seed[i] || answer[i] || !real(s.id)) return;
     const from = [];
     for (const h of s.hotspots || []) {
       if (h.type !== 'link' || !h.target || h.target === s.id) continue;
       if (!Number.isFinite(h.yaw) || !real(h.target)) continue;
-      from.push(wrap360(planBearing(at.get(s.id), at.get(h.target)) - h.yaw));
+      /* An arrow the linker guessed the angle of is not evidence about which
+         way this photo faces. Reading one back would close a loop: guess an
+         arrow off nothing, then derive a bearing off the arrow, then present
+         the bearing as worked out. Only an angle somebody aimed, or one that
+         came off a real compass bearing, gets a vote. */
+      if (h.aim !== 'set') continue;
+      /* and a bearing between two dots standing almost on top of each other is
+         mostly the error in where they stand */
+      const here = at.get(s.id), there = at.get(h.target);
+      if (Math.hypot(there.x - here.x, there.y - here.y) < HEADING_PLAN_BASELINE_M) continue;
+      from.push(wrap360(planBearing(here, there) - h.yaw));
     }
     if (!from.length) return;
     /* circular mean, because two links either side of north average to south */
@@ -2681,8 +2755,31 @@ function deriveHeadings(scenes, pts, cache) {
     for (const b of from) { sx += Math.cos(b * Math.PI / 180); sy += Math.sin(b * Math.PI / 180); }
     const mean = wrap360(Math.atan2(sy, sx) * 180 / Math.PI);
     if (from.some(b => Math.abs(wrap180(b - mean)) > HEADING_PLAN_SPREAD)) return;
-    if (same(s, mean)) return;
-    out.push({ id: s.id, heading: +mean.toFixed(2), from: 'plan' });
+    answer[i] = { heading: mean, from: 'plan' };
+  });
+
+  /* ---- what actually changed ----
+     Two kinds of change, and the second one is the whole reason this reports
+     differences rather than answers. A bearing that can no longer be justified
+     has to be WITHDRAWN, not merely left un-refreshed: a tour carrying bearings
+     derived under looser rules — off arrows the linker had guessed, say — would
+     otherwise keep them for ever, because nothing would ever propose over the
+     top of them. Silence from the evidence has to be able to take a number
+     away, or the first version of these rules is the one that sticks.
+
+     Unchanged answers are not reported at all, so a pass that agrees with
+     itself costs no save and leaves no empty step in Undo. */
+  const out = [];
+  list.forEach((s, i) => {
+    if (seed[i]) return;
+    const had = Number.isFinite(s.geo?.heading) ? s.geo.heading : null;
+    const now = answer[i];
+    if (!now) {
+      if (had !== null) out.push({ id: s.id, heading: null, from: null });
+      return;
+    }
+    if (had !== null && Math.abs(wrap180(had - now.heading)) < 0.01) return;
+    out.push({ id: s.id, heading: +now.heading.toFixed(2), from: now.from, ...(now.hops ? { hops: now.hops } : {}) });
   });
 
   return out;

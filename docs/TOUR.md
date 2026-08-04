@@ -313,10 +313,22 @@ A forty-panorama bridge is a maze, so:
     answer would be 180° wrong.
   - *The plan itself.* A link you placed by hand says "the way to B is over
     there", and the plan says where B is; the difference is this photo's
-    bearing. Used only where both photos are really placed — by GPS or by your
-    own hand — since a dot laid out by capture order is a placeholder, not a
-    position. Two links that disagree by more than 25° produce nothing rather
-    than an average.
+    bearing. Only a link whose angle somebody actually aimed counts — clicked,
+    dragged, or taken off a real compass bearing. An arrow the automatic linker
+    guessed is a perfectly good way to walk to the next photo and no evidence at
+    all about which way this one faces; reading one back would guess an arrow off
+    nothing, derive a bearing off the arrow, then present the result as worked
+    out. Links carrying no mark at all — every link in every tour built before
+    this — count as guesses, because most of them were. Both photos also have to
+    be really placed (GPS or your own hand, never a capture-order placeholder)
+    and at least 10 m apart, since phone GPS is good to a few metres and a
+    bearing across a 4 m baseline is mostly the error in where the two dots
+    stand. Two links that disagree by more than 25° produce nothing rather than
+    an average.
+
+  A photo whose neighbours cannot agree about it within 20° gets nothing rather
+  than the winner of a coin toss: the search takes the best route and stops,
+  which is right when there is one route and wrong when there are several.
 
   It only ever fills silence. A bearing the camera recorded, or one you turned
   by hand, is never touched — what it replaces is not a different answer but no
@@ -324,8 +336,11 @@ A forty-panorama bridge is a maze, so:
   arrows aimed by guesswork. A *derived* bearing does move, though, because the
   thing it was derived from can: turn one arrow by hand and everything that
   inherited from it re-follows, rather than being left pointing at an answer its
-  own source has since moved away from. **This scene** says which means
-  produced each one, every result is a turnable arrow, and Ctrl+Z undoes it.
+  own source has since moved away from. A derived bearing whose evidence has
+  gone is *withdrawn* rather than left standing, so tightening these rules takes
+  the bearings the looser ones produced back off the plate instead of leaving
+  them there for ever. **This scene** says which means produced each one, every
+  result is a turnable arrow, and Ctrl+Z undoes it.
 
   The expensive half — correlating every pair of photos — is cached on the
   photos themselves, which is what makes running it this often affordable: a

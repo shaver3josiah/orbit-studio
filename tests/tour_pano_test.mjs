@@ -76,7 +76,7 @@ const helpers = await import(
    any check runs, rather than a quiet, misleading pass. */
 const USED = [
   'isPartial', 'vFovOf', 'panoDataFor', 'gpanoCoverage', 'readGps', 'bearing', 'metresBetween', 'wrap180',
-  'panoProfile', 'guessNavigableYaws', 'openingView', 'snapToWay', 'deriveHeadings',
+  'panoProfile', 'guessNavigableYaws', 'openingView', 'snapToWay', 'deriveHeadings', 'PLAN_MAX_SPAN_M',
   'sunPosition', 'solarHeading', 'correlateYaw', 'yawBetween', 'packProfile', 'unpackProfile',
   'principalAxis', 'triangulate', 'separateMarks',
   'fmtIn', 'defectMeasure', 'defectNeedsMeasure', 'nextDefectCode', 'DEFECT_TYPES', 'DEFECT_MEASURE',
@@ -90,7 +90,7 @@ if (missingFromExports.length) {
 }
 const {
   isPartial, vFovOf, panoDataFor, gpanoCoverage, readGps, bearing, metresBetween, wrap180,
-  panoProfile, guessNavigableYaws, openingView, snapToWay, deriveHeadings,
+  panoProfile, guessNavigableYaws, openingView, snapToWay, deriveHeadings, PLAN_MAX_SPAN_M,
   sunPosition, solarHeading, correlateYaw, yawBetween, packProfile, unpackProfile,
   principalAxis, triangulate, separateMarks,
   fmtIn, defectMeasure, defectNeedsMeasure, nextDefectCode, DEFECT_TYPES, DEFECT_MEASURE,
@@ -1025,6 +1025,37 @@ check(mixed.pts.length === 3, 'a photo with no fix is still placed on the plan')
 check(mixed.pts.find(p => p.id === 'c').kind === 'guess', 'and it is labelled a guess, not a position');
 check(mixed.pts.filter(p => p.kind === 'gps').length === 2, 'the located ones stay labelled gps');
 
+/* ---- ONE BAD FIX MUST NOT TAKE THE PLATE DOWN WITH IT ----
+   A phone hands back the lock it had, not the lock it should have: one photo in
+   a set comes back from a previous site or with a zeroed rational. That used to
+   blow the span past the sanity cap and draw NOTHING — nine good photos hidden
+   by the tenth, which is a worse failure than the wrong map it was guarding
+   against, because it hides the evidence instead of the error. */
+const withStray = planPositions([
+  geoScene('a', 40.4416, -79.9833),
+  geoScene('b', 40.4417, -79.9831),
+  geoScene('c', 40.4418, -79.9829),
+  geoScene('bad', 41.9, -80.9),           /* ~180 km away: a stale lock */
+]);
+check(withStray.pts.length === 4, 'every photo is still plotted, including the one with the bad fix');
+check(withStray.pts.filter(p => p.kind === 'gps').length === 3,
+  'the three that agree keep their measured positions');
+check(withStray.pts.find(p => p.id === 'bad').kind === 'guess',
+  'and the stray is demoted to a guess rather than believed');
+check(withStray.strays.length === 1 && withStray.strays[0].id === 'bad',
+  'the plan says which photo it set aside, so the note can name it');
+check(withStray.strays[0].away > 100000, `and how far off it was (got ${withStray.strays[0]?.away} m)`);
+check(withStray.span < PLAN_MAX_SPAN_M,
+  `the span is back to the size of the real site (got ${Math.round(withStray.span)} m)`);
+check(withStray.scaled, 'and three good fixes still size the plate');
+
+/* the median is what makes that work: a MEAN centre would be dragged toward the
+   outlier by the outlier, and with two photos would sit exactly between them
+   and call both of them strays */
+const twoFarApart = planPositions([geoScene('a', 40.4416, -79.9833), geoScene('bad', 41.9, -80.9)]);
+check(twoFarApart.pts.length === 2, 'two photos a long way apart are both still plotted');
+check(twoFarApart.strays.length <= 1, 'and they are not both thrown out as strays');
+
 const noneLocated = planPositions([{ id: 'a' }, { id: 'b' }, { id: 'c' }]);
 check(noneLocated.pts.length === 3, 'a tour with no GPS at all still gets a plan to correct');
 check(!noneLocated.scaled, 'but it is explicitly NOT to scale, because nothing here knows the size');
@@ -1290,6 +1321,27 @@ check(walk.find(x => x.id === 'w1')?.hops === 1 && far?.hops === 2,
 
 check(deriveHeadings([shifted('a', 0), shifted('b', 37)]).length === 0,
   'with nothing known anywhere, nothing is invented');
+
+/* ---- two photos that disagree about a third one settle nothing ----
+   The search takes the best route and stops, which is right with one route and
+   wrong with several. Here 'a' and 'c' both match 'b' and both know their own
+   bearing, but they are 90 degrees apart about what 'b' should be. Picking the
+   more confident of the two would look like an answer and be a coin toss. */
+const contested = deriveHeadings([
+  shifted('a', 0, { geo: { heading: 100 } }),
+  shifted('b', 37),
+  shifted('c', 74, { geo: { heading: 190 } }),
+]);
+check(!contested.some(x => x.id === 'b'),
+  'a photo its neighbours cannot agree about is left with no bearing rather than the winner of a coin toss');
+/* and the same three, with c's bearing where the turns actually put it, agree */
+const consistent = deriveHeadings([
+  shifted('a', 0, { geo: { heading: 100 } }),
+  shifted('b', 37),
+  shifted('c', 74, { geo: { heading: wrap360(100 - wrap180(74 * COL)) } }),
+]);
+check(consistent.some(x => x.id === 'b'),
+  'while neighbours that agree still settle it');
 check(deriveHeadings([]).length === 0 && deriveHeadings(null).length === 0,
   'no scenes derives nothing rather than throwing');
 check(deriveHeadings([shifted('a', 0, { geo: { heading: 10 } })]).length === 0,
@@ -1335,6 +1387,23 @@ check(deriveHeadings([
   { ...sceneOf(37, 37), id: 'b', geo: { heading: 47.97, headingFrom: 'magnetic' } },
 ]).length === 0, 'but a bearing the camera measured is left exactly where it is');
 
+/* ---- a bearing that can no longer be justified is WITHDRAWN ----
+   Not merely left un-refreshed. A tour carrying answers derived under looser
+   rules — off arrows the linker had guessed, before those stopped counting —
+   would otherwise keep them for ever, because nothing ever proposes over the
+   top of an answer that is no longer produced. Silence has to be able to take a
+   number away, or the first version of these rules is the one that sticks. */
+const orphaned = deriveHeadings([
+  { ...sceneOf(0, 0), id: 'a', geo: { heading: 12, headingFrom: 'plan' } },
+  { id: 'b' },  /* nothing to match against, no plan, no links: no evidence at all */
+]);
+check(orphaned.length === 1 && orphaned[0].id === 'a' && orphaned[0].heading === null,
+  'a derived bearing with nothing left to support it is proposed for removal');
+check(deriveHeadings([
+  { ...sceneOf(0, 0), id: 'a', geo: { heading: 12, headingFrom: 'recorded' } },
+  { id: 'b' },
+]).length === 0, 'while a told one with no support is simply left alone — it was never derived');
+
 /* ---- the plan pass: a link plus two real positions is a bearing ---- */
 
 /* b sits due east of a, and a's link to b points 30 degrees right of centre,
@@ -1343,7 +1412,7 @@ check(deriveHeadings([
 const placed = (id, x, y, hotspots) => ({ id, plan: { x, y }, hotspots });
 const planned = deriveHeadings(
   [
-    placed('a', 0, 0, [{ type: 'link', target: 'b', yaw: 30 }]),
+    placed('a', 0, 0, [{ type: 'link', target: 'b', yaw: 30, aim: 'set' }]),
     placed('b', 50, 0, []),
     { id: 'seed', geo: { heading: 0 } },
   ],
@@ -1354,10 +1423,36 @@ check(fromPlan && fromPlan.from === 'plan', 'a link between two placed photos yi
 check(fromPlan && near(fromPlan.heading, 60, 0.05),
   `east is 90, the arrow sits 30 right of centre, so the centre faces 60 (got ${fromPlan?.heading})`);
 
+/* THE LOOP THIS MUST NOT CLOSE. The auto-linker aims arrows by guessing when
+   the photo has no heading to aim them from. Reading one of those back as a
+   bearing would guess an arrow off nothing, derive a bearing off the arrow, and
+   then present it as worked out. Only an angle somebody aimed gets a vote. */
+const guessedLink = deriveHeadings(
+  [
+    placed('a', 0, 0, [{ type: 'link', target: 'b', yaw: 30 }]),
+    placed('b', 50, 0, []),
+  ],
+  planPositions([placed('a', 0, 0, []), placed('b', 50, 0, [])]).pts,
+);
+check(guessedLink.length === 0,
+  'an unmarked arrow — every one in every tour built before this — is not read back as evidence');
+
+/* a bearing between two photos standing almost on top of each other is mostly
+   the error in where they stand: 4 m apart, GPS good to a few metres */
+const shortBaseline = deriveHeadings(
+  [
+    placed('a', 0, 0, [{ type: 'link', target: 'b', yaw: 30, aim: 'set' }]),
+    placed('b', 4, 0, []),
+  ],
+  planPositions([placed('a', 0, 0, []), placed('b', 4, 0, [])]).pts,
+);
+check(shortBaseline.length === 0,
+  'and neither is one measured across a baseline too short to carry an angle');
+
 /* the refusal that keeps this honest: a dot laid out by capture order is a
    placeholder, and a bearing measured off it would be an invention */
 const guessedEnds = deriveHeadings(
-  [{ id: 'a', hotspots: [{ type: 'link', target: 'b', yaw: 30 }] }, { id: 'b' }],
+  [{ id: 'a', hotspots: [{ type: 'link', target: 'b', yaw: 30, aim: 'set' }] }, { id: 'b' }],
   planPositions([{ id: 'a' }, { id: 'b' }]).pts,
 );
 check(guessedEnds.length === 0,
@@ -1367,7 +1462,7 @@ check(guessedEnds.length === 0,
    with no source behind it */
 const disagreeing = deriveHeadings(
   [
-    placed('a', 0, 0, [{ type: 'link', target: 'b', yaw: 30 }, { type: 'link', target: 'c', yaw: 30 }]),
+    placed('a', 0, 0, [{ type: 'link', target: 'b', yaw: 30, aim: 'set' }, { type: 'link', target: 'c', yaw: 30, aim: 'set' }]),
     placed('b', 50, 0, []),
     placed('c', 0, 50, []),
   ],
