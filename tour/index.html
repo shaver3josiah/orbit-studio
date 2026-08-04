@@ -494,7 +494,13 @@
     flex: 1; overflow: auto; display: grid; place-items: center; padding: var(--s5);
   }
   .map-sheet { width: min(70vh, 92vw); }
-  .map-view summary { display: none; }
+  /* `.plan > summary` below is the same specificity and comes later, so this
+     has to out-weigh it or the overlay wears the sidebar's collapse chrome —
+     a second "Plan view" title and an expand button already expanded. */
+  .map-view details.plan > summary { display: none; }
+  .map-view .plan-how { font-size: var(--t-md); margin-bottom: var(--s3); text-wrap: pretty; }
+  .map-view #plan-note { font-size: var(--t-sm); margin-top: var(--s3); text-wrap: pretty; }
+  .map-view #plan-reset { width: auto; margin-top: var(--s3); }
   .map-view .plan-dot { width: 15px; height: 15px; }
   /* names fit out here — on the sidebar plate they would bury the dots */
   .map-view .plan-dot[data-name]::after {
@@ -577,6 +583,10 @@
   }
   .plan > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--r-xs); }
   .plan-span { margin-left: auto; font-size: var(--t-sm); color: var(--ink-3); }
+  .plan-how { margin: 0 0 var(--s2); }
+  /* in CSS rather than an inline width, so the overlay below can size it to its
+     own text instead of stretching a rarely-used action across the whole plate */
+  #plan-reset { width: 100%; }
   .plan-box {
     position: relative; aspect-ratio: 1; margin: var(--s2) 0;
     background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-sm);
@@ -3643,9 +3653,10 @@ async function renderEditor(tourId) {
             <summary>Plan view<span class="plan-span num" id="plan-span"></span><button
               type="button" class="icon-btn" id="plan-expand" title="Open full size (M)"
               aria-label="Open the map full size">&#x2922;</button></summary>
+            <p class="scene-note plan-how" id="plan-how"></p>
             <div class="plan-box" id="plan-box"></div>
             <p class="scene-note" id="plan-note"></p>
-            <button class="btn" id="plan-reset" style="width:100%" hidden>Undo my placements</button>
+            <button class="btn" id="plan-reset" hidden>Undo my placements</button>
           </details>
         </div>
         <div class="side-section" id="scene-section" hidden>
@@ -3893,6 +3904,7 @@ async function renderEditor(tourId) {
     const note = document.getElementById('plan-note');
     const spanEl = document.getElementById('plan-span');
     const resetBtn = document.getElementById('plan-reset');
+    const how = document.getElementById('plan-how');
     if (!box || !note || !spanEl) return;
     box.innerHTML = '';
     /* cleared up here, not where it is set: every early return below leaves the
@@ -3904,6 +3916,7 @@ async function renderEditor(tourId) {
     if (resetBtn) resetBtn.hidden = !moved;
     if (!plan) {
       spanEl.textContent = '';
+      if (how) how.textContent = '';
       note.textContent = 'Add a second photo and a plan of the walk appears here.';
       return;
     }
@@ -4045,6 +4058,7 @@ async function renderEditor(tourId) {
       if (live) {
         dot.addEventListener('click', () => { if (!dot.dataset.dragged) selectScene(p.id); });
         makeDraggable(dot, box, plan, p.id);
+        makeNudgeable(dot, plan, p);
       }
       box.append(dot);
     }
@@ -4076,8 +4090,14 @@ async function renderEditor(tourId) {
     const counts = plan.pts.reduce((a, p) => (a[p.kind]++, a), { gps: 0, manual: 0, guess: 0 });
     const marked = [...defects.values()].reduce((a, n) => a + n, 0);
     const lostCount = doc.scenes.length > 1 ? stray.size : 0;
+    /* What you can DO is a different kind of sentence from what the plate is
+       telling you, and running the two together made one long paragraph nobody
+       finishes. The instructions sit above the map, the findings below it. */
+    if (how) {
+      how.textContent = 'Drag a photo to where it stood, drop it on another to connect the two, '
+        + 'or click a link to cut it. Select a photo and the arrow keys nudge it — hold Shift to move further.';
+    }
     note.textContent = [
-      'Drag a photo to where it stood, drop it on another to connect the two, or click a link to cut it.',
       plan.scaled
         ? `Sized by GPS: about ${span} m across — each grid square is ${+step.toFixed(2)} m.`
         : counts.gps
@@ -4127,6 +4147,36 @@ async function renderEditor(tourId) {
      that spot". The dot is 11px (20 on a touch screen), so this is the dot and
      a little forgiveness, not a magnet that swallows nearby placements. */
   const PLAN_SNAP_PX = 18;
+  /* ----- move a photo without a mouse -----
+     Dragging is pointer-only, so until now a plan could only be corrected with
+     a pointer — the same gap the hotspot panel's Move button fills for
+     hotspots. Two things make this more than an addEventListener:
+
+     PSV binds the arrow keys on window to rotate the panorama (`keyboard:
+     'always'`, bubble phase, `psv-core.module.js` keyHandler), so without
+     stopPropagation a nudge would also spin the view behind the plate.
+
+     And renderPlan() rebuilds every dot, which throws away the focused
+     element mid-keystroke — so focus is put back on the same photo afterwards,
+     or the second press of an arrow key would land on nothing. Undo coalescing
+     in scheduleSave() means a burst of presses costs one Ctrl+Z, not twenty. */
+  const NUDGE_KEYS = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
+  function makeNudgeable(dot, plan, p) {
+    dot.addEventListener('keydown', e => {
+      const d = NUDGE_KEYS[e.key];
+      if (!d || e.ctrlKey || e.metaKey || e.altKey) return;
+      const s = doc.scenes.find(x => x.id === p.id);
+      if (!s) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const by = e.shiftKey ? 0.05 : 0.01; /* fractions of the plate, so a nudge means the same at either size */
+      s.plan = plan.toMetres(clamp(p.u + d[0] * by, 0, 1), clamp(p.v + d[1] * by, 0, 1));
+      scheduleSave();
+      renderPlan();
+      document.querySelector(`.plan-dot[data-plan-id="${CSS.escape(p.id)}"]`)?.focus();
+    });
+  }
+
   const planNodeNear = (pts, at, rect, skipId) => {
     let best = null, nearest = PLAN_SNAP_PX;
     for (const p of pts) {
