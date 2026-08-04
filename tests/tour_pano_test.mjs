@@ -1303,6 +1303,38 @@ check(deriveHeadings([
   shifted('b', 37, { geo: { heading: 250 } }),
 ]).length === 0, 'a photo that already has a bearing is never overwritten');
 
+/* ---- the pair cache, which is what lets this run on every change ----
+   Correlating every pair is the expensive half, and it depends only on the
+   photos' stored profiles, which are written once at upload. So the editor
+   keeps the answers. A cache that changed an answer would be the worst kind of
+   bug: right the first time and quietly wrong afterwards. */
+const shared = new Map();
+const cachedFirst = deriveHeadings([shifted('a', 0, { geo: { heading: 100 } }), shifted('b', 37)], null, shared);
+check(shared.size > 0, 'a cache handed in gets filled');
+const cachedAgain = deriveHeadings([shifted('a', 0, { geo: { heading: 100 } }), shifted('b', 37)], null, shared);
+check(JSON.stringify(cachedFirst) === JSON.stringify(cachedAgain),
+  'and the second run through a warm cache gives the same answer as the first');
+check(JSON.stringify(cachedFirst) === JSON.stringify(chain),
+  'which is also the answer with no cache at all');
+/* the trap: the cache is keyed on the sorted id pair, so a run that hands the
+   photos over in the other order has to recover which way it was measured */
+const flipped = deriveHeadings([shifted('b', 37), shifted('a', 0, { geo: { heading: 100 } })], null, shared);
+check(flipped.length === 1 && near(flipped[0].heading, cachedFirst[0].heading, 0.01),
+  `reading a cached pair backwards flips the turn back (got ${flipped[0]?.heading}, wanted ${cachedFirst[0]?.heading})`);
+
+/* ---- derived bearings follow their source; told ones do not move ---- */
+const told = { ...sceneOf(0, 0), id: 'a', geo: { heading: 100, headingFrom: 'recorded' } };
+const inherited = { ...sceneOf(37, 37), id: 'b', geo: { heading: 47.97, headingFrom: 'match' } };
+check(deriveHeadings([told, inherited]).length === 0,
+  'a derived bearing that is already right is not re-proposed, so nothing is saved for nothing');
+const moved = deriveHeadings([{ ...told, geo: { heading: 160, headingFrom: 'hand' } }, inherited]);
+check(moved.length === 1 && near(moved[0].heading, wrap360(160 - wrap180(37 * COL)), 0.05),
+  `turning the photo a bearing came from re-aims the one that inherited it (got ${moved[0]?.heading})`);
+check(deriveHeadings([
+  { ...told, geo: { heading: 160, headingFrom: 'hand' } },
+  { ...sceneOf(37, 37), id: 'b', geo: { heading: 47.97, headingFrom: 'magnetic' } },
+]).length === 0, 'but a bearing the camera measured is left exactly where it is');
+
 /* ---- the plan pass: a link plus two real positions is a bearing ---- */
 
 /* b sits due east of a, and a's link to b points 30 degrees right of centre,

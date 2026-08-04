@@ -522,7 +522,7 @@
   .map-view details.plan > summary { display: none; }
   .map-view .plan-how { font-size: var(--t-md); margin-bottom: var(--s3); text-wrap: pretty; }
   .map-view #plan-note { font-size: var(--t-sm); margin-top: var(--s3); text-wrap: pretty; }
-  .map-view #plan-reset, .map-view #plan-aim { width: auto; margin-top: var(--s3); }
+  .map-view #plan-reset { width: auto; margin-top: var(--s3); }
   .map-view .plan-box { --plan-dot: 15px; }
   /* names fit out here — on the sidebar plate they would bury the dots */
   .map-view .plan-dot[data-name]::after {
@@ -608,8 +608,7 @@
   .plan-how { margin: 0 0 var(--s2); }
   /* in CSS rather than an inline width, so the overlay below can size it to its
      own text instead of stretching a rarely-used action across the whole plate */
-  #plan-reset, #plan-aim { width: 100%; }
-  #plan-aim { margin-bottom: var(--s2); }
+  #plan-reset { width: 100%; }
   .plan-box {
     position: relative; aspect-ratio: 1; margin: var(--s2) 0;
     background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-sm);
@@ -2576,23 +2575,47 @@ const HEADING_MATCH_HOPS = 3;
    anything, and their average would be a number with no source. */
 const HEADING_PLAN_SPREAD = 25;
 
-function deriveHeadings(scenes, pts) {
+/* A bearing this photo was TOLD, as against one worked out for it below. Only
+   the told ones seed the search, and only they are left alone: a derived
+   bearing has to be free to move, because the thing it was derived from can. A
+   photo that inherited its bearing from its neighbour and then watched that
+   neighbour be turned by hand would otherwise keep pointing at the old answer
+   for ever, and be the one photo on the plate nobody can explain. */
+const HEADING_DERIVED = new Set(['match', 'plan']);
+const headingIsSeed = s =>
+  Number.isFinite(s?.geo?.heading) && !HEADING_DERIVED.has(s.geo.headingFrom);
+
+function deriveHeadings(scenes, pts, cache) {
   const list = scenes || [];
   if (list.length < 2) return [];
   const wrap360 = deg => ((deg % 360) + 360) % 360;
-  const recorded = list.map(s => Number.isFinite(s.geo?.heading));
+  const seed = list.map(headingIsSeed);
 
   /* ---- pass one: carry a known bearing along shared views ----
      The pair graph is built once and reused, rather than re-correlating on
      every hop of the search. The reverse of a turn is its negative, so only
-     half the pairs are ever measured. */
+     half the pairs are ever measured.
+
+     A caller may hand in a Map to keep that graph across calls, and the editor
+     does. What a pair of photos measures depends on their stored profiles,
+     which are written once at upload and never touched again — so an answer is
+     good for the life of the tour, and the O(n²) correlation that made this a
+     button in the first place is paid once rather than on every hand aim. */
   const turn = new Map(), sure = new Map();
+  const measured = cache instanceof Map ? cache : new Map();
   for (let i = 0; i < list.length; i++) {
     for (let j = i + 1; j < list.length; j++) {
-      const t = yawBetween(list[i], list[j]);
+      /* keyed by id, not index, or reordering or deleting a photo would hand
+         back another pair's answer */
+      const key = list[i].id < list[j].id ? `${list[i].id} ${list[j].id}` : `${list[j].id} ${list[i].id}`;
+      if (!measured.has(key)) measured.set(key, yawBetween(list[i], list[j]) || null);
+      const t = measured.get(key);
       if (!t) continue;
-      turn.set(`${i} ${j}`, t.degrees);
-      turn.set(`${j} ${i}`, -t.degrees);
+      /* the cache is keyed on the sorted pair, so which way round it was
+         measured has to be recovered rather than assumed */
+      const forward = list[i].id < list[j].id ? t.degrees : -t.degrees;
+      turn.set(`${i} ${j}`, forward);
+      turn.set(`${j} ${i}`, -forward);
       sure.set(`${i} ${j}`, t.confidence);
       sure.set(`${j} ${i}`, t.confidence);
     }
@@ -2602,15 +2625,15 @@ function deriveHeadings(scenes, pts) {
      that already knows — fewest turns is least accumulated angle. Among routes
      of equal length the more confident match wins, which is what the second
      condition below is for. */
-  const heading = list.map((s, i) => (recorded[i] ? wrap360(s.geo.heading) : null));
-  const hops = list.map((s, i) => (recorded[i] ? 0 : Infinity));
-  const routeSure = list.map((s, i) => (recorded[i] ? 1 : 0));
-  let frontier = list.map((s, i) => i).filter(i => recorded[i]);
+  const heading = list.map((s, i) => (seed[i] ? wrap360(s.geo.heading) : null));
+  const hops = list.map((s, i) => (seed[i] ? 0 : Infinity));
+  const routeSure = list.map((s, i) => (seed[i] ? 1 : 0));
+  let frontier = list.map((s, i) => i).filter(i => seed[i]);
   for (let step = 1; step <= HEADING_MATCH_HOPS && frontier.length; step++) {
     const next = [];
     for (const k of frontier) {
       for (let j = 0; j < list.length; j++) {
-        if (recorded[j] || hops[j] < step) continue;
+        if (seed[j] || hops[j] < step) continue;
         const c = sure.get(`${k} ${j}`);
         if (c === undefined) continue;
         if (hops[j] === step && c <= routeSure[j]) continue;
@@ -2625,9 +2648,15 @@ function deriveHeadings(scenes, pts) {
     frontier = next;
   }
 
+  /* Nothing is proposed that is already there. Re-deriving is how a derived
+     bearing follows its source, but re-SAVING an unchanged one on every pass
+     would mark the tour dirty for no reason and put an empty step in Undo. */
+  const same = (s, deg) => Number.isFinite(s.geo?.heading)
+    && Math.abs(wrap180(s.geo.heading - deg)) < 0.01;
+
   const out = [];
   list.forEach((s, i) => {
-    if (recorded[i] || heading[i] === null) return;
+    if (seed[i] || heading[i] === null || same(s, heading[i])) return;
     out.push({ id: s.id, heading: +heading[i].toFixed(2), from: 'match', hops: hops[i] });
   });
 
@@ -2639,7 +2668,7 @@ function deriveHeadings(scenes, pts) {
   const real = id => at.get(id)?.kind === 'gps' || at.get(id)?.kind === 'manual';
   const covered = new Set(out.map(o => o.id));
   list.forEach((s, i) => {
-    if (recorded[i] || covered.has(s.id) || !real(s.id)) return;
+    if (seed[i] || covered.has(s.id) || !real(s.id)) return;
     const from = [];
     for (const h of s.hotspots || []) {
       if (h.type !== 'link' || !h.target || h.target === s.id) continue;
@@ -2652,6 +2681,7 @@ function deriveHeadings(scenes, pts) {
     for (const b of from) { sx += Math.cos(b * Math.PI / 180); sy += Math.sin(b * Math.PI / 180); }
     const mean = wrap360(Math.atan2(sy, sx) * 180 / Math.PI);
     if (from.some(b => Math.abs(wrap180(b - mean)) > HEADING_PLAN_SPREAD)) return;
+    if (same(s, mean)) return;
     out.push({ id: s.id, heading: +mean.toFixed(2), from: 'plan' });
   });
 

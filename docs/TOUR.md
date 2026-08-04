@@ -296,9 +296,12 @@ A forty-panorama bridge is a maze, so:
   another sighting. Ctrl+Z undoes a turn. Where a hand aim overrules a bearing
   the camera measured, the number it replaced is kept and printed in **This
   scene**, so a measurement is never silently lost.
-  **Work out the missing bearings**, under the plate, fills in the photos that
-  have none — from two means that do not need the camera to have known
-  anything. It appears only when there is a gap and something to fill it from.
+  **Bearings fill themselves in.** A photo that has none gets one worked out
+  from two means that need nothing from the camera. This is not a button: it
+  runs whenever the evidence changes — photos arriving, links being drawn, a
+  photo moved to where it stood, an arrow turned by hand, and once when a tour
+  is opened, so tours made before any of this existed get their bearings the
+  first time you open them.
   - *Shared views.* Two photos of the same place taken a few metres apart
     share their skyline, and the editor already measures how far one is turned
     from the other (the same matching that aims return arrows). So a bearing on
@@ -315,9 +318,20 @@ A forty-panorama bridge is a maze, so:
     position. Two links that disagree by more than 25° produce nothing rather
     than an average.
 
-  Nothing there overwrites a bearing that already exists, **This scene** says
-  which of the two produced each one, every result is a turnable arrow, and
-  Ctrl+Z undoes the lot.
+  It only ever fills silence. A bearing the camera recorded, or one you turned
+  by hand, is never touched — what it replaces is not a different answer but no
+  answer at all: no compass in the viewer, no real angle on the plan, link
+  arrows aimed by guesswork. A *derived* bearing does move, though, because the
+  thing it was derived from can: turn one arrow by hand and everything that
+  inherited from it re-follows, rather than being left pointing at an answer its
+  own source has since moved away from. **This scene** says which means
+  produced each one, every result is a turnable arrow, and Ctrl+Z undoes it.
+
+  The expensive half — correlating every pair of photos — is cached on the
+  photos themselves, which is what makes running it this often affordable: a
+  photo's stored profile is written once at upload and never touched again, so
+  each pair is measured once for the life of the editor rather than on every
+  change.
   The full-size map's header carries three controls for working a crowded
   plate. **Zoom** grows it up to 4×. **Pinch on a trackpad**, or Ctrl+scroll,
   does the same thing about the pointer — what is under the cursor stays under

@@ -525,7 +525,7 @@
   .map-view details.plan > summary { display: none; }
   .map-view .plan-how { font-size: var(--t-md); margin-bottom: var(--s3); text-wrap: pretty; }
   .map-view #plan-note { font-size: var(--t-sm); margin-top: var(--s3); text-wrap: pretty; }
-  .map-view #plan-reset, .map-view #plan-aim { width: auto; margin-top: var(--s3); }
+  .map-view #plan-reset { width: auto; margin-top: var(--s3); }
   .map-view .plan-box { --plan-dot: 15px; }
   /* names fit out here — on the sidebar plate they would bury the dots */
   .map-view .plan-dot[data-name]::after {
@@ -611,8 +611,7 @@
   .plan-how { margin: 0 0 var(--s2); }
   /* in CSS rather than an inline width, so the overlay below can size it to its
      own text instead of stretching a rarely-used action across the whole plate */
-  #plan-reset, #plan-aim { width: 100%; }
-  #plan-aim { margin-bottom: var(--s2); }
+  #plan-reset { width: 100%; }
   .plan-box {
     position: relative; aspect-ratio: 1; margin: var(--s2) 0;
     background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-sm);
@@ -2629,23 +2628,47 @@ const HEADING_MATCH_HOPS = 3;
    anything, and their average would be a number with no source. */
 const HEADING_PLAN_SPREAD = 25;
 
-function deriveHeadings(scenes, pts) {
+/* A bearing this photo was TOLD, as against one worked out for it below. Only
+   the told ones seed the search, and only they are left alone: a derived
+   bearing has to be free to move, because the thing it was derived from can. A
+   photo that inherited its bearing from its neighbour and then watched that
+   neighbour be turned by hand would otherwise keep pointing at the old answer
+   for ever, and be the one photo on the plate nobody can explain. */
+const HEADING_DERIVED = new Set(['match', 'plan']);
+const headingIsSeed = s =>
+  Number.isFinite(s?.geo?.heading) && !HEADING_DERIVED.has(s.geo.headingFrom);
+
+function deriveHeadings(scenes, pts, cache) {
   const list = scenes || [];
   if (list.length < 2) return [];
   const wrap360 = deg => ((deg % 360) + 360) % 360;
-  const recorded = list.map(s => Number.isFinite(s.geo?.heading));
+  const seed = list.map(headingIsSeed);
 
   /* ---- pass one: carry a known bearing along shared views ----
      The pair graph is built once and reused, rather than re-correlating on
      every hop of the search. The reverse of a turn is its negative, so only
-     half the pairs are ever measured. */
+     half the pairs are ever measured.
+
+     A caller may hand in a Map to keep that graph across calls, and the editor
+     does. What a pair of photos measures depends on their stored profiles,
+     which are written once at upload and never touched again — so an answer is
+     good for the life of the tour, and the O(n²) correlation that made this a
+     button in the first place is paid once rather than on every hand aim. */
   const turn = new Map(), sure = new Map();
+  const measured = cache instanceof Map ? cache : new Map();
   for (let i = 0; i < list.length; i++) {
     for (let j = i + 1; j < list.length; j++) {
-      const t = yawBetween(list[i], list[j]);
+      /* keyed by id, not index, or reordering or deleting a photo would hand
+         back another pair's answer */
+      const key = list[i].id < list[j].id ? `${list[i].id} ${list[j].id}` : `${list[j].id} ${list[i].id}`;
+      if (!measured.has(key)) measured.set(key, yawBetween(list[i], list[j]) || null);
+      const t = measured.get(key);
       if (!t) continue;
-      turn.set(`${i} ${j}`, t.degrees);
-      turn.set(`${j} ${i}`, -t.degrees);
+      /* the cache is keyed on the sorted pair, so which way round it was
+         measured has to be recovered rather than assumed */
+      const forward = list[i].id < list[j].id ? t.degrees : -t.degrees;
+      turn.set(`${i} ${j}`, forward);
+      turn.set(`${j} ${i}`, -forward);
       sure.set(`${i} ${j}`, t.confidence);
       sure.set(`${j} ${i}`, t.confidence);
     }
@@ -2655,15 +2678,15 @@ function deriveHeadings(scenes, pts) {
      that already knows — fewest turns is least accumulated angle. Among routes
      of equal length the more confident match wins, which is what the second
      condition below is for. */
-  const heading = list.map((s, i) => (recorded[i] ? wrap360(s.geo.heading) : null));
-  const hops = list.map((s, i) => (recorded[i] ? 0 : Infinity));
-  const routeSure = list.map((s, i) => (recorded[i] ? 1 : 0));
-  let frontier = list.map((s, i) => i).filter(i => recorded[i]);
+  const heading = list.map((s, i) => (seed[i] ? wrap360(s.geo.heading) : null));
+  const hops = list.map((s, i) => (seed[i] ? 0 : Infinity));
+  const routeSure = list.map((s, i) => (seed[i] ? 1 : 0));
+  let frontier = list.map((s, i) => i).filter(i => seed[i]);
   for (let step = 1; step <= HEADING_MATCH_HOPS && frontier.length; step++) {
     const next = [];
     for (const k of frontier) {
       for (let j = 0; j < list.length; j++) {
-        if (recorded[j] || hops[j] < step) continue;
+        if (seed[j] || hops[j] < step) continue;
         const c = sure.get(`${k} ${j}`);
         if (c === undefined) continue;
         if (hops[j] === step && c <= routeSure[j]) continue;
@@ -2678,9 +2701,15 @@ function deriveHeadings(scenes, pts) {
     frontier = next;
   }
 
+  /* Nothing is proposed that is already there. Re-deriving is how a derived
+     bearing follows its source, but re-SAVING an unchanged one on every pass
+     would mark the tour dirty for no reason and put an empty step in Undo. */
+  const same = (s, deg) => Number.isFinite(s.geo?.heading)
+    && Math.abs(wrap180(s.geo.heading - deg)) < 0.01;
+
   const out = [];
   list.forEach((s, i) => {
-    if (recorded[i] || heading[i] === null) return;
+    if (seed[i] || heading[i] === null || same(s, heading[i])) return;
     out.push({ id: s.id, heading: +heading[i].toFixed(2), from: 'match', hops: hops[i] });
   });
 
@@ -2692,7 +2721,7 @@ function deriveHeadings(scenes, pts) {
   const real = id => at.get(id)?.kind === 'gps' || at.get(id)?.kind === 'manual';
   const covered = new Set(out.map(o => o.id));
   list.forEach((s, i) => {
-    if (recorded[i] || covered.has(s.id) || !real(s.id)) return;
+    if (seed[i] || covered.has(s.id) || !real(s.id)) return;
     const from = [];
     for (const h of s.hotspots || []) {
       if (h.type !== 'link' || !h.target || h.target === s.id) continue;
@@ -2705,6 +2734,7 @@ function deriveHeadings(scenes, pts) {
     for (const b of from) { sx += Math.cos(b * Math.PI / 180); sy += Math.sin(b * Math.PI / 180); }
     const mean = wrap360(Math.atan2(sy, sx) * 180 / Math.PI);
     if (from.some(b => Math.abs(wrap180(b - mean)) > HEADING_PLAN_SPREAD)) return;
+    if (same(s, mean)) return;
     out.push({ id: s.id, heading: +mean.toFixed(2), from: 'plan' });
   });
 
@@ -3963,7 +3993,6 @@ async function renderEditor(tourId) {
             <p class="scene-note plan-how" id="plan-how"></p>
             <div class="plan-box" id="plan-box"></div>
             <p class="scene-note" id="plan-note"></p>
-            <button class="btn" id="plan-aim" hidden>Work out the missing bearings</button>
             <button class="btn" id="plan-reset" hidden>Undo my placements</button>
           </details>
         </div>
@@ -4225,7 +4254,6 @@ async function renderEditor(tourId) {
     const note = document.getElementById('plan-note');
     const spanEl = document.getElementById('plan-span');
     const resetBtn = document.getElementById('plan-reset');
-    const aimBtn = document.getElementById('plan-aim');
     const how = document.getElementById('plan-how');
     if (!box || !note || !spanEl) return;
     box.innerHTML = '';
@@ -4236,7 +4264,6 @@ async function renderEditor(tourId) {
     const plan = planPositions(doc.scenes);
     const moved = doc.scenes.filter(s => s.plan).length;
     if (resetBtn) resetBtn.hidden = !moved;
-    if (aimBtn) aimBtn.hidden = true; /* set properly below, once the plan is known */
     if (!plan) {
       spanEl.textContent = '';
       if (how) how.textContent = '';
@@ -4455,16 +4482,6 @@ async function renderEditor(tourId) {
 
     const counts = plan.pts.reduce((a, p) => (a[p.kind]++, a), { gps: 0, manual: 0, guess: 0 });
     const aimed = plan.pts.filter(p => facingBearing(doc.scenes.find(s => s.id === p.id)) !== null).length;
-    /* Offered only when there is a gap AND something to fill it from: one
-       bearing to carry along shared views, or a link between two photos that
-       are really placed. Otherwise the button could only disappoint, and the
-       note below says what is missing instead. */
-    if (aimBtn) {
-      const real = new Set(plan.pts.filter(p => p.kind !== 'guess').map(p => p.id));
-      const linked = doc.scenes.some(s => real.has(s.id)
-        && (s.hotspots || []).some(h => h.type === 'link' && real.has(h.target)));
-      aimBtn.hidden = !(aimed < plan.pts.length && (aimed > 0 || linked));
-    }
     const handAimed = doc.scenes.filter(s => s.geo?.headingFrom === 'hand').length;
     const marked = [...defects.values()].reduce((a, n) => a + n, 0);
     const lostCount = doc.scenes.length > 1 ? stray.size : 0;
@@ -4500,10 +4517,10 @@ async function renderEditor(tourId) {
          unanswered questions — once every photo is aimed, they speak for
          themselves and this is one more line of text over the plate */
       aimed < plan.pts.length
-        ? `Bearing known on ${aimed} of ${plan.pts.length} photos — turn a dashed arrow to aim another`
-          + `${aimBtn && !aimBtn.hidden ? ', or work the rest out from it below' : ''}. `
-          + 'Once a photo has one, the compass in the finished tour starts working too.'
-        : 'Every photo knows which way it faces — turn an arrow to change one.',
+        ? `Bearing known on ${aimed} of ${plan.pts.length} photos. The rest fill themselves in as `
+          + 'the evidence turns up — turn one hollow arrow by hand and everything that shares a view '
+          + 'with it follows.'
+        : 'Every photo knows which way it faces — turn an arrow and whatever was derived from it follows.',
       handAimed ? `${handAimed} aimed by hand.` : '',
       plan.vehicle
         ? `The truck is plant on the deck, crossed from ${plan.vehicle.from} photos that saw it — a guess at a big bright object, so check it is a truck and not a skip.`
@@ -4566,6 +4583,8 @@ async function renderEditor(tourId) {
       const by = e.shiftKey ? 0.05 : 0.01; /* fractions of the plate, so a nudge means the same at either size */
       s.plan = plan.toMetres(clamp(p.u + d[0] * by, 0, 1), clamp(p.v + d[1] * by, 0, 1));
       scheduleSave();
+      /* a bearing read off the plan was read off the OLD position */
+      fillBearings({ quiet: true });
       renderPlan();
       document.querySelector(`.plan-dot[data-plan-id="${CSS.escape(p.id)}"]`)?.focus();
     });
@@ -4607,6 +4626,9 @@ async function renderEditor(tourId) {
     s.geo.heading = headingForAim(s, aim);
     s.geo.headingFrom = 'hand';
     scheduleSave();
+    /* an arrow just aimed is a new seed, and everything derived is recomputed,
+       so the whole walk re-follows the photo you actually know about */
+    fillBearings({ quiet: true });
   }
 
   /* Turning is drawn straight onto the element mid-gesture and committed on
@@ -4777,6 +4799,7 @@ async function renderEditor(tourId) {
         if (s) {
           s.plan = plan.toMetres(at.u, at.v);
           scheduleSave();
+          fillBearings({ quiet: true }); /* same reason as the nudge above */
         }
         renderPlan();
       };
@@ -4829,18 +4852,28 @@ async function renderEditor(tourId) {
     toast('Placements cleared — back to GPS and capture order');
   });
 
-  /* Fill in the bearings the camera never recorded, from the two means that do
-     not need it to have — see deriveHeadings. A button rather than something
-     automatic: it correlates every pair of photos, which is a second of work on
-     a big tour, and it writes to every scene at once, which is the kind of
-     thing that should happen because somebody asked. */
-  document.getElementById('plan-aim')?.addEventListener('click', () => {
-    const found = deriveHeadings(doc.scenes, planPositions(doc.scenes)?.pts);
-    if (!found.length) {
-      toast('Nothing could be worked out. Aim one photo by hand on the map first, '
-        + 'or place links between photos you have positioned.', true);
-      return;
-    }
+  /* ----- the bearings nobody recorded, filled in as the evidence arrives -----
+
+     This was a button, for two reasons that turned out to be fixable rather
+     than fundamental. It correlated every pair of photos on every press, which
+     is a second of work on a big tour — so the pair graph is cached now, keyed
+     on the photos themselves, and since a photo's stored profile is written
+     once at upload and never touched again, that cost is paid once for the life
+     of the editor rather than on every call. And it wrote to every scene at
+     once, which wanted asking — but it only ever fills a photo that has NO
+     bearing, and the thing it replaces is not a different answer, it is silence:
+     no compass in the viewer, no real angle on the plan, link arrows aimed by
+     guesswork. There is nothing to overwrite and nothing to lose.
+
+     So it runs wherever the evidence changes: photos arriving, links being
+     drawn, an arrow turned by hand, and once when a tour is opened. Anything
+     derived stays derived and is recomputed each time, so turning one arrow by
+     hand re-aims everything downstream of it instead of leaving a photo
+     pointing at an answer its own source has since moved away from. */
+  const turnCache = new Map();
+  function fillBearings({ quiet = false } = {}) {
+    const found = deriveHeadings(doc.scenes, planPositions(doc.scenes)?.pts, turnCache);
+    if (!found.length) return 0;
     for (const f of found) {
       const s = doc.scenes.find(x => x.id === f.id);
       if (!s) continue;
@@ -4851,14 +4884,17 @@ async function renderEditor(tourId) {
     scheduleSave();
     renderPlan();
     renderSceneMeta();
-    const byMatch = found.filter(f => f.from === 'match').length;
-    const how = [
-      byMatch ? `${byMatch} carried along shared views` : '',
-      found.length - byMatch ? `${found.length - byMatch} off the plan` : '',
-    ].filter(Boolean).join(', ');
-    toast(`Worked out ${found.length} bearing${found.length === 1 ? '' : 's'} — ${how}. `
-      + 'Check the arrows, turn any that look wrong, Ctrl+Z undoes the lot');
-  });
+    if (!quiet) {
+      const byMatch = found.filter(f => f.from === 'match').length;
+      const how = [
+        byMatch ? `${byMatch} carried along shared views` : '',
+        found.length - byMatch ? `${found.length - byMatch} read off the plan` : '',
+      ].filter(Boolean).join(', ');
+      toast(`Worked out ${found.length} bearing${found.length === 1 ? '' : 's'} — ${how}. `
+        + 'Turn any arrow that looks wrong; Ctrl+Z undoes the lot');
+    }
+    return found.length;
+  }
 
   /* One persistent line rather than a toast per file. A toast erases the one
      before it, so a folder of HEICs — every single one of which fails on
@@ -4960,6 +4996,10 @@ async function renderEditor(tourId) {
       }
     }
     syncSortButton();
+    /* Last, because it wants the links the auto-linker may have just drawn.
+       autoLink() fills bearings itself, so this catches the batch that was
+       already connected and had nothing for it to do. */
+    fillBearings();
   }
 
   /* A bridge walk is a sequence — deck loop, elevations, then the underside —
@@ -6172,6 +6212,8 @@ async function renderEditor(tourId) {
         ? `Added ${n} from the photos' own GPS and compass.${sunNote} Phone GPS is good to a few metres, so check each arrow and drag any that misses.`
         : `Added ${n}: GPS says which scenes are neighbours, but none of these photos recorded a compass heading, so the directions are guessed. Drag each arrow onto its doorway.`) + tail);
     toast(`Added ${n} — Ctrl+Z undoes the lot`);
+    /* the links just drawn are exactly what the plan pass reads */
+    fillBearings({ quiet: true });
   }
 
   function setLinkSummary(text) {
@@ -6628,6 +6670,13 @@ async function renderEditor(tourId) {
   renderCoverage();
   renderPreflight();
   updateHint();
+  /* Every tour made before any of this existed opens with bearings it could
+     have had all along, without anybody having to know there was a pass to
+     run. Quiet: nobody asked for this one, so it should not greet them with a
+     toast about work they did not request — the plate's own note says how many
+     photos know where they face, and the scene panel says where each came
+     from. It only ever fills silence, never overwrites an answer. */
+  fillBearings({ quiet: true });
 }
 </script>
 </body>
