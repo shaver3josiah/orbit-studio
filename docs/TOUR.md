@@ -170,6 +170,16 @@ the button turns into **Confirm delete?** (a scene or hotspot just says
    it without a pointer.
 6. **Aim each scene.** Drag to the view a visitor should land on, then
    *Set start view from here*.
+
+   Until you do, a photo opens on whichever of two readings it supports,
+   rather than on the middle of the file: someone in hi-vis standing out in
+   the scene, who on an inspection is usually at the thing being inspected;
+   or, failing that, whichever way whoever held the camera was looking, read
+   off the top of their head at the base of the photo. A hi-vis hit at the
+   base of the photo is the person holding the stick — they are directly
+   below the camera, so their bearing points at nothing, and it is discarded
+   rather than aimed at. The sidebar says which reading a scene used, and
+   *Set start view from here* replaces it for good.
 7. **Try it, then share.** **Start tour**, in the toolbar, saves and runs the
    real viewer in a frame right over the editor, so you can click through
    your own links and come back — **Back to editing**, or Escape, closes it.
@@ -268,9 +278,45 @@ A forty-panorama bridge is a maze, so:
   pre-share check; the scene list used to disagree with the other two and put
   an orphan dot on the very photo a visitor would land on whenever no start
   scene had been chosen.
-  **The photo you are editing shows a wedge** for the way it looks, from the
-  same heading-plus-view-yaw sum the viewer's compass needle uses. Only that
-  one photo, and only when it recorded a heading.
+  **Every photo wears an arrow for the way it looks, and you can turn it.**
+  The direction is the same heading-plus-view-yaw sum the viewer's compass
+  needle uses; the photo you are editing has its arrow in the accent colour and
+  the rest are quiet hairlines. A photo that never recorded a heading gets a
+  dashed stub instead — "not aimed yet" must not look like "aimed due north" —
+  and only on the photos you can currently pick up, since a handle nobody can
+  reach is just clutter.
+  **Drag an arrow round to say which way that photo faces**, or focus it and
+  press the arrow keys (Shift for 15° instead of 5°). That is the only way to
+  give a bearing to a tour whose camera never recorded one, and it feeds
+  everything a recorded bearing feeds: the viewer's compass starts working, the
+  plan aims new link arrows at real bearings, and the vehicle crossing gains
+  another sighting. Ctrl+Z undoes a turn. Where a hand aim overrules a bearing
+  the camera measured, the number it replaced is kept and printed in **This
+  scene**, so a measurement is never silently lost.
+  **Work out the missing bearings**, under the plate, fills in the photos that
+  have none — from two means that do not need the camera to have known
+  anything. It appears only when there is a gap and something to fill it from.
+  - *Shared views.* Two photos of the same place taken a few metres apart
+    share their skyline, and the editor already measures how far one is turned
+    from the other (the same matching that aims return arrows). So a bearing on
+    one photo carries to every photo that shares a view with it, and onward
+    from there — aiming a single arrow by hand can give a whole walk its
+    bearings. It travels at most three photos from a known one, because each
+    hop adds a little angle error, and it refuses any pair the matcher is not
+    sure about, including the row-of-identical-piers case where a confident
+    answer would be 180° wrong.
+  - *The plan itself.* A link you placed by hand says "the way to B is over
+    there", and the plan says where B is; the difference is this photo's
+    bearing. Used only where both photos are really placed — by GPS or by your
+    own hand — since a dot laid out by capture order is a placeholder, not a
+    position. Two links that disagree by more than 25° produce nothing rather
+    than an average.
+
+  Nothing there overwrites a bearing that already exists, **This scene** says
+  which of the two produced each one, every result is a turnable arrow, and
+  Ctrl+Z undoes the lot.
+  **Zoom**, in the full-size map's header, grows the plate up to 4× and pans it
+  in its scroll box, for a viaduct with forty photos on it.
   If two or more photos both see the plant on the deck and both know which way
   they were facing, the bearings are crossed and the vehicle is drawn as a
   truck. Near-parallel bearings cross at a point far too sensitive to be worth

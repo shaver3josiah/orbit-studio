@@ -490,17 +490,32 @@
   .lg-manual { background: var(--ink-3); }
   .lg-on { background: var(--accent); border-color: var(--accent); }
   .lg-stray { border-color: var(--danger); }
-  .map-scroll {
-    flex: 1; overflow: auto; display: grid; place-items: center; padding: var(--s5);
+  .lg-aim {
+    border: 0; border-radius: 0; background: none;
+    color: var(--ink-3); font-size: 13px; line-height: 11px; text-align: center;
   }
-  .map-sheet { width: min(70vh, 92vw); }
+  .lg-aim::before { content: '\2191'; }
+  /* `safe` centring: a centred grid item that outgrows its scroll box gets its
+     top and left pushed off the start edge, where no amount of scrolling
+     reaches them — so zoomed in past the window, the top-left quarter of the
+     plan would simply be unreachable. `safe` falls back to start alignment at
+     exactly that point. */
+  .map-scroll {
+    flex: 1; overflow: auto; display: grid; place-items: safe center; padding: var(--s5);
+  }
+  /* One plate, sized by the zoom control in the header. The dots, the arrows
+     and the grid are all in percentages, so growing the sheet is the whole of
+     zooming — nothing re-lays-out, and .map-scroll pans what no longer fits. */
+  .map-sheet { width: calc(min(70vh, 92vw) * var(--map-zoom, 1)); }
+  .map-zoom { display: flex; align-items: center; gap: var(--s2); font-size: var(--t-sm); color: var(--ink-2); }
+  .map-zoom input { width: 120px; }
   /* `.plan > summary` below is the same specificity and comes later, so this
      has to out-weigh it or the overlay wears the sidebar's collapse chrome —
      a second "Plan view" title and an expand button already expanded. */
   .map-view details.plan > summary { display: none; }
   .map-view .plan-how { font-size: var(--t-md); margin-bottom: var(--s3); text-wrap: pretty; }
   .map-view #plan-note { font-size: var(--t-sm); margin-top: var(--s3); text-wrap: pretty; }
-  .map-view #plan-reset { width: auto; margin-top: var(--s3); }
+  .map-view #plan-reset, .map-view #plan-aim { width: auto; margin-top: var(--s3); }
   .map-view .plan-dot { width: 15px; height: 15px; }
   /* names fit out here — on the sidebar plate they would bury the dots */
   .map-view .plan-dot[data-name]::after {
@@ -586,7 +601,8 @@
   .plan-how { margin: 0 0 var(--s2); }
   /* in CSS rather than an inline width, so the overlay below can size it to its
      own text instead of stretching a rarely-used action across the whole plate */
-  #plan-reset { width: 100%; }
+  #plan-reset, #plan-aim { width: 100%; }
+  #plan-aim { margin-bottom: var(--s2); }
   .plan-box {
     position: relative; aspect-ratio: 1; margin: var(--s2) 0;
     background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-sm);
@@ -615,9 +631,27 @@
   .plan-edges line.one { stroke-dasharray: 4 3; }
   .plan-edges line.on { stroke: var(--accent); opacity: 1; stroke-width: 2; }
   .plan-arrow { fill: var(--ink-3); }
-  /* Where the photo you are editing is looking. Under the dots, quiet enough
-     to read as a direction rather than a second object on the plate. */
-  .plan-facing { fill: var(--accent); opacity: .16; }
+  /* Which way each photo looks, as a vector you can take hold of and turn.
+     Quiet by default and accented only on the photo being edited: forty arrows
+     all shouting is the hedgehog this plate used to avoid by drawing none. */
+  .plan-aims .shaft, .plan-aims .head { stroke: var(--ink-3); fill: none; opacity: .6; }
+  .plan-aims .head { stroke-linecap: round; stroke-linejoin: round; }
+  .plan-aims .aim.on .shaft, .plan-aims .aim.on .head { stroke: var(--accent); opacity: 1; }
+  /* "not aimed yet" and "aimed due north" must not look the same, or the plate
+     starts asserting a bearing for every photo that never recorded one */
+  .plan-aims .aim.unset .shaft { stroke-dasharray: 2.5 2.5; }
+  .plan-aims .aim.unset .shaft, .plan-aims .aim.unset .head { opacity: .3; }
+  /* the handle: a hairline is not a grab target. Starts clear of the dot so a
+     press near the middle still picks the photo up rather than turning it. */
+  .plan-aims .grab {
+    stroke: transparent; stroke-width: 7; pointer-events: stroke;
+    cursor: grab; touch-action: none;
+  }
+  .plan-aims .aim:hover .shaft, .plan-aims .aim:hover .head { stroke: var(--accent); opacity: 1; }
+  .plan-aims .aim:focus { outline: none; }
+  .plan-aims .aim:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .plan-aims .aim.turning .grab { cursor: grabbing; }
+  @media (pointer: coarse) { .plan-aims .grab { stroke-width: 12; } }
   /* A hairline is not a click target. These are the same edges again, eleven
      pixels wide and invisible, purely so a link can be cut by pointing at it —
      and they say so on hover rather than only in the note. */
@@ -1552,6 +1586,35 @@ const HIVIS_MIN_SAT = 0.45;
    orange in one place", measured against the median column. */
 const HIVIS_MIN_PEAK_RATIO = 6;
 
+/* Below this elevation a person is not standing at anything — they are holding
+   the camera. Somebody 1.5m away has their chest around 36 degrees down and
+   somebody five metres away barely below the horizon, while whoever is under
+   the stick is at 70 or 80. Their bearing is close to meaningless (directly
+   underfoot, one point of ground occupies every column at once) and aiming the
+   opening view at them aims it nowhere. Which way they were LOOKING is worth
+   having, though, so this same line divides the two readings below. */
+const UNDERFOOT_ALT = -55;
+
+/* Whoever holds the stick appears at the base of the frame as the top of a
+   head. A camera directly above sees a point on that crown at the azimuth of
+   its own horizontal offset, so the only skin up there — forehead, nose,
+   cheeks — sits at the bearing the face is turned to, and averaging it reads
+   as a compass. Circular mean, for the same reason the sun uses one: a face
+   across the 0/360 seam would otherwise come out 180 degrees wrong.
+
+   ponytail: a warm-and-not-grey colour rule, not a face detector. Bare timber,
+   rust, dry soil and brick all pass it. Three things keep it honest — it looks
+   only at the steepest sliver of the frame, it refuses unless what it finds
+   lies in ONE direction (a timber deck is skin-coloured all the way round),
+   and it refuses if that direction is most of the sliver (a plank floor is not
+   a face). Those refusals are the knobs to turn when a site reads wrong; a
+   real landmark model is the upgrade path if guessing stops being enough. */
+const SKIN_MIN_RED = 95;
+const SKIN_MIN_WARMTH = 15;   /* red over green, which is what grey never is */
+const FACE_MIN_SHARE = 0.015;
+const FACE_MAX_SHARE = 0.45;
+const FACE_MIN_FOCUS = 0.5;   /* 1 = every skin pixel in one direction */
+
 /* How far a pixel has to depart from the deck's own colour to count as
    something standing on it, and how much of a column has to depart before the
    column counts. Brightness OR saturation, never darkness — a shadow is the
@@ -1661,17 +1724,23 @@ function panoProfile(image, { hFov = 360, tilt = 0 } = {}) {
      Whole frame, not a band: an inspector may be on the deck below the camera
      or on staging above it. */
   const vest = new Float64Array(W);
+  const vestRow = new Float64Array(W);
   for (let x = 0; x < W; x++) {
-    let s = 0;
+    let s = 0, rows = 0;
     for (let y = 0; y < H; y++) {
       const i = (y * W + x) * 4;
       const r = d[i], g = d[i + 1], b = d[i + 2];
       const m = Math.max(r, g);
       /* g against r keeps deep red and brick out while admitting both the
          yellow-green and the orange the standards allow */
-      if (m >= HIVIS_MIN_VALUE && m - b >= m * HIVIS_MIN_SAT && g >= r * 0.4) s += (m - b) / 255;
+      if (m >= HIVIS_MIN_VALUE && m - b >= m * HIVIS_MIN_SAT && g >= r * 0.4) {
+        const w = (m - b) / 255;
+        s += w;
+        rows += w * y; /* how far down they are, which decides whether their bearing means anything */
+      }
     }
     vest[x] = s;
+    vestRow[x] = s ? rows / s : 0;
   }
   let person = null;
   {
@@ -1682,7 +1751,34 @@ function panoProfile(image, { hFov = 360, tilt = 0 } = {}) {
     /* the +0.5 keeps an all-black median from dividing by zero, and sets the
        scale at which a peak counts as "one place" rather than "everywhere" */
     if (vest[top] > 0 && vest[top] / (median + 0.5) >= HIVIS_MIN_PEAK_RATIO) {
-      person = { col: top, yaw: yawAt(top) };
+      person = { col: top, yaw: yawAt(top), alt: +altAt(vestRow[top]).toFixed(2) };
+    }
+  }
+
+  /* ---- which way the one under the camera is looking ----
+     See SKIN_MIN_RED above for what this is and what it is not. */
+  let facing = null;
+  {
+    const top = rowAt(UNDERFOOT_ALT);
+    /* a phone strip that never looks further down than the parapet has no
+       underfoot to read, and clamping would otherwise hand back its last row */
+    if (H - top >= 3 && altAt(H - 1) < UNDERFOOT_ALT) {
+      let sx = 0, sy = 0, n = 0;
+      for (let y = top; y < H; y++) {
+        for (let x = 0; x < W; x++) {
+          const i = (y * W + x) * 4;
+          const r = d[i], g = d[i + 1], b = d[i + 2];
+          if (r < SKIN_MIN_RED || g < 40 || b < 20 || r <= b || r - g < SKIN_MIN_WARMTH
+            || Math.max(r, g, b) - Math.min(r, g, b) <= 15) continue;
+          const th = 2 * Math.PI * (x + 0.5) / W;
+          sx += Math.cos(th); sy += Math.sin(th); n++;
+        }
+      }
+      const share = n / (W * (H - top));
+      const focus = n ? Math.hypot(sx, sy) / n : 0;
+      if (share >= FACE_MIN_SHARE && share <= FACE_MAX_SHARE && focus >= FACE_MIN_FOCUS) {
+        facing = yawAt(((Math.atan2(sy, sx) / (2 * Math.PI)) * W % W + W) % W);
+      }
     }
   }
 
@@ -1751,7 +1847,7 @@ function panoProfile(image, { hFov = 360, tilt = 0 } = {}) {
     }
   }
 
-  return { W, hFov, wall, floor, sun, person, vehicle };
+  return { W, hFov, wall, floor, sun, person, facing, vehicle };
 }
 
 /* Where the photo suggests you can walk. Reads the bands panoProfile built;
@@ -1792,6 +1888,29 @@ function guessNavigableYaws(profile, count = 3) {
     if (!picked.some(p => apart(p, x) < gap)) picked.push(x);
   }
   return picked.map(x => +wrap180((x + 0.5) / W * hFov - hFov / 2).toFixed(2));
+}
+
+/* Which way a scene should open, off what the photo turned out to contain.
+   Yaw 0 is the middle of the file, which is wherever the camera happened to be
+   pointing, so almost anything beats it — but only two readings are worth
+   having, in this order:
+
+     person   somebody in hi-vis standing out in the scene. On an inspection
+              they are nearly always at the thing being inspected.
+     facing   nobody out there, but whoever held the camera is underfoot, and
+              the top of their head says which way they were looking. A worse
+              bet than the first, and still a far better one than the middle of
+              the file.
+
+   A hi-vis hit BELOW the underfoot line is the operator, not a second person,
+   and gets no vote on bearing at all — it is the one case where the old guess
+   confidently aimed at nothing. Returns null when the photo suggests neither,
+   because "no idea" has to stay one of the answers. */
+function openingView(profile) {
+  const p = profile?.person;
+  if (p && p.alt > UNDERFOOT_ALT) return { yaw: p.yaw, pitch: 0, from: 'person' };
+  if (Number.isFinite(profile?.facing)) return { yaw: profile.facing, pitch: 0, from: 'facing' };
+  return null;
 }
 
 /* ---------- keeping every hotspot clickable ----------
@@ -2402,6 +2521,154 @@ function facingBearing(scene) {
   const h = scene?.geo?.heading;
   if (!Number.isFinite(h)) return null;
   return +((((h + (scene.view?.yaw || 0)) % 360) + 360) % 360).toFixed(2);
+}
+
+/* The compass bearing from one plan position to another point on the plate —
+   the inverse of the arm each arrow is drawn along, and what turns "the pointer
+   is here" into "you are aiming there". Plate coordinates: u right, v DOWN,
+   north up, which is why v is subtracted the other way round from planBearing's
+   metres. */
+const aimFromPoint = (from, at) =>
+  (Math.atan2(at.u - from.u, from.v - at.v) * 180 / Math.PI + 360) % 360;
+
+/* The inverse of facingBearing: what to store as a photo's heading so that it
+   ends up looking the way somebody just turned its arrow. The camera's bearing
+   is where the MIDDLE of the file points, and the arrow shows where the opening
+   view points, so the view's own yaw has to come back out.
+
+   One line, but in the fence and tested, because a sign error here is the kind
+   nothing catches: every arrow would still point somewhere entirely plausible,
+   and every one of them would be wrong by twice the opening yaw. */
+const headingForAim = (scene, aim) =>
+  +(((((aim - (scene?.view?.yaw || 0)) % 360) + 360) % 360)).toFixed(2);
+
+/* ---------- working out the bearings nobody recorded ----------
+
+   Three things could already give a photo a bearing, and all three depend on
+   the camera: GPSImgDirection in the EXIF, PoseHeadingDegrees in a photo
+   sphere's XMP, or the sun in the frame plus a fix and a clock. A phone with
+   its compass off, an action camera, or any indoor walk gets none of them, and
+   until now that tour simply had no bearings at all — no compass in the
+   viewer, no real angles on the plan, and every link arrow aimed by guesswork.
+
+   Two more ways exist, and neither needs the camera to have known anything:
+
+     match  Two photos of the same place, taken from a few metres apart, share
+            their skyline. correlateYaw already measures how far one is turned
+            from the other, to within a column, and yawBetween already refuses
+            when the two bands disagree. So a bearing on ONE photo carries to
+            every photo that shares a view with it, and onward from there —
+            which means aiming a single arrow by hand can bearing a whole walk.
+     plan   A link you placed by hand says "the way to B is over there", and
+            the plan says where B is. The difference is this photo's bearing.
+
+   Both are proposals: the caller writes them into geo.heading tagged with which
+   one produced them, the scene panel says so, and the arrow on the plan turns
+   them by hand. Nothing here overwrites a bearing that already exists.
+
+   ponytail: the match pass correlates every pair once — 256-column circular
+   correlation, so about n²/2 × 65k operations, a second or so at forty photos.
+   That is why it is a button and not something renderPlan does. If it ever
+   needs to be cheaper, the profiles are already summarised down to two bands;
+   an FFT is the next step, not a smaller n. */
+
+/* How far a bearing may travel from the photo that actually knows one.
+
+   Every hop is a measured turn that already cleared MATCH_MIN_CONFIDENCE, so
+   the thing that degrades along a chain is not belief, it is ANGLE: each hop
+   is right to within a column or two, and those errors add. Three hops is a
+   couple of degrees of accumulated slop, which a plan can carry; twenty hops
+   down a viaduct is a number with no relationship to the ground.
+
+   Deliberately a hop count and not a product of confidences. Confidence here
+   is a peak-to-rival ratio, not a probability — multiplying two of them says
+   nothing about two turns both being right, and in practice it killed every
+   chain at the second hop because a legitimate match sits around 0.4. */
+const HEADING_MATCH_HOPS = 3;
+/* Two links from one photo that cannot agree within this are not evidence of
+   anything, and their average would be a number with no source. */
+const HEADING_PLAN_SPREAD = 25;
+
+function deriveHeadings(scenes, pts) {
+  const list = scenes || [];
+  if (list.length < 2) return [];
+  const wrap360 = deg => ((deg % 360) + 360) % 360;
+  const recorded = list.map(s => Number.isFinite(s.geo?.heading));
+
+  /* ---- pass one: carry a known bearing along shared views ----
+     The pair graph is built once and reused, rather than re-correlating on
+     every hop of the search. The reverse of a turn is its negative, so only
+     half the pairs are ever measured. */
+  const turn = new Map(), sure = new Map();
+  for (let i = 0; i < list.length; i++) {
+    for (let j = i + 1; j < list.length; j++) {
+      const t = yawBetween(list[i], list[j]);
+      if (!t) continue;
+      turn.set(`${i} ${j}`, t.degrees);
+      turn.set(`${j} ${i}`, -t.degrees);
+      sure.set(`${i} ${j}`, t.confidence);
+      sure.set(`${j} ${i}`, t.confidence);
+    }
+  }
+
+  /* Breadth first, so every photo is reached by the FEWEST turns from a photo
+     that already knows — fewest turns is least accumulated angle. Among routes
+     of equal length the more confident match wins, which is what the second
+     condition below is for. */
+  const heading = list.map((s, i) => (recorded[i] ? wrap360(s.geo.heading) : null));
+  const hops = list.map((s, i) => (recorded[i] ? 0 : Infinity));
+  const routeSure = list.map((s, i) => (recorded[i] ? 1 : 0));
+  let frontier = list.map((s, i) => i).filter(i => recorded[i]);
+  for (let step = 1; step <= HEADING_MATCH_HOPS && frontier.length; step++) {
+    const next = [];
+    for (const k of frontier) {
+      for (let j = 0; j < list.length; j++) {
+        if (recorded[j] || hops[j] < step) continue;
+        const c = sure.get(`${k} ${j}`);
+        if (c === undefined) continue;
+        if (hops[j] === step && c <= routeSure[j]) continue;
+        hops[j] = step;
+        routeSure[j] = c;
+        /* the same world direction sits `turn` degrees further round in j's
+           frame than in k's, so j's own frame starts that much earlier */
+        heading[j] = wrap360(heading[k] - turn.get(`${k} ${j}`));
+        if (!next.includes(j)) next.push(j);
+      }
+    }
+    frontier = next;
+  }
+
+  const out = [];
+  list.forEach((s, i) => {
+    if (recorded[i] || heading[i] === null) return;
+    out.push({ id: s.id, heading: +heading[i].toFixed(2), from: 'match', hops: hops[i] });
+  });
+
+  /* ---- pass two: what the links and the plan already say ----
+     Only where BOTH ends are really placed. A dot laid out by capture order is
+     a placeholder for a position, and a bearing measured off it would be an
+     invention wearing the clothes of a measurement. */
+  const at = new Map((pts || []).map(p => [p.id, p]));
+  const real = id => at.get(id)?.kind === 'gps' || at.get(id)?.kind === 'manual';
+  const covered = new Set(out.map(o => o.id));
+  list.forEach((s, i) => {
+    if (recorded[i] || covered.has(s.id) || !real(s.id)) return;
+    const from = [];
+    for (const h of s.hotspots || []) {
+      if (h.type !== 'link' || !h.target || h.target === s.id) continue;
+      if (!Number.isFinite(h.yaw) || !real(h.target)) continue;
+      from.push(wrap360(planBearing(at.get(s.id), at.get(h.target)) - h.yaw));
+    }
+    if (!from.length) return;
+    /* circular mean, because two links either side of north average to south */
+    let sx = 0, sy = 0;
+    for (const b of from) { sx += Math.cos(b * Math.PI / 180); sy += Math.sin(b * Math.PI / 180); }
+    const mean = wrap360(Math.atan2(sy, sx) * 180 / Math.PI);
+    if (from.some(b => Math.abs(wrap180(b - mean)) > HEADING_PLAN_SPREAD)) return;
+    out.push({ id: s.id, heading: +mean.toFixed(2), from: 'plan' });
+  });
+
+  return out;
 }
 
 /* The photos the finished tour cannot reach.
@@ -3416,7 +3683,7 @@ async function preparePano(file) {
     return {
       thumb, pano, geo, shot, ways, upload, width, height,
       converted: upload !== file, fill: edgeColours(bmp, aspect),
-      prof: packProfile(profile), person: profile?.person || null,
+      prof: packProfile(profile), open: openingView(profile),
       vehicle: profile?.vehicle || null,
     };
   } finally {
@@ -3656,6 +3923,7 @@ async function renderEditor(tourId) {
             <p class="scene-note plan-how" id="plan-how"></p>
             <div class="plan-box" id="plan-box"></div>
             <p class="scene-note" id="plan-note"></p>
+            <button class="btn" id="plan-aim" hidden>Work out the missing bearings</button>
             <button class="btn" id="plan-reset" hidden>Undo my placements</button>
           </details>
         </div>
@@ -3899,11 +4167,29 @@ async function renderEditor(tourId) {
   /* Wide enough for a long viaduct and its approaches, far short of a bad fix. */
   const PLAN_MAX_SPAN_M = 5000;
 
+  /* The arrow each photo wears, in plate units (which are percentages, and the
+     plate is square). AIM_GAP is why the shaft starts clear of the dot: a press
+     near the middle should still pick the photo up rather than turn it.
+     One definition, used both to draw the arrows and to redraw one mid-turn —
+     two copies of this would drift and the arrow would jump on first drag. */
+  const AIM_LEN = 9, AIM_HEAD = 3.4, AIM_GAP = 4.5;
+  function aimGeometry(p, deg) {
+    const arm = r => [p.u * 100 + r * Math.sin(deg * DEG), p.v * 100 - r * Math.cos(deg * DEG)];
+    const [gx, gy] = arm(AIM_GAP), [tx, ty] = arm(AIM_LEN);
+    const barb = a =>
+      `${(tx + AIM_HEAD * Math.sin(a * DEG)).toFixed(2)} ${(ty - AIM_HEAD * Math.cos(a * DEG)).toFixed(2)}`;
+    return {
+      gx, gy, tx, ty,
+      d: `M ${barb(deg + 155)} L ${tx.toFixed(2)} ${ty.toFixed(2)} L ${barb(deg - 155)}`,
+    };
+  }
+
   function renderPlan() {
     const box = document.getElementById('plan-box');
     const note = document.getElementById('plan-note');
     const spanEl = document.getElementById('plan-span');
     const resetBtn = document.getElementById('plan-reset');
+    const aimBtn = document.getElementById('plan-aim');
     const how = document.getElementById('plan-how');
     if (!box || !note || !spanEl) return;
     box.innerHTML = '';
@@ -3914,6 +4200,7 @@ async function renderEditor(tourId) {
     const plan = planPositions(doc.scenes);
     const moved = doc.scenes.filter(s => s.plan).length;
     if (resetBtn) resetBtn.hidden = !moved;
+    if (aimBtn) aimBtn.hidden = true; /* set properly below, once the plan is known */
     if (!plan) {
       spanEl.textContent = '';
       if (how) how.textContent = '';
@@ -3961,25 +4248,59 @@ async function renderEditor(tourId) {
     const edges = planEdges(doc.scenes, plan.pts);
     const oneWay = edges.filter(e => !e.both).length;
 
-    /* Which way the photo you are editing is looking. Only that one: forty
-       wedges is a hedgehog, and the question a plan gets asked is "which pier
-       is THIS a shot of". Silent when the photo recorded no heading — the plate
-       would otherwise point confidently north at whatever it liked. */
-    const hereAt = plan.pts.find(p => p.id === curSceneId);
-    const facing = facingBearing(curScene());
-    const wedge = hereAt && facing !== null ? (() => {
-      const cu = hereAt.u * 100, cv = hereAt.v * 100, r = 11, half = 15;
-      const arm = a => [cu + r * Math.sin(a * DEG), cv - r * Math.cos(a * DEG)];
-      const [ax, ay] = arm(facing - half), [bx, by] = arm(facing + half);
-      return `<path class="plan-facing" d="M ${cu.toFixed(2)} ${cv.toFixed(2)}
-        L ${ax.toFixed(2)} ${ay.toFixed(2)} A ${r} ${r} 0 0 1 ${bx.toFixed(2)} ${by.toFixed(2)} Z"/>`;
-    })() : '';
+    /* Past the cap the plate is a dartboard and clicking a four-pixel gap is
+       hopeless — but the photo you are ON is never ambiguous, so it stays
+       draggable at any count. Otherwise a forty-photo bridge, which is exactly
+       the tour that needs correcting, would be the one you cannot correct.
+       Every dot carries its id either way: a dot too crowded to pick is still a
+       perfectly good place to DROP one, so linking never hits the cap.
+       Read up here as well as at the dots, because the arrows below answer to
+       the same cap for the same reason. */
+    const pickable = plan.pts.length <= PLAN_PICKABLE_MAX;
 
-    box.append(el(`<svg class="plan-lines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-      <defs><marker id="plan-arrow" class="plan-arrow" viewBox="0 0 8 8" refX="7" refY="4"
+    /* ----- which way each photo looks -----
+       One arrow per photo, and every one of them is a handle: drag the head
+       round, or focus it and press the arrow keys, and that photo's compass
+       heading follows. This replaces the single accent wedge — the question
+       "which pier is THIS a shot of" is still answered on the photo being
+       edited, in accent, and now the other thirty-nine answer it too, quietly,
+       and all of them are correctable.
+
+       Drawn for any photo that HAS a bearing; drawn dashed, and only on the
+       photos you can currently take hold of, for the ones that do not. A
+       handle nobody can reach is noise, and a solid arrow on a photo that never
+       recorded a heading would be the plate asserting a direction it does not
+       know — the exact claim the old code drew no wedge rather than make. */
+    const aimSvg = (p, deg) => {
+      const a = aimGeometry(p, deg);
+      const ends = `x1="${a.gx.toFixed(2)}" y1="${a.gy.toFixed(2)}" x2="${a.tx.toFixed(2)}" y2="${a.ty.toFixed(2)}"`;
+      return `<line class="grab" ${ends} vector-effect="non-scaling-stroke"/>
+        <line class="shaft" ${ends} vector-effect="non-scaling-stroke"/>
+        <path class="head" vector-effect="non-scaling-stroke" d="${a.d}"/>`;
+    };
+    const aims = plan.pts.map(p => {
+      const s = doc.scenes.find(x => x.id === p.id);
+      const bear = facingBearing(s);
+      const live = pickable || p.id === curSceneId;
+      if (bear === null && !live) return '';
+      const name = s?.name || 'this photo';
+      const said = bear === null
+        ? `${name} has no bearing yet. Drag this arrow, or press the arrow keys, to say which way it looks.`
+        : `${name} looks ${Math.round(bear)} degrees. Drag this arrow, or press the arrow keys, to change it.`;
+      const hand = bear === null ? '' : ` ${s?.geo?.headingFrom === 'hand' ? 'aimed by hand' : 'from its own compass'}`;
+      return `<g class="aim${p.id === curSceneId ? ' on' : ''}${bear === null ? ' unset' : ''}"
+        data-aim-id="${esc(p.id)}"
+        ${live ? `tabindex="0" role="slider" aria-valuemin="0" aria-valuemax="359"
+          aria-valuenow="${Math.round(bear ?? 0)}" aria-label="${esc(said)}"` : 'aria-hidden="true"'}>
+        ${live ? `<title>${esc(bear === null ? 'Not aimed yet — drag to turn' : `${Math.round(bear)}°${hand} — drag to turn`)}</title>` : ''}
+        ${aimSvg(p, bear ?? 0)}</g>`;
+    }).join('');
+
+    box.append(el(`<svg class="plan-lines" viewBox="0 0 100 100" preserveAspectRatio="none">
+      <defs aria-hidden="true"><marker id="plan-arrow" class="plan-arrow" viewBox="0 0 8 8" refX="7" refY="4"
         markerUnits="userSpaceOnUse" markerWidth="4" markerHeight="4" orient="auto">
         <path d="M0 0 L8 4 L0 8 Z"/></marker></defs>
-      <g class="plan-deck">
+      <g class="plan-deck" aria-hidden="true">
         ${seg(x1, y1, x2, y2, 'band')}
         ${seg(x1 + nx, y1 + ny, x2 + nx, y2 + ny, 'edge')}
         ${seg(x1 - nx, y1 - ny, x2 - nx, y2 - ny, 'edge')}
@@ -3987,8 +4308,7 @@ async function renderEditor(tourId) {
         ${seg(x2 + nx, y2 + ny, x2 - nx, y2 - ny, 'abut')}
         ${seg(x1, y1, x2, y2, 'mid')}
       </g>
-      ${wedge}
-      <g class="plan-edges">${edges.map(e => {
+      <g class="plan-edges" aria-hidden="true">${edges.map(e => {
         /* pulled back off both dots so the line does not grow out of the middle
            of a photo, and so the arrowhead lands in the open where it reads */
         const ex = (e.to.u - e.from.u) * 100, ey = (e.to.v - e.from.v) * 100;
@@ -4003,11 +4323,12 @@ async function renderEditor(tourId) {
           x2="${((e.to.u * 100) - ux).toFixed(2)}" y2="${((e.to.v * 100) - uy).toFixed(2)}"
           ${e.both || !l ? '' : 'marker-end="url(#plan-arrow)"'} vector-effect="non-scaling-stroke"/>`;
       }).join('')}</g>
-      <g class="plan-cuts">${edges.map(e => `<line data-a="${esc(e.a.id)}" data-b="${esc(e.b.id)}"
+      <g class="plan-cuts" aria-hidden="true">${edges.map(e => `<line data-a="${esc(e.a.id)}" data-b="${esc(e.b.id)}"
         x1="${(e.a.u * 100).toFixed(2)}" y1="${(e.a.v * 100).toFixed(2)}"
         x2="${(e.b.u * 100).toFixed(2)}" y2="${(e.b.v * 100).toFixed(2)}"
         vector-effect="non-scaling-stroke"><title>Cut this link</title></line>`).join('')}</g>
-      <line class="plan-band" vector-effect="non-scaling-stroke" hidden/>
+      <line class="plan-band" vector-effect="non-scaling-stroke" aria-hidden="true" hidden/>
+      <g class="plan-aims">${aims}</g>
     </svg>`));
 
     /* You can draw a link on this plate, so you can cut one on it. A wrong
@@ -4021,13 +4342,13 @@ async function renderEditor(tourId) {
       if (line) cutLink(line.dataset.a, line.dataset.b);
     });
 
-    /* Past the cap the plate is a dartboard and clicking a four-pixel gap is
-       hopeless — but the photo you are ON is never ambiguous, so it stays
-       draggable at any count. Otherwise a forty-photo bridge, which is exactly
-       the tour that needs correcting, would be the one you cannot correct.
-       Every dot carries its id either way: a dot too crowded to pick is still a
-       perfectly good place to DROP one, so linking never hits the cap. */
-    const pickable = plan.pts.length <= PLAN_PICKABLE_MAX;
+    /* the arrows, now that they are in the document — same live rule as the
+       dots, so a plate too crowded to pick from is not one you can mis-aim */
+    for (const g of box.querySelectorAll('.plan-aims .aim[tabindex]')) {
+      const p = plan.pts.find(x => x.id === g.dataset.aimId);
+      if (p) makeAimable(g, box, p);
+    }
+
     const defects = defectCounts(doc);
     const stray = new Set(strandedScenes(doc));
     for (const p of plan.pts) {
@@ -4088,6 +4409,18 @@ async function renderEditor(tourId) {
     }
 
     const counts = plan.pts.reduce((a, p) => (a[p.kind]++, a), { gps: 0, manual: 0, guess: 0 });
+    const aimed = plan.pts.filter(p => facingBearing(doc.scenes.find(s => s.id === p.id)) !== null).length;
+    /* Offered only when there is a gap AND something to fill it from: one
+       bearing to carry along shared views, or a link between two photos that
+       are really placed. Otherwise the button could only disappoint, and the
+       note below says what is missing instead. */
+    if (aimBtn) {
+      const real = new Set(plan.pts.filter(p => p.kind !== 'guess').map(p => p.id));
+      const linked = doc.scenes.some(s => real.has(s.id)
+        && (s.hotspots || []).some(h => h.type === 'link' && real.has(h.target)));
+      aimBtn.hidden = !(aimed < plan.pts.length && (aimed > 0 || linked));
+    }
+    const handAimed = doc.scenes.filter(s => s.geo?.headingFrom === 'hand').length;
     const marked = [...defects.values()].reduce((a, n) => a + n, 0);
     const lostCount = doc.scenes.length > 1 ? stray.size : 0;
     /* What you can DO is a different kind of sentence from what the plate is
@@ -4095,7 +4428,8 @@ async function renderEditor(tourId) {
        finishes. The instructions sit above the map, the findings below it. */
     if (how) {
       how.textContent = 'Drag a photo to where it stood, drop it on another to connect the two, '
-        + 'or click a link to cut it. Select a photo and the arrow keys nudge it — hold Shift to move further.';
+        + 'or click a link to cut it. Each photo carries an arrow for the way it looks — drag the arrow to turn it. '
+        + 'The arrow keys nudge a selected photo and turn a selected arrow; hold Shift for bigger steps.';
     }
     note.textContent = [
       plan.scaled
@@ -4114,7 +4448,15 @@ async function renderEditor(tourId) {
         ? `${lostCount} in red — nothing links to ${lostCount === 1 ? 'it' : 'them'}, so ${lostCount === 1 ? 'it is' : 'they are'} in the record but not in the walk.`
         : '',
       marked ? `${marked} defect${marked === 1 ? '' : 's'} counted on the photos that carry them.` : '',
-      facing !== null ? 'The wedge is the way this photo looks, from its own compass.' : '',
+      /* the arrows are only worth a sentence while some of them are still
+         unanswered questions — once every photo is aimed, they speak for
+         themselves and this is one more line of text over the plate */
+      aimed < plan.pts.length
+        ? `Bearing known on ${aimed} of ${plan.pts.length} photos — turn a dashed arrow to aim another`
+          + `${aimBtn && !aimBtn.hidden ? ', or work the rest out from it below' : ''}. `
+          + 'Once a photo has one, the compass in the finished tour starts working too.'
+        : 'Every photo knows which way it faces — turn an arrow to change one.',
+      handAimed ? `${handAimed} aimed by hand.` : '',
       plan.vehicle
         ? `The truck is plant on the deck, crossed from ${plan.vehicle.from} photos that saw it — a guess at a big bright object, so check it is a truck and not a skip.`
         : '',
@@ -4174,6 +4516,111 @@ async function renderEditor(tourId) {
       scheduleSave();
       renderPlan();
       document.querySelector(`.plan-dot[data-plan-id="${CSS.escape(p.id)}"]`)?.focus();
+    });
+  }
+
+  /* ----- aim a photo by turning its arrow -----
+
+     A bearing is the one thing on this plate that the pixels cannot supply and
+     the camera very often did not record: no GPSImgDirection, no photo sphere
+     XMP, no sun in the frame, and the tour has no idea which way any of its
+     photos face. The inspector standing on the deck does know, and until now
+     had nowhere to say it.
+
+     What gets stored is the camera's own heading — where the MIDDLE of the file
+     points — worked back out of the direction the arrow was left in, which is
+     where the OPENING VIEW points. Everything downstream already reads that
+     field: the viewer's compass needle, the plan's link bearings, the vehicle
+     crossing. So one drag here fixes all of them at once, and a photo aimed by
+     hand is worth exactly as much to them as one that recorded a bearing.
+
+     ponytail: no separate "hand bearing" field. Reusing geo.heading is what
+     makes the drag worth doing at all — a parallel field would have to be
+     taught to every one of those readers. */
+  const AIM_STEP = 5;     /* degrees per arrow key; Shift multiplies it */
+  const AIM_STEP_BIG = 15;
+
+  function setAim(s, aim) {
+    if (!s) return;
+    s.geo = s.geo || {};
+    /* A bearing the camera measured is a fact, and a drag must not silently
+       delete it. Kept alongside the way a solar heading is kept beside a
+       magnetic one, so the scene panel can show both and the inspector can see
+       what they overruled — first overwrite only, since after that the number
+       being replaced is their own. */
+    if (Number.isFinite(s.geo.heading) && s.geo.headingFrom !== 'hand'
+      && !Number.isFinite(s.geo.headingWas)) {
+      s.geo.headingWas = s.geo.heading;
+    }
+    s.geo.heading = headingForAim(s, aim);
+    s.geo.headingFrom = 'hand';
+    scheduleSave();
+  }
+
+  /* Turning is drawn straight onto the element mid-gesture and committed on
+     release, for the same reason dragging a dot is: renderPlan() rebuilds every
+     node, so re-rendering per pointermove would delete the element the pointer
+     is captured on and the gesture would end on its first move. */
+  function makeAimable(g, box, p) {
+    const scene = () => doc.scenes.find(x => x.id === p.id);
+    const head = g.querySelector('.head');
+    const drawAt = deg => {
+      const a = aimGeometry(p, deg);
+      for (const line of g.querySelectorAll('.shaft, .grab')) {
+        line.setAttribute('x1', a.gx.toFixed(2)); line.setAttribute('y1', a.gy.toFixed(2));
+        line.setAttribute('x2', a.tx.toFixed(2)); line.setAttribute('y2', a.ty.toFixed(2));
+      }
+      head.setAttribute('d', a.d);
+      g.classList.remove('unset'); /* it is aimed the moment it is turned */
+      g.setAttribute('aria-valuenow', String(Math.round(deg)));
+    };
+
+    g.addEventListener('pointerdown', ev => {
+      if (ev.pointerType === 'mouse' && ev.button !== 0) return;
+      ev.preventDefault();
+      ev.stopPropagation(); /* or the plate reads this as the start of a link */
+      const rect = box.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
+      try { g.setPointerCapture(ev.pointerId); } catch { /* the turn still works */ }
+      g.classList.add('turning');
+      let aim = null;
+      const move = e => {
+        aim = aimFromPoint(p, {
+          u: (e.clientX - rect.left) / rect.width,
+          v: (e.clientY - rect.top) / rect.height,
+        });
+        drawAt(aim);
+      };
+      const up = () => {
+        g.removeEventListener('pointermove', move);
+        g.removeEventListener('pointerup', up);
+        g.removeEventListener('pointercancel', up);
+        g.classList.remove('turning');
+        if (aim === null) return;
+        setAim(scene(), aim);
+        renderPlan();
+        renderSceneMeta();
+        box.querySelector(`.plan-aims .aim[data-aim-id="${CSS.escape(p.id)}"]`)?.focus();
+      };
+      g.addEventListener('pointermove', move);
+      g.addEventListener('pointerup', up);
+      g.addEventListener('pointercancel', up);
+    });
+
+    /* Same reasoning as makeNudgeable: PSV binds the arrow keys on window to
+       spin the panorama, so without stopPropagation aiming a photo would also
+       turn the view behind the plate. */
+    g.addEventListener('keydown', e => {
+      const dir = { ArrowRight: 1, ArrowUp: 1, ArrowLeft: -1, ArrowDown: -1 }[e.key];
+      if (!dir || e.ctrlKey || e.metaKey || e.altKey) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const s = scene();
+      const now = facingBearing(s) ?? 0;
+      setAim(s, (now + dir * (e.shiftKey ? AIM_STEP_BIG : AIM_STEP) + 360) % 360);
+      renderPlan();
+      renderSceneMeta();
+      box.querySelector(`.plan-aims .aim[data-aim-id="${CSS.escape(p.id)}"]`)?.focus();
     });
   }
 
@@ -4332,6 +4779,37 @@ async function renderEditor(tourId) {
     toast('Placements cleared — back to GPS and capture order');
   });
 
+  /* Fill in the bearings the camera never recorded, from the two means that do
+     not need it to have — see deriveHeadings. A button rather than something
+     automatic: it correlates every pair of photos, which is a second of work on
+     a big tour, and it writes to every scene at once, which is the kind of
+     thing that should happen because somebody asked. */
+  document.getElementById('plan-aim')?.addEventListener('click', () => {
+    const found = deriveHeadings(doc.scenes, planPositions(doc.scenes)?.pts);
+    if (!found.length) {
+      toast('Nothing could be worked out. Aim one photo by hand on the map first, '
+        + 'or place links between photos you have positioned.', true);
+      return;
+    }
+    for (const f of found) {
+      const s = doc.scenes.find(x => x.id === f.id);
+      if (!s) continue;
+      s.geo = s.geo || {};
+      s.geo.heading = f.heading;
+      s.geo.headingFrom = f.from;
+    }
+    scheduleSave();
+    renderPlan();
+    renderSceneMeta();
+    const byMatch = found.filter(f => f.from === 'match').length;
+    const how = [
+      byMatch ? `${byMatch} carried along shared views` : '',
+      found.length - byMatch ? `${found.length - byMatch} off the plan` : '',
+    ].filter(Boolean).join(', ');
+    toast(`Worked out ${found.length} bearing${found.length === 1 ? '' : 's'} — ${how}. `
+      + 'Check the arrows, turn any that look wrong, Ctrl+Z undoes the lot');
+  });
+
   /* One persistent line rather than a toast per file. A toast erases the one
      before it, so a folder of HEICs — every single one of which fails on
      Windows — used to flash a dozen messages and leave nothing behind but an
@@ -4370,7 +4848,7 @@ async function renderEditor(tourId) {
           `<progress max="${total}" value="${done}"></progress>`
         : `Uploading ${esc(file.name)}…`;
       try {
-        const { thumb, pano, geo, shot, ways, upload, width, height, converted, fill, prof, person, vehicle } = await preparePano(file);
+        const { thumb, pano, geo, shot, ways, upload, width, height, converted, fill, prof, open, vehicle } = await preparePano(file);
         const panoName = await uploadFile(doc.id, upload);
         const thumbName = await uploadFile(doc.id, new File([thumb], 'thumb.jpg', { type: 'image/jpeg' }));
         const scene = {
@@ -4378,16 +4856,12 @@ async function renderEditor(tourId) {
           name: file.name.replace(/\.[^.]+$/, ''),
           file: panoName,
           thumb: thumbName,
-          /* Yaw 0 is the middle of the file, which is wherever the camera
-             happened to be pointing — an arbitrary opening view. Somebody
-             standing in the shot is a better bet than that: on an inspection
-             the person in frame is nearly always at the thing being inspected.
-             Recorded as a guess so the scene panel can say so and offer to
-             forget it. */
-          view: person ? { yaw: person.yaw, pitch: 0 } : { yaw: 0, pitch: 0 },
+          /* openingView decides; recorded as a guess so the scene panel can say
+             which reading it came from and offer to forget it */
+          view: open ? { yaw: open.yaw, pitch: open.pitch } : { yaw: 0, pitch: 0 },
           hotspots: [],
         };
-        if (person) scene.viewFrom = 'person';
+        if (open) scene.viewFrom = open.from;
         if (pano) scene.pano = pano;
         if (geo) scene.geo = geo;
         if (shot) scene.shot = shot;
@@ -4957,13 +5431,22 @@ async function renderEditor(tourId) {
           <li><span class="lg lg-manual" aria-hidden="true"></span>placed by hand</li>
           <li><span class="lg lg-on" aria-hidden="true"></span>the photo you are editing</li>
           <li><span class="lg lg-stray" aria-hidden="true"></span>not in the walk yet</li>
+          <li><span class="lg lg-aim" aria-hidden="true"></span>which way it looks — drag to turn</li>
         </ul>
+        <label class="map-zoom">Zoom
+          <input type="range" min="1" max="4" step="0.25" value="1" aria-label="Zoom the map">
+        </label>
         <button class="btn map-close" title="Back to editing (Esc)">Back to editing</button>
       </header>
       <div class="map-scroll"><div class="map-sheet"></div></div>
     </div>`);
     ov.querySelector('.map-sheet').append(plan);
     plan.open = true;
+    /* the plate is percentages all the way down, so zooming is one custom
+       property and the scroll box handles the rest — no re-render */
+    ov.querySelector('.map-zoom input').addEventListener('input', e => {
+      ov.style.setProperty('--map-zoom', e.target.value);
+    });
     ov.querySelector('.map-close').addEventListener('click', () => toggleMap(false));
     document.getElementById('main-pane').append(ov);
     renderPlan();
@@ -5405,7 +5888,11 @@ async function renderEditor(tourId) {
      turn between themselves off the landmarks they share, so ask them; when
      they cannot agree, yawBetween returns null and the old assumption stands. */
   function returnYaw(from, target, outgoingYaw) {
-    if (from.geo && target.geo && Number.isFinite(target.geo.heading)) {
+    /* Both ENDS need a fix, not merely a geo block: a photo aimed by hand on
+       the plan carries a heading and no lat/lon, and bearing() on that pair
+       returns NaN — which would be stored on the arrow and point nowhere. */
+    const fixed = s => Number.isFinite(s?.geo?.lat) && Number.isFinite(s?.geo?.lon);
+    if (fixed(from) && fixed(target) && Number.isFinite(target.geo.heading)) {
       return +wrap180(bearing(target.geo, from.geo) - target.geo.heading).toFixed(2);
     }
     const turn = yawBetween(from, target);
@@ -5604,8 +6091,17 @@ async function renderEditor(tourId) {
       const src = {
         sun: 'worked out from the sun',
         magnetic: 'from the camera’s magnetic compass',
+        hand: 'aimed by hand on the map',
+        match: 'carried over from a photo that shares this view',
+        plan: 'worked out from where its links point on the map',
       }[g.headingFrom] || 'recorded by the camera';
       derived.push(`Centre of this photo faces ${Math.round(g.heading)}°, ${src}.`);
+      /* A hand aim overwrites a measurement. Print what it replaced rather than
+         letting the camera's own number disappear behind a drag — the same
+         reason the sun and magnetic readings are both kept below. */
+      if (Number.isFinite(g.headingWas)) {
+        derived.push(`Before you aimed it, this photo's bearing was ${Math.round(g.headingWas)}°.`);
+      }
       /* Both numbers exist and disagree: say so rather than silently preferring
          one. On a steel structure the magnetic one is the suspect — but it is
          the inspector standing there who knows whether they were beside a
@@ -5619,9 +6115,13 @@ async function renderEditor(tourId) {
         }
       }
     }
-    if (s.viewFrom === 'person') {
-      derived.push('Opens facing someone in hi-vis, on the assumption they are at whatever is being'
-        + ' inspected. Turn to what you want and press “Set start view from here” to override.');
+    const guessedView = {
+      person: 'Opens facing someone in hi-vis, on the assumption they are at whatever is being inspected.',
+      facing: 'Nobody was standing out in this one, so it opens whichever way the person under the camera'
+        + ' was looking, read off the top of their head at the base of the photo.',
+    }[s.viewFrom];
+    if (guessedView) {
+      derived.push(`${guessedView} Turn to what you want and press “Set start view from here” to override.`);
     }
     box.querySelector('#sc-derived').textContent = derived.join(' ');
 

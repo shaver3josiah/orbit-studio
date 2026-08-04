@@ -76,12 +76,13 @@ const helpers = await import(
    any check runs, rather than a quiet, misleading pass. */
 const USED = [
   'isPartial', 'vFovOf', 'panoDataFor', 'gpanoCoverage', 'readGps', 'bearing', 'metresBetween', 'wrap180',
-  'panoProfile', 'guessNavigableYaws', 'snapToWay',
+  'panoProfile', 'guessNavigableYaws', 'openingView', 'snapToWay', 'deriveHeadings',
   'sunPosition', 'solarHeading', 'correlateYaw', 'yawBetween', 'packProfile', 'unpackProfile',
   'principalAxis', 'triangulate', 'separateMarks',
   'fmtIn', 'defectMeasure', 'defectNeedsMeasure', 'nextDefectCode', 'DEFECT_TYPES', 'DEFECT_MEASURE',
   'DEPTH_STEPS', 'WIDTH_STEPS', 'csvCell', 'registerCsv', 'planPositions', 'planEdges', 'planBearing',
-  'tourDefects', 'defectCounts', 'niceMetres', 'facingBearing', 'strandedScenes',
+  'tourDefects', 'defectCounts', 'niceMetres', 'facingBearing', 'aimFromPoint', 'headingForAim',
+  'strandedScenes',
 ];
 const missingFromExports = USED.filter(name => !(name in helpers));
 if (missingFromExports.length) {
@@ -89,12 +90,13 @@ if (missingFromExports.length) {
 }
 const {
   isPartial, vFovOf, panoDataFor, gpanoCoverage, readGps, bearing, metresBetween, wrap180,
-  panoProfile, guessNavigableYaws, snapToWay,
+  panoProfile, guessNavigableYaws, openingView, snapToWay, deriveHeadings,
   sunPosition, solarHeading, correlateYaw, yawBetween, packProfile, unpackProfile,
   principalAxis, triangulate, separateMarks,
   fmtIn, defectMeasure, defectNeedsMeasure, nextDefectCode, DEFECT_TYPES, DEFECT_MEASURE,
   DEPTH_STEPS, WIDTH_STEPS, csvCell, registerCsv, planPositions, planEdges, planBearing,
-  tourDefects, defectCounts, niceMetres, facingBearing, strandedScenes,
+  tourDefects, defectCounts, niceMetres, facingBearing, aimFromPoint, headingForAim,
+  strandedScenes,
 } = helpers;
 
 /* --- checks begin here (tests/tour_pano_test.mjs coverage check reads up to
@@ -493,6 +495,85 @@ check(panoProfile(rgbPano(() => CONCRETE)).person === null,
    the same colour everywhere. Only a vest is orange in ONE place. */
 check(panoProfile(rgbPano(() => [190, 150, 60])).person === null,
   'a uniformly rust-coloured scene is not mistaken for a person standing somewhere');
+
+/* ---------- the one holding the camera ----------
+ * They stand underfoot, so their head lands at the base of the frame and what
+ * the photo shows is the crown of it. Aiming AT them is aiming at nothing —
+ * directly below the camera every column is the same place — but the face on
+ * that crown points somewhere, and that is worth reading.
+ *
+ * Rows 103 and below are the sliver under UNDERFOOT_ALT in a 256x128 equirect. */
+
+const SKIN = [205, 150, 120];
+/* neither colour may be mistaken for the other, or every check below is
+   measuring the wrong detector */
+check(panoProfile(rgbPano((x, y, Wp, Hp) =>
+  (x >= 184 && x < 216 && y >= 118) ? VEST : CONCRETE)).facing === null,
+  'a hi-vis vest is not read as a face');
+check(panoProfile(rgbPano((x, y, Wp, Hp) =>
+  (x >= 74 && x < 82 && y > Hp * 0.55 && y < Hp * 0.78) ? SKIN : CONCRETE)).person === null,
+  'and a face is not read as a hi-vis vest');
+
+const crown = panoProfile(rgbPano((x, y) => (x >= 184 && x < 216 && y >= 118) ? SKIN : CONCRETE)).facing;
+const crownYaw = wrap180(200 / 256 * 360 - 180);
+check(crown !== null, 'skin on the crown of a head at the base of the frame is found');
+check(crown !== null && Math.abs(wrap180(crown - crownYaw)) <= 3,
+  `and it reads as the bearing that skin sits at, ${crownYaw.toFixed(1)} (got ${crown})`);
+
+/* THE SEAM AGAIN. Half the face near column 0 and half near 255 averages, as
+   plain column numbers, to the far side of the sphere — the tour would open
+   pointing exactly backwards and look entirely deliberate doing it. */
+const seamFace = panoProfile(rgbPano((x, y, Wp) =>
+  ((x >= Wp - 16 || x < 16) && y >= 118) ? SKIN : CONCRETE)).facing;
+check(seamFace !== null && Math.abs(seamFace) > 174,
+  `a face across the 0/360 seam is placed at the seam, not opposite it (got ${seamFace})`);
+
+/* the refusals, which matter more than the finds: a wrong bearing here opens
+   every scene of a tour facing the wrong way */
+check(panoProfile(rgbPano(() => CONCRETE)).facing === null,
+  'bare concrete underfoot is not a face');
+check(panoProfile(rgbPano(() => [190, 150, 60])).facing === null,
+  'a timber deck is skin-coloured all the way round, so it is refused rather than averaged');
+check(panoProfile(rgbPano((x, y) =>
+  ((x < 32 || (x >= 128 && x < 160)) && y >= 103) ? SKIN : CONCRETE)).facing === null,
+  'skin in two opposite directions points nowhere, and says so instead of splitting the difference');
+/* a phone strip that never looks below the parapet has no underfoot at all,
+   and its clamped last row must not be mistaken for one */
+check(panoProfile(rgbPano(() => SKIN), { hFov: 90 }).facing === null,
+  'a narrow strip that never looks down that far reports no facing');
+
+/* ---------- which of those two aims the scene ---------- */
+
+const inspectorProfile = panoProfile(rgbPano((x, y, Wp, Hp) =>
+  (x >= 74 && x < 82 && y > Hp * 0.55 && y < Hp * 0.78) ? VEST : CONCRETE));
+check(openingView(inspectorProfile)?.from === 'person',
+  'somebody in hi-vis out in the scene still wins the opening view');
+check(openingView(inspectorProfile)?.yaw === inspectorProfile.person.yaw,
+  'and the view opens at their bearing');
+
+/* THE BUG THIS FIXES. A vest at the base of the frame is the operator, not a
+   second inspector: they are directly below, so their column is not a bearing
+   to anything, and the old guess aimed the scene at it with a straight face. */
+const operator = panoProfile(rgbPano((x, y) => (x >= 40 && x < 48 && y >= 118) ? VEST : CONCRETE));
+check(operator.person !== null, 'the operator underfoot is still seen');
+check(operator.person && operator.person.alt < -55,
+  `and is known to be underfoot rather than standing at something (got ${operator.person?.alt})`);
+check(openingView(operator) === null,
+  'so nothing is aimed at them, and no opening view is claimed at all');
+
+/* same operator, this time with a face on show: now there is something to say */
+const looking = panoProfile(rgbPano((x, y) =>
+  (x >= 40 && x < 48 && y >= 118) ? VEST
+    : (x >= 184 && x < 216 && y >= 118) ? SKIN : CONCRETE));
+const aim = openingView(looking);
+check(aim?.from === 'facing', 'with nobody else in shot, the scene opens the way the operator was looking');
+check(aim && Math.abs(wrap180(aim.yaw - crownYaw)) <= 3,
+  `pointed where their face is turned, ${crownYaw.toFixed(1)} (got ${aim?.yaw})`);
+check(aim?.pitch === 0, 'and level, since what they were looking at is out there, not underfoot');
+
+check(openingView(panoProfile(rgbPano(() => CONCRETE))) === null,
+  'an empty scene is opened at no particular angle rather than a made-up one');
+check(openingView(null) === null, 'and a photo that could not be profiled at all does not throw');
 
 /* ---------- the big thing standing on the deck ----------
  * Not a truck classifier and not claimed to be: what it finds is a wide mass
@@ -1088,6 +1169,158 @@ check(facingBearing({ view: { yaw: 30 } }) === null, 'no heading means no wedge,
 check(facingBearing({}) === null && facingBearing(null) === null, 'nothing known draws nothing');
 check(facingBearing({ geo: { heading: 0 }, view: { yaw: 0 } }) === 0,
   'due north is 0, not null — a real heading of zero is not a missing heading');
+
+/* ---------- turning that arrow by hand ----------
+ * The plan draws one arrow per photo and lets it be dragged round. Two pieces
+ * of maths stand between the gesture and the stored bearing, and a sign error
+ * in either is invisible on screen: every arrow would still point somewhere
+ * perfectly plausible and every one of them would be wrong. */
+
+/* plate coordinates: u right, v DOWN, north up */
+const at = (u, v) => ({ u, v });
+const mid = at(0.5, 0.5);
+check(aimFromPoint(mid, at(0.5, 0.2)) === 0, 'dragging straight up the plate is due north');
+check(aimFromPoint(mid, at(0.8, 0.5)) === 90, 'to the right is east');
+check(aimFromPoint(mid, at(0.5, 0.9)) === 180, 'downwards is south');
+check(aimFromPoint(mid, at(0.1, 0.5)) === 270,
+  'and to the left is 270, not -90 — a bearing is never negative');
+check(Math.round(aimFromPoint(mid, at(0.7, 0.3))) === 45, 'the diagonals land where they should');
+
+/* THE ROUND TRIP, which is the whole contract: turn an arrow to a bearing,
+   store what headingForAim says to store, and the plan must read that same
+   bearing back out. The opening yaw is the trap — it is added on the way out,
+   so it has to come off on the way in, and any tour whose scenes open anywhere
+   but dead ahead would otherwise be aimed wrong by twice it. */
+for (const yaw of [0, 30, -30, 179, -179]) {
+  for (const aim of [0, 45, 90, 200, 359]) {
+    const s = { view: { yaw } };
+    s.geo = { heading: headingForAim(s, aim) };
+    const back = facingBearing(s);
+    if (Math.abs(wrap180(back - aim)) > 0.01) {
+      check(false, `aiming at ${aim} with an opening yaw of ${yaw} reads back as ${back}`);
+    }
+  }
+}
+check(true, 'an arrow turned to a bearing reads back as that bearing, at every opening yaw');
+
+check(headingForAim({ view: { yaw: 30 } }, 10) === 340,
+  'the stored heading wraps rather than going negative');
+check(headingForAim({}, 90) === 90 && headingForAim(null, 90) === 90,
+  'a photo with no opening view stores the bearing as given');
+
+/* ---------- working out the bearings nobody recorded ----------
+ * Two means that do not need the camera to have known anything: carrying a
+ * bearing along photos that share a view, and reading one off a link plus the
+ * plan. The refusals matter more than the finds — a wrong bearing here turns
+ * every arrow on the plate and the compass in the finished tour. */
+
+/* sceneOf() above builds a scene whose stored profile is `bumpy` shifted by N
+ * columns, which is exactly what the matcher measures. 37 columns of 256 is
+ * 52.03 degrees, and a photo turned that way has its own frame starting that
+ * much earlier. */
+const wrap360 = deg => ((deg % 360) + 360) % 360;
+const COL = 360 / W;
+const shifted = (id, cols, extra = {}) => ({ ...sceneOf(cols, cols), id, ...extra });
+
+const chain = deriveHeadings([
+  shifted('a', 0, { geo: { heading: 100 } }),
+  shifted('b', 37),
+]);
+check(chain.length === 1, `the photo that does not know gets a bearing (got ${chain.length})`);
+check(chain[0] && near(chain[0].heading, wrap360(100 - wrap180(37 * COL)), 0.05),
+  `a photo turned 37 columns from a known one starts that much earlier (got ${chain[0]?.heading})`);
+check(chain[0]?.from === 'match', 'and it says it came from a shared view');
+
+/* the one that matters most: the answer must not depend on which photo happens
+   to be the one that knows. Aim the far end instead and the near end must come
+   out where the far end's own bearing puts it. */
+const reversed = deriveHeadings([
+  shifted('a', 0),
+  shifted('c', 74, { geo: { heading: 200 } }),
+]);
+check(reversed.length === 1 && near(reversed[0].heading, wrap360(200 + wrap180(74 * COL)), 0.05),
+  `carrying a bearing backwards reverses the turn (got ${reversed[0]?.heading})`);
+
+/* ---- and it carries further than one hop, which is the whole claim ----
+   Three photos along a walk, each turned 37 columns from the last. The floor
+   band swings 43 columns per step against the skyline's 37 — parallax, which
+   is exactly why a nearby floor slides further than a distant horizon as you
+   walk, and exactly why photos stop matching once they are far enough apart.
+   Six columns of disagreement is what yawBetween tolerates, so neighbours
+   match and the two ends, twelve apart, do not. That gap is what makes this a
+   test of the search rather than of one direct correlation. */
+const [w0, w1, w2] = [
+  { ...sceneOf(0, 0), id: 'w0' },
+  { ...sceneOf(37, 43), id: 'w1' },
+  { ...sceneOf(74, 86), id: 'w2' },
+];
+const hop1 = yawBetween(w0, w1), hop2 = yawBetween(w1, w2);
+check(hop1 && hop2, 'neighbours along the walk match, one step at a time');
+check(yawBetween(w0, w2) === null,
+  'and the two ends do NOT match directly, so reaching the far one means going through the middle');
+const walk = deriveHeadings([{ ...w0, geo: { heading: 100 } }, w1, w2]);
+check(walk.length === 2, `a bearing on one end reaches both other photos (got ${walk.length})`);
+const far = walk.find(x => x.id === 'w2');
+check(far && near(far.heading, wrap360(100 - hop1.degrees - hop2.degrees), 0.05),
+  `the far end is both turns away, composed in order (got ${far?.heading})`);
+check(walk.find(x => x.id === 'w1')?.hops === 1 && far?.hops === 2,
+  'and each says how many turns from a known bearing it is, since that is what its error is made of');
+
+check(deriveHeadings([shifted('a', 0), shifted('b', 37)]).length === 0,
+  'with nothing known anywhere, nothing is invented');
+check(deriveHeadings([]).length === 0 && deriveHeadings(null).length === 0,
+  'no scenes derives nothing rather than throwing');
+check(deriveHeadings([shifted('a', 0, { geo: { heading: 10 } })]).length === 0,
+  'one photo has nobody to carry a bearing to');
+check(deriveHeadings([
+  shifted('a', 0, { geo: { heading: 100 } }),
+  { id: 'b' },
+]).length === 0, 'a photo with no stored profile cannot be matched, and is left alone');
+check(deriveHeadings([
+  shifted('a', 0, { geo: { heading: 100 } }),
+  shifted('b', 37, { geo: { heading: 250 } }),
+]).length === 0, 'a photo that already has a bearing is never overwritten');
+
+/* ---- the plan pass: a link plus two real positions is a bearing ---- */
+
+/* b sits due east of a, and a's link to b points 30 degrees right of centre,
+   so a's centre faces 60. Both dots placed by hand, which is a claim about
+   where they stood; a dot laid out by capture order is not. */
+const placed = (id, x, y, hotspots) => ({ id, plan: { x, y }, hotspots });
+const planned = deriveHeadings(
+  [
+    placed('a', 0, 0, [{ type: 'link', target: 'b', yaw: 30 }]),
+    placed('b', 50, 0, []),
+    { id: 'seed', geo: { heading: 0 } },
+  ],
+  planPositions([placed('a', 0, 0, []), placed('b', 50, 0, []), { id: 'seed' }]).pts,
+);
+const fromPlan = planned.find(p => p.id === 'a');
+check(fromPlan && fromPlan.from === 'plan', 'a link between two placed photos yields a bearing');
+check(fromPlan && near(fromPlan.heading, 60, 0.05),
+  `east is 90, the arrow sits 30 right of centre, so the centre faces 60 (got ${fromPlan?.heading})`);
+
+/* the refusal that keeps this honest: a dot laid out by capture order is a
+   placeholder, and a bearing measured off it would be an invention */
+const guessedEnds = deriveHeadings(
+  [{ id: 'a', hotspots: [{ type: 'link', target: 'b', yaw: 30 }] }, { id: 'b' }],
+  planPositions([{ id: 'a' }, { id: 'b' }]).pts,
+);
+check(guessedEnds.length === 0,
+  'a link between two dots that were only guessed into place says nothing about bearing');
+
+/* two links that cannot agree are not evidence, and their average is a number
+   with no source behind it */
+const disagreeing = deriveHeadings(
+  [
+    placed('a', 0, 0, [{ type: 'link', target: 'b', yaw: 30 }, { type: 'link', target: 'c', yaw: 30 }]),
+    placed('b', 50, 0, []),
+    placed('c', 0, 50, []),
+  ],
+  planPositions([placed('a', 0, 0, []), placed('b', 50, 0, []), placed('c', 0, 50, [])]).pts,
+);
+check(!disagreeing.some(p => p.id === 'a'),
+  'two links putting one photo 90 degrees apart produce no bearing at all');
 
 /* ---------- the photos the finished tour cannot reach ---------- */
 
