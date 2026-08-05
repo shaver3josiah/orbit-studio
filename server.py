@@ -485,9 +485,14 @@ def execute_stage(pdir: Path, project: dict, stage: str, settings: dict, ctx: Ru
             result = frames.run(pdir, source, float(media.get("duration") or 1.0), ffmpeg_path, settings, ctx)
         return {"frames": result}
     if stage == "reframe":
-        ffmpeg_path = doctor.find_ffmpeg(REPO_ROOT)
+        # check_ffmpeg RUNS it rather than just finding it, so a binary that exists
+        # and is refused execution by policy reads as absent - which it effectively
+        # is. reframe.run falls back to the numpy projection for photo sets instead
+        # of failing, and says so plainly for video, which genuinely needs decoding.
+        ffmpeg_info = doctor.check_ffmpeg(REPO_ROOT)
+        ffmpeg_path = Path(ffmpeg_info["path"]) if ffmpeg_info.get("ok") else None
         if ffmpeg_path is None:
-            raise RuntimeError("ffmpeg not found")
+            ctx.report(1, "ffmpeg will not run here - reframing 360 photos in Python instead")
         media = project.get("media")
         source = pdir / "source" / media["filename"] if media else None
         duration = float(media.get("duration") or 1.0) if media else 1.0
