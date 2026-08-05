@@ -672,6 +672,13 @@
      photo. Never a lighter grey: these carry meaning, so they hold the 3:1 a
      meaningful graphic owes its background, in both themes. */
   .plan-aim.unset path { fill: none; }
+  /* An arm punched at the way ahead is the one direction on this plate that
+     somebody actually stated rather than something worked out for them, so it
+     is drawn heavier and a shade darker: a claim, not a derivation. Weight and
+     not hue, because .on already owns the accent and because a difference only
+     a colour carries is not a difference every reader gets. */
+  .plan-aim.punched { color: var(--ink-2); }
+  .plan-aim.punched path { stroke-width: 9; }
   .plan-aim.on, .plan-aim:hover, .plan-aim:focus-visible { color: var(--accent); }
   .plan-aim:focus { outline: none; }
   .plan-aim:focus-visible { outline: 2px solid var(--accent); outline-offset: -6px; border-radius: var(--r-sm); }
@@ -1644,6 +1651,46 @@ const FACE_MIN_SHARE = 0.015;
 const FACE_MAX_SHARE = 0.45;
 const FACE_MIN_FOCUS = 0.5;   /* 1 = every skin pixel in one direction */
 
+/* ---------- the arm punch ----------
+
+   The one direction on an inspection nobody has to infer, because somebody
+   stated it: at each stop the photographer punches an arm out the way the walk
+   goes on, and the 360 camera over their head records it. Every other reading
+   in this file is archaeology on what happened to be in frame. This one is a
+   person pointing.
+
+   What it looks like in an equirectangular frame is specific enough to test
+   for. The operator is underfoot, so a raised arm leaves the body somewhere
+   near the nadir and CLIMBS toward the horizon at one azimuth, ending in a
+   fist. So the shape is: skin, in one narrow range of columns, running from
+   the underfoot line most of the way up to eye level, and still several
+   columns wide where it stops.
+
+   ponytail: the same warm-and-not-grey colour rule the facing reader uses —
+   no limb model, no pose estimation. What is actually detected is "a narrow
+   vertical streak of skin-coloured pixels climbing out of the nadir", so a
+   scaffold pole in bare timber, a rusted hanger or a bare forearm resting on
+   a parapet can all present the same shape. Three things keep it honest: the
+   streak has to CLIMB (a deck does not), it has to be narrow (a timber soffit
+   is skin-coloured all the way round), and the strength below has to clear
+   ARM_MIN_STRENGTH before anything acts on it. Those four numbers are the
+   field-tuning knobs; a real pose model is the upgrade path if a site starts
+   reading wrong. The fist is not found separately — a hand is a few degrees
+   at arm's length and the width test is what stands in for it. */
+const ARM_TOP_ALT = -8;         /* an arm held out level, near enough */
+const ARM_MIN_SHARE = 0.3;      /* of the band's rows, before a column counts */
+/* narrower than this is a finger of rust, wider is a wall in a warm colour */
+const ARM_MIN_DEG = 8;
+const ARM_MAX_DEG = 70;
+/* How much of the band, bottom to top, the skin has to climb. This is the test
+   that separates an arm from everything else warm on a bridge: rust, timber and
+   dry soil all sit where they sit, and none of them reaches out of the nadir. */
+const ARM_MIN_REACH = 0.5;
+/* "Overwhelming evidence", as the one number everything downstream reads.
+   Below this the photo keeps whatever the walk suggested and the arm is not
+   mentioned; above it, a person pointing beats an inference every time. */
+const ARM_MIN_STRENGTH = 0.55;
+
 /* How far a pixel has to depart from the deck's own colour to count as
    something standing on it, and how much of a column has to depart before the
    column counts. Brightness OR saturation, never darkness — a shadow is the
@@ -1677,6 +1724,16 @@ function panoProfile(image, { hFov = 360, tilt = 0 } = {}) {
   const lum = (x, y) => {
     const i = (y * W + x) * 4;
     return 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
+  };
+  /* Warm, not grey, not red-on-black. Hoisted out of the facing reader because
+     the arm punch below asks the same question of the same pixels — two copies
+     of a colour rule drift apart, and then the two readings disagree about
+     whether the same operator is in shot. */
+  const isSkin = (x, y) => {
+    const i = (y * W + x) * 4;
+    const r = d[i], g = d[i + 1], b = d[i + 2];
+    return !(r < SKIN_MIN_RED || g < 40 || b < 20 || r <= b || r - g < SKIN_MIN_WARMTH
+      || Math.max(r, g, b) - Math.min(r, g, b) <= 15);
   };
   const rowAt = deg => clamp(Math.round(H * (0.5 - (deg - tilt) / vFov)), 0, H - 1);
   const altAt = row => tilt + vFov * (0.5 - (row + 0.5) / H);
@@ -1795,10 +1852,7 @@ function panoProfile(image, { hFov = 360, tilt = 0 } = {}) {
       let sx = 0, sy = 0, n = 0;
       for (let y = top; y < H; y++) {
         for (let x = 0; x < W; x++) {
-          const i = (y * W + x) * 4;
-          const r = d[i], g = d[i + 1], b = d[i + 2];
-          if (r < SKIN_MIN_RED || g < 40 || b < 20 || r <= b || r - g < SKIN_MIN_WARMTH
-            || Math.max(r, g, b) - Math.min(r, g, b) <= 15) continue;
+          if (!isSkin(x, y)) continue;
           const th = 2 * Math.PI * (x + 0.5) / W;
           sx += Math.cos(th); sy += Math.sin(th); n++;
         }
@@ -1807,6 +1861,79 @@ function panoProfile(image, { hFov = 360, tilt = 0 } = {}) {
       const focus = n ? Math.hypot(sx, sy) / n : 0;
       if (share >= FACE_MIN_SHARE && share <= FACE_MAX_SHARE && focus >= FACE_MIN_FOCUS) {
         facing = yawAt(((Math.atan2(sy, sx) / (2 * Math.PI)) * W % W + W) % W);
+      }
+    }
+  }
+
+  /* ---- the arm punched out at the way ahead ----
+     See ARM_TOP_ALT and the block above it for the shape this looks for, what
+     else on a bridge can wear that shape, and which of the numbers to turn. */
+  let arm = null;
+  {
+    const top = rowAt(ARM_TOP_ALT);
+    const bot = Math.max(top + 1, rowAt(UNDERFOOT_ALT));
+    const band = bot - top;
+    /* A strip that never looks below the parapet has no nadir for an arm to
+       climb out of. Same guard the facing reader carries, for the same reason:
+       clamping would hand back the last row and every photo would grow an arm
+       along its bottom edge. */
+    if (band >= 4 && altAt(H - 1) < UNDERFOOT_ALT) {
+      const share = new Float64Array(W);
+      const climb = new Float64Array(W);
+      for (let x = 0; x < W; x++) {
+        let n = 0, highest = bot;
+        for (let y = top; y < bot; y++) {
+          if (!isSkin(x, y)) continue;
+          n++;
+          if (y < highest) highest = y;
+        }
+        share[x] = n / band;
+        climb[x] = (bot - highest) / band; /* 1 = the skin reaches eye level */
+      }
+      /* Longest circular run of mostly-skin columns, scanned twice round so an
+         arm held across the 0/360 seam is found as one run rather than two
+         stumps at opposite ends of the frame — the same scan the vehicle finder
+         does, guarding against the same 180-degree error. */
+      let best = null, run = 0;
+      for (let k = 0; k < W * 2; k++) {
+        if (share[k % W] >= ARM_MIN_SHARE) {
+          run++;
+          if (run <= W && (!best || run > best.len)) best = { len: run, end: k };
+        } else run = 0;
+      }
+      const degPer = hFov / W;
+      if (best && best.len * degPer >= ARM_MIN_DEG && best.len * degPer <= ARM_MAX_DEG) {
+        /* weighted by how much skin each column holds, so the bearing lands on
+           the arm itself rather than on the middle of whatever the run picked
+           up at its edges */
+        let sx = 0, sy = 0, reach = 0;
+        for (let i = 0; i < best.len; i++) {
+          const x = (best.end - i + W) % W;
+          const th = 2 * Math.PI * (x + 0.5) / W;
+          sx += Math.cos(th) * share[x]; sy += Math.sin(th) * share[x];
+          if (climb[x] > reach) reach = climb[x];
+        }
+        /* Focus over the WHOLE band, not just the run. A timber soffit is
+           skin-coloured in every direction at once, and without this it would
+           offer up its widest warm patch as somebody pointing. This is the
+           refusal that carries the feature. */
+        let ax = 0, ay = 0, all = 0;
+        for (let x = 0; x < W; x++) {
+          const th = 2 * Math.PI * (x + 0.5) / W;
+          ax += Math.cos(th) * share[x]; ay += Math.sin(th) * share[x]; all += share[x];
+        }
+        const focus = all ? Math.hypot(ax, ay) / all : 0;
+        if (reach >= ARM_MIN_REACH) {
+          arm = {
+            yaw: yawAt(((Math.atan2(sy, sx) / (2 * Math.PI)) * W % W + W) % W),
+            width: +(best.len * degPer).toFixed(1),
+            reach: +reach.toFixed(2),
+            /* the two independent ways this could be wrong, multiplied: how far
+               out of the nadir it actually climbs, and whether it is the only
+               warm thing in the band or merely the widest of many */
+            strength: +(reach * focus).toFixed(2),
+          };
+        }
       }
     }
   }
@@ -1876,7 +2003,7 @@ function panoProfile(image, { hFov = 360, tilt = 0 } = {}) {
     }
   }
 
-  return { W, hFov, wall, floor, sun, person, facing, vehicle };
+  return { W, hFov, wall, floor, sun, person, facing, arm, vehicle };
 }
 
 /* Where the photo suggests you can walk. Reads the bands panoProfile built;
@@ -1921,21 +2048,37 @@ function guessNavigableYaws(profile, count = 3) {
 
 /* Which way a scene should open, off what the photo turned out to contain.
    Yaw 0 is the middle of the file, which is wherever the camera happened to be
-   pointing, so almost anything beats it — but only two readings are worth
+   pointing, so almost anything beats it — but only three readings are worth
    having, in this order:
 
+     arm      somebody punched an arm out at the way ahead. This is the only
+              one of the three that is a STATEMENT rather than an inference, so
+              it outranks both of the others and is the "overwhelming evidence"
+              everything downstream defers to — but only once it clears
+              ARM_MIN_STRENGTH, because a weak arm reading is a warm patch.
      person   somebody in hi-vis standing out in the scene. On an inspection
               they are nearly always at the thing being inspected.
      facing   nobody out there, but whoever held the camera is underfoot, and
               the top of their head says which way they were looking. A worse
-              bet than the first, and still a far better one than the middle of
-              the file.
+              bet than the first two, and still a far better one than the
+              middle of the file.
 
    A hi-vis hit BELOW the underfoot line is the operator, not a second person,
    and gets no vote on bearing at all — it is the one case where the old guess
-   confidently aimed at nothing. Returns null when the photo suggests neither,
-   because "no idea" has to stay one of the answers. */
-function openingView(profile) {
+   confidently aimed at nothing. Returns null when the photo suggests none of
+   them, because "no idea" has to stay one of the answers.
+
+   The arm snaps onto whatever the photo already suggested was walkable, when
+   the caller has that list: a punch is a couple of degrees of shoulder wobble
+   either way, and landing the opening view squarely down the deck rather than
+   at the parapet beside it is exactly what snapToWay is for. It is the only
+   reading that snaps — the other two aim AT something in frame, and nudging
+   them onto a gap in the wall would aim them off it. */
+function openingView(profile, ways) {
+  const a = profile?.arm;
+  if (a && a.strength >= ARM_MIN_STRENGTH) {
+    return { yaw: snapToWay(a.yaw, ways), pitch: 0, from: 'arm' };
+  }
   const p = profile?.person;
   if (p && p.alt > UNDERFOOT_ALT) return { yaw: p.yaw, pitch: 0, from: 'person' };
   if (Number.isFinite(profile?.facing)) return { yaw: profile.facing, pitch: 0, from: 'facing' };
@@ -2837,6 +2980,64 @@ function deriveHeadings(scenes, pts, cache) {
 
   return out;
 }
+
+/* ---------- opening each photo at the way ahead ----------
+
+   A tour that opens every photo at yaw 0 opens it wherever the camera happened
+   to be held, which on a walk is nobody's decision at all. The readings in
+   panoProfile answer this when somebody is in shot; this answers it the rest
+   of the time, and it needs no compass, no GPS and no pixels.
+
+   The link to the NEXT photo in the walk already carries the angle. The linker
+   chose it from GPS and a compass where those existed, and from the openings
+   the pixels found where they did not — so reading it back turns "which way
+   should this photo open" from an unanswerable question into one the tour has
+   already answered somewhere else. Walk into the photo, and it is looking
+   where you are about to go.
+
+   Capture order IS walk order — the deck loop, then the elevations, then the
+   underside — so "next" means further down the scene list, not nearest on the
+   plan: two photos can stand a metre apart and be forty minutes and one
+   abutment away from each other in the walk.
+
+   ponytail: this inherits whatever the linker knew, which on a tour with no
+   GPS is the strongest opening the pixels found and NOT a resolved
+   ahead-versus-behind. Down a straight deck both directions look equally
+   walkable, so this can open a photo facing back the way you came. Turning one
+   arrow, or punching an arm at the shot, is the fix; a real answer needs the
+   walk direction carried photo to photo through correlateYaw, which is the
+   upgrade path if the flip turns out to be common in the field. */
+function pathAheadYaw(scenes, id) {
+  const list = scenes || [];
+  const i = list.findIndex(s => s.id === id);
+  if (i < 0) return null;
+  const ahead = new Map(list.slice(i + 1).map((s, k) => [s.id, k]));
+  let best = null;
+  for (const h of list[i].hotspots || []) {
+    if (h.type !== 'link' || !h.target || !Number.isFinite(h.yaw)) continue;
+    const k = ahead.get(h.target);
+    /* the nearest one FORWARD, so a photo linked both to its neighbour and to
+       something across the site opens on the neighbour */
+    if (k !== undefined && (best === null || k < best.k)) best = { k, yaw: +wrap180(h.yaw).toFixed(2) };
+  }
+  return best ? best.yaw : null;
+}
+
+/* Which opening views a later pass is allowed to move, and it is the short
+   list on purpose. 'arm' is somebody pointing and 'person' is somebody standing
+   at the thing being inspected — both are readings of what is actually in the
+   photo. 'hand' is a decision with a person's name on it. None of the three
+   may be overwritten by an inference. 'facing' and 'path' ARE inferences, so
+   they have to stay free to move when better evidence turns up, for the same
+   reason a derived heading does.
+
+   A view with no provenance at all is one nothing has ever had an opinion
+   about — but only while it still sits at yaw 0, because a tour saved before
+   this field existed carries hand-set views wearing no tag, and quietly
+   turning those would be the one change nobody could undo by hand. */
+const VIEW_DERIVED = new Set(['facing', 'path']);
+const viewIsFree = s =>
+  VIEW_DERIVED.has(s?.viewFrom) || (!s?.viewFrom && !s?.view?.yaw);
 
 /* The photos the finished tour cannot reach.
 
@@ -3850,8 +4051,8 @@ async function preparePano(file) {
     return {
       thumb, pano, geo, shot, ways, upload, width, height,
       converted: upload !== file, fill: edgeColours(bmp, aspect),
-      prof: packProfile(profile), open: openingView(profile),
-      vehicle: profile?.vehicle || null,
+      prof: packProfile(profile), open: openingView(profile, ways),
+      vehicle: profile?.vehicle || null, arm: profile?.arm || null,
     };
   } finally {
     bmp.close();
@@ -4403,8 +4604,16 @@ async function renderEditor(tourId) {
        the tour that needs correcting, would be the one you cannot correct.
        Every dot carries its id either way: a dot too crowded to pick is still a
        perfectly good place to DROP one, so linking never hits the cap.
-       Read up here as well as at the dots, because the arrows below answer to
-       the same cap for the same reason. */
+
+       The ARROWS are not capped, and used to be. They answered to this number
+       because they were written alongside the dots, not because they crowd the
+       way dots do: a dart's body sits a dot-diameter and a half out from the
+       centre it belongs to and radiates away from the crush, and only the dart
+       path takes hits, never its box. Past twenty-four photos the old rule drew
+       no arrow at all on anything unaimed and let you turn only the one you had
+       selected — so correcting a bearing meant selecting a photo, turning it,
+       selecting the next, and a forty-photo viaduct, which is precisely the
+       tour whose bearings need work, was the one tour you could not work on. */
     const pickable = plan.pts.length <= PLAN_PICKABLE_MAX;
 
     /* ----- which way each photo looks -----
@@ -4420,21 +4629,37 @@ async function renderEditor(tourId) {
        handle nobody can reach is noise, and a filled arrow on a photo that never
        recorded a heading would be the plate asserting a direction it does not
        know — the exact claim the old code drew no wedge rather than make. */
-    const aimMark = (p, bear, live) => {
+    const aimMark = (p, bear) => {
       const s = doc.scenes.find(x => x.id === p.id);
       const name = s?.name || 'this photo';
-      const said = bear === null
-        ? `${name} has no bearing yet. Drag this arrow, or press the arrow keys, to say which way it looks.`
-        : `${name} looks ${Math.round(bear)} degrees. Drag this arrow, or press the arrow keys, to change it.`;
-      const hand = bear === null ? '' : ` ${s?.geo?.headingFrom === 'hand' ? 'aimed by hand' : 'from its own compass'}`;
+      /* Where the number came from, in the two words a tooltip has room for.
+         It used to read "aimed by hand" or, for everything else, "from its own
+         compass" — which was a plain untruth on the derived ones, and those are
+         the majority on any tour that had bearings worked out for it. */
+      const src = {
+        hand: 'aimed by hand', sun: 'from the sun', magnetic: 'from a magnetic compass',
+        match: 'carried from a photo sharing this view', plan: 'read off the map',
+      }[s?.geo?.headingFrom] || 'recorded by the camera';
+      /* The arm punch, said on the plate. It was being acted on and never
+         mentioned anywhere, which is indistinguishable from being ignored. */
+      const punched = s?.viewFrom === 'arm';
+      const said = [
+        bear === null
+          ? `${name} has no bearing yet.`
+          : `${name} looks ${Math.round(bear)} degrees, ${src}.`,
+        punched ? 'It opens where an arm was punched out in the photo.' : '',
+        'Drag this arrow, or press the arrow keys, to turn it.',
+      ].filter(Boolean).join(' ');
       /* one rotation, no path arithmetic: the dart is drawn pointing north and
          a bearing IS its angle, so turning one mid-drag is a single transform */
-      const mark = el(`<button class="plan-aim${p.id === curSceneId ? ' on' : ''}${bear === null ? ' unset' : ''}"
-        data-aim-id="${esc(p.id)}" ${live
-          ? `role="slider" aria-valuemin="0" aria-valuemax="359" aria-valuenow="${Math.round(bear ?? 0)}"
-             aria-label="${esc(said)}" title="${esc(bear === null
-               ? 'Not aimed yet — drag to turn' : `${Math.round(bear)}°${hand} — drag to turn`)}"`
-          : 'tabindex="-1" aria-hidden="true"'}
+      const mark = el(`<button class="plan-aim${p.id === curSceneId ? ' on' : ''}${bear === null ? ' unset' : ''}${punched ? ' punched' : ''}"
+        data-aim-id="${esc(p.id)}"
+        role="slider" aria-valuemin="0" aria-valuemax="359" aria-valuenow="${Math.round(bear ?? 0)}"
+        aria-label="${esc(said)}" title="${esc([
+          bear === null ? 'Not aimed yet' : `${Math.round(bear)}° — ${src}`,
+          punched ? 'opens at a punched arm' : '',
+          'drag to turn',
+        ].filter(Boolean).join(' · '))}"
         style="left:${(p.u * 100).toFixed(2)}%;top:${(p.v * 100).toFixed(2)}%"
         ><svg viewBox="0 0 100 100" aria-hidden="true"><path d="${AIM_DART}"/></svg></button>`);
       mark.style.transform = `translate(-50%, -50%) rotate(${bear ?? 0}deg)`;
@@ -4486,16 +4711,13 @@ async function renderEditor(tourId) {
       if (line) cutLink(line.dataset.a, line.dataset.b);
     });
 
-    /* Arrows before dots, so a defect badge is never buried under one — and
-       they answer to the same crowding cap the dots do, since a plate too
-       packed to pick from is not one you can aim without mis-hitting. */
+    /* Arrows before dots, so a defect badge is never buried under one. Every
+       photo gets one and every one of them turns, whatever the count — see the
+       cap above for why these do not answer to it. */
     for (const p of plan.pts) {
-      const bear = facingBearing(doc.scenes.find(x => x.id === p.id));
-      const live = pickable || p.id === curSceneId;
-      if (bear === null && !live) continue;
-      const mark = aimMark(p, bear, live);
+      const mark = aimMark(p, facingBearing(doc.scenes.find(x => x.id === p.id)));
       box.append(mark);
-      if (live) makeAimable(mark, box, p);
+      makeAimable(mark, box, p);
     }
 
     const defects = defectCounts(doc);
@@ -4569,6 +4791,8 @@ async function renderEditor(tourId) {
     const counts = plan.pts.reduce((a, p) => (a[p.kind]++, a), { gps: 0, manual: 0, guess: 0 });
     const aimed = plan.pts.filter(p => facingBearing(doc.scenes.find(s => s.id === p.id)) !== null).length;
     const handAimed = doc.scenes.filter(s => s.geo?.headingFrom === 'hand').length;
+    const punched = doc.scenes.filter(s => s.viewFrom === 'arm').length;
+    const ahead = doc.scenes.filter(s => s.viewFrom === 'path').length;
     const marked = [...defects.values()].reduce((a, n) => a + n, 0);
     const lostCount = doc.scenes.length > 1 ? stray.size : 0;
     /* What you can DO is a different kind of sentence from what the plate is
@@ -4616,10 +4840,24 @@ async function renderEditor(tourId) {
           + 'with it follows.'
         : 'Every photo knows which way it faces — turn an arrow and whatever was derived from it follows.',
       handAimed ? `${handAimed} aimed by hand.` : '',
+      /* The punch, counted where the arrows are. It was being read off the
+         pixels and acted on with nothing anywhere to say it had happened, so
+         from the field it was indistinguishable from a feature that did not
+         work — which is the report that started this. */
+      punched
+        ? `${punched} open${punched === 1 ? 's' : ''} where an arm was punched out at the way ahead — `
+          + 'drawn heavier, and the surest direction on this plate because somebody stated it. '
+          + 'Drag one if it read the wrong warm thing.'
+        : '',
+      ahead
+        ? `${ahead} open along the walk, which is a guess at where you go next rather than a bearing — `
+          + 'down a straight deck it cannot tell ahead from behind, so turn any that opens backwards.'
+        : '',
       plan.vehicle
         ? `The truck is plant on the deck, crossed from ${plan.vehicle.from} photos that saw it — a guess at a big bright object, so check it is a truck and not a skip.`
         : '',
-      pickable ? '' : 'Too many to pick up at this size — use Ctrl+K to jump, then drag the highlighted dot. Any dot can still be dropped on.',
+      pickable ? '' : 'Too many DOTS to pick up at this size — use Ctrl+K to jump, then drag the highlighted one. '
+        + 'Any dot can still be dropped on, and every arrow still turns.',
       /* said once, when it happens, rather than left as a silent disappearance */
       planLabels === null && labelMode === 'none'
         ? `Names are off above ${PLAN_LABEL_MAX} photos because they overlap into a smear — the map header puts them back, or swaps them for the station or the photo stop.`
@@ -4973,9 +5211,68 @@ async function renderEditor(tourId) {
      hand re-aims everything downstream of it instead of leaving a photo
      pointing at an answer its own source has since moved away from. */
   const turnCache = new Map();
+
+  /* The default the arm punch is the exception to: any photo with nothing
+     better to go on opens facing the way the walk carries on from it. See
+     pathAheadYaw in the fence for where that angle comes from and what it
+     inherits. */
+  function fillStartViews() {
+    let opened = 0;
+    for (const s of doc.scenes) {
+      if (!viewIsFree(s)) continue;
+      /* The plan arrow is heading + view.yaw, so turning a photo's opening view
+         turns its arrow with it. That is the right behaviour and it is exactly
+         why a photo somebody has already aimed by hand must not have its view
+         moved out from under it — the arrow would drift off the doorway they
+         pointed it at, and nothing on screen would say why. */
+      if (s.geo?.headingFrom === 'hand') continue;
+      const ahead = pathAheadYaw(doc.scenes, s.id);
+      if (ahead === null) continue;
+      const was = s.view?.yaw ?? 0;
+      /* an unchanged answer costs no save and leaves no empty step in Undo,
+         same rule deriveHeadings applies to a bearing it agrees with */
+      if (s.viewFrom === 'path' && Math.abs(wrap180(was - ahead)) < 0.01) continue;
+      s.view = { ...(s.view || {}), yaw: ahead, pitch: s.view?.pitch ?? 0 };
+      s.viewFrom = 'path';
+      opened++;
+    }
+    return opened;
+  }
+
+  /* ----- saying so while it happens -----
+
+     deriveHeadings correlates every pair of photos the first time a tour is
+     opened: a second or so at forty photos, on the main thread. Up to now that
+     second looked exactly like nothing happening, and every caller but two
+     passed quiet, so the passes that run while you work said nothing at either
+     end. "The guess does not seem to have been made" was the accurate reading
+     of a screen that never once mentioned it.
+
+     Deferring the work by a tick rather than making this async is what lets the
+     line paint before the loop starts, and it costs no call site an await. It
+     coalesces too: a burst of arrow-key nudges wants ONE pass over the
+     evidence, not one per keystroke racing the others to write the answer. */
+  let fillTimer = null;
+  let fillQuiet = true;
   function fillBearings({ quiet = false } = {}) {
+    /* Coalescing must not swallow the voice. addScenes auto-links (quiet) and
+       then asks for the report, so treating the second call as a duplicate of
+       the first would fold the whole answer into silence — which is the bug
+       this function exists to fix, reintroduced by the fix. A pass speaks if
+       any call that merged into it wanted it to. */
+    fillQuiet = fillTimer ? fillQuiet && quiet : quiet;
+    if (fillTimer) return;
+    if (doc.scenes.length > 1) setStatus('saving', 'Working out which way each photo looks…');
+    fillTimer = setTimeout(() => { fillTimer = null; runFill({ quiet: fillQuiet }); }, 0);
+  }
+
+  /* Back to whatever the save state actually is. Only needed on the path where
+     nothing changed, since anything that did ends in scheduleSave. */
+  const settleStatus = () => setStatus(dirty || saveTimer ? 'saving' : '',
+    dirty || saveTimer ? 'Unsaved changes…' : 'Saved');
+
+  function runFill({ quiet = false } = {}) {
     const found = deriveHeadings(doc.scenes, planPositions(doc.scenes)?.pts, turnCache);
-    if (!found.length) return 0;
     for (const f of found) {
       const s = doc.scenes.find(x => x.id === f.id);
       if (!s) continue;
@@ -4991,6 +5288,22 @@ async function renderEditor(tourId) {
       s.geo.heading = f.heading;
       s.geo.headingFrom = f.from;
     }
+    const opened = fillStartViews();
+    if (!found.length && !opened) {
+      /* A pass that found nothing has to say so out loud. "No bearing could be
+         worked out" and "nobody ever looked" are the same blank plate
+         otherwise, and on a walk with no GPS and no shared views the answer is
+         the first one every single time — which is a thing to act on, not a
+         silence to wonder about. */
+      settleStatus();
+      if (!quiet) {
+        toast(doc.scenes.length < 2
+          ? 'Add a second photo and the directions start filling themselves in'
+          : 'Nothing new could be worked out from these photos. Turn one arrow on the map by hand and '
+            + 'everything that shares a view with it follows — or punch an arm at the way ahead in the next shot.');
+      }
+      return 0;
+    }
     scheduleSave();
     renderPlan();
     renderSceneMeta();
@@ -4999,11 +5312,13 @@ async function renderEditor(tourId) {
       const how = [
         byMatch ? `${byMatch} carried along shared views` : '',
         found.length - byMatch ? `${found.length - byMatch} read off the plan` : '',
+        opened ? `${opened} opened at the way ahead` : '',
       ].filter(Boolean).join(', ');
-      toast(`Worked out ${found.length} bearing${found.length === 1 ? '' : 's'} — ${how}. `
-        + 'Turn any arrow that looks wrong; Ctrl+Z undoes the lot');
+      toast(`${found.length
+        ? `Worked out ${found.length} bearing${found.length === 1 ? '' : 's'}`
+        : 'Aimed the walk'} — ${how}. Turn any arrow that looks wrong; Ctrl+Z undoes the lot`);
     }
-    return found.length;
+    return found.length + opened;
   }
 
   /* One persistent line rather than a toast per file. A toast erases the one
@@ -5044,7 +5359,7 @@ async function renderEditor(tourId) {
           `<progress max="${total}" value="${done}"></progress>`
         : `Uploading ${esc(file.name)}…`;
       try {
-        const { thumb, pano, geo, shot, ways, upload, width, height, converted, fill, prof, open, vehicle } = await preparePano(file);
+        const { thumb, pano, geo, shot, ways, upload, width, height, converted, fill, prof, open, vehicle, arm } = await preparePano(file);
         const panoName = await uploadFile(doc.id, upload);
         const thumbName = await uploadFile(doc.id, new File([thumb], 'thumb.jpg', { type: 'image/jpeg' }));
         const scene = {
@@ -5067,6 +5382,10 @@ async function renderEditor(tourId) {
         if (ways?.length) scene.ways = ways; /* directions the photo suggests are open */
         if (prof) scene.prof = prof; /* the two bands, for matching this photo against its neighbours */
         if (vehicle) scene.vehicle = vehicle; /* which way the plant on the deck lies from here */
+        /* kept even when it was too weak to act on, so the scene panel can say
+           "an arm was seen but not believed" rather than saying nothing and
+           leaving somebody wondering whether the punch registered at all */
+        if (arm) scene.arm = arm;
         doc.scenes.push(scene);
         if (doc.scenes.length === 1) {
           doc.settings.startScene = scene.id;
@@ -5461,7 +5780,14 @@ async function renderEditor(tourId) {
         if (!s) return;
         const p = editorViewer.getPosition();
         s.view = { yaw: +(p.yaw / DEG).toFixed(2), pitch: +(p.pitch / DEG).toFixed(2), zoom: Math.round(editorViewer.getZoomLevel()) };
-        delete s.viewFrom; /* a person chose it, so stop calling it a guess */
+        /* Tagged rather than untagged. It used to delete the field, which read
+           as "a person chose it" — but a photo nothing ever had an opinion
+           about carries no tag either, and once the walk started filling
+           opening views in, those two became indistinguishable and a view
+           somebody had set by hand could be quietly turned back. Same word the
+           bearings use for the same thing, and renderSceneMeta has no sentence
+           for it, so it still prints nothing. */
+        s.viewFrom = 'hand';
         toast('Start view saved for this scene');
         scheduleSave();
         renderSceneShape();
@@ -5514,6 +5840,17 @@ async function renderEditor(tourId) {
       showLoader: true,
       panoData: panoDataFor(s),
     });
+    /* Show the photo the way the tour will. setPanorama carries the previous
+       scene's camera angle over, so the editor spent every scene change looking
+       wherever the LAST photo had been left — the stored opening view was
+       invisible here, and the walk read as though nothing had been aimed.
+
+       Worse, and the reason this is a fix rather than a nicety: "Set start view
+       from here" saves the live camera. With the old angle carried in, pressing
+       it on the photo you just opened saved the previous photo's direction over
+       a perfectly good one, and nothing on screen said so. The runtime viewer
+       has always done this on node-changed; the editor simply never did. */
+    editorViewer.rotate({ yaw: (s.view?.yaw || 0) * DEG, pitch: (s.view?.pitch || 0) * DEG });
     refreshMarkers();
   }
 
@@ -6417,14 +6754,31 @@ async function renderEditor(tourId) {
       }
     }
     const guessedView = {
+      arm: 'Somebody punched an arm out at the way ahead in this photo, and it opens there.'
+        + ' The surest direction on the tour, because it was stated rather than worked out.',
       person: 'Opens facing someone in hi-vis, on the assumption they are at whatever is being inspected.',
       facing: 'Nobody was standing out in this one, so it opens whichever way the person under the camera'
         + ' was looking, read off the top of their head at the base of the photo.',
+      path: 'Nothing in this photo said which way to look, so it opens along the walk, facing the photo'
+        + ' you go to next. Down a straight deck that cannot tell ahead from behind, so check it.',
     }[s.viewFrom];
     if (guessedView) {
       derived.push(`${guessedView} Turn to what you want and press “Set start view from here” to override.`);
     }
-    box.querySelector('#sc-derived').textContent = derived.join(' ');
+    /* An arm that was SEEN and not believed. Saying nothing here is what made
+       the punch feel like a feature that does not work: a weak reading and no
+       reading looked identical from the field, and the two want opposite
+       responses — punch again more clearly, versus do not bother. */
+    if (s.arm && s.viewFrom !== 'arm') {
+      derived.push(`Something arm-shaped was found ${Math.round(s.arm.yaw)}° off the middle of this photo,`
+        + ` but only ${Math.round(s.arm.strength * 100)}% convincing, so nothing was aimed at it.`
+        + ` A punch reads best held out level and clear of the body.`);
+    }
+    /* A photo nothing could be said about has to say THAT, or the panel is
+       blank for the same reason whether the readings failed or never ran. */
+    box.querySelector('#sc-derived').textContent = derived.length ? derived.join(' ')
+      : 'Nothing has been worked out about this photo yet — no bearing, and no reading of which way it should open.'
+        + ' Turn its arrow on the map to set one, and every photo sharing this view follows.';
 
     box.querySelector('#sc-stop').addEventListener('change', e => {
       s.stop = e.target.value || undefined; scheduleSave(); renderCoverage(); renderSceneList();

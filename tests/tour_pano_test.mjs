@@ -77,6 +77,7 @@ const helpers = await import(
 const USED = [
   'isPartial', 'vFovOf', 'panoDataFor', 'gpanoCoverage', 'readGps', 'bearing', 'metresBetween', 'wrap180',
   'panoProfile', 'guessNavigableYaws', 'openingView', 'snapToWay', 'deriveHeadings', 'PLAN_MAX_SPAN_M',
+  'ARM_MIN_STRENGTH', 'pathAheadYaw', 'viewIsFree',
   'sunPosition', 'solarHeading', 'correlateYaw', 'yawBetween', 'packProfile', 'unpackProfile',
   'principalAxis', 'triangulate', 'separateMarks',
   'fmtIn', 'defectMeasure', 'defectNeedsMeasure', 'nextDefectCode', 'DEFECT_TYPES', 'DEFECT_MEASURE',
@@ -91,6 +92,7 @@ if (missingFromExports.length) {
 const {
   isPartial, vFovOf, panoDataFor, gpanoCoverage, readGps, bearing, metresBetween, wrap180,
   panoProfile, guessNavigableYaws, openingView, snapToWay, deriveHeadings, PLAN_MAX_SPAN_M,
+  ARM_MIN_STRENGTH, pathAheadYaw, viewIsFree,
   sunPosition, solarHeading, correlateYaw, yawBetween, packProfile, unpackProfile,
   principalAxis, triangulate, separateMarks,
   fmtIn, defectMeasure, defectNeedsMeasure, nextDefectCode, DEFECT_TYPES, DEFECT_MEASURE,
@@ -574,6 +576,132 @@ check(aim?.pitch === 0, 'and level, since what they were looking at is out there
 check(openingView(panoProfile(rgbPano(() => CONCRETE))) === null,
   'an empty scene is opened at no particular angle rather than a made-up one');
 check(openingView(null) === null, 'and a photo that could not be profiled at all does not throw');
+
+/* ---------- the arm punched out at the way ahead ----------
+ * The only direction on an inspection that somebody STATED rather than left to
+ * be inferred, so it outranks every other reading — which is exactly why its
+ * refusals carry the feature. A false positive here does not merely open one
+ * scene wrong, it outvotes two readings that were right.
+ *
+ * The band runs from ARM_TOP_ALT down to UNDERFOOT_ALT: rows 70 to 102 in a
+ * 256x128 equirect, sitting entirely ABOVE the sliver the facing reader owns. */
+
+/* an arm climbing the whole band across 16 columns — 22.5 degrees, an arm's
+   width at arm's length */
+const armAt = (from, to, top = 70, bot = 103) => rgbPano((x, y) =>
+  (x >= from && x < to && y >= top && y < bot) ? SKIN : CONCRETE);
+const punch = panoProfile(armAt(184, 200)).arm;
+const punchYaw = wrap180(192 / 256 * 360 - 180);
+check(punch !== null, 'an arm climbing out of the nadir at one bearing is found');
+check(punch && Math.abs(wrap180(punch.yaw - punchYaw)) <= 3,
+  `and it reads as the bearing that arm sits at, ${punchYaw.toFixed(1)} (got ${punch?.yaw})`);
+check(punch && punch.strength >= ARM_MIN_STRENGTH,
+  `a clean punch is believed rather than merely noticed (got ${punch?.strength})`);
+check(punch && punch.width > 8 && punch.width < 70,
+  `and its width is reported in degrees (got ${punch?.width})`);
+
+/* THE SEAM, a third time. An arm held out across the 0/360 boundary has half
+   its columns near 0 and half near 255; averaged as plain column numbers it
+   points at the far side of the sphere, and the tour opens facing exactly
+   backwards while looking entirely deliberate about it. */
+const seamArm = panoProfile(rgbPano((x, y, Wp) =>
+  ((x >= Wp - 8 || x < 8) && y >= 70 && y < 103) ? SKIN : CONCRETE)).arm;
+check(seamArm !== null, 'an arm across the 0/360 seam is still found');
+check(seamArm && Math.abs(seamArm.yaw) > 170,
+  `and placed at the seam, not opposite it (got ${seamArm?.yaw})`);
+
+/* ----- the refusals ----- */
+/* Warmth that sits where it sits is not an arm. This is the test that keeps
+   rust, dry soil and bare timber out: they do not climb out of the nadir. */
+check(panoProfile(armAt(184, 200, 92)).arm === null,
+  'a warm patch that does not climb the band is not an arm, however solid it is');
+check(panoProfile(rgbPano(() => [190, 150, 60])).arm === null,
+  'a timber soffit is warm in every direction at once, so no one direction is offered');
+check(panoProfile(rgbPano(() => CONCRETE)).arm === null,
+  'and bare concrete has no arm in it at all');
+/* one column of rust on a hanger climbs just as well as an arm does and is not
+   one; a fist is several degrees across even at arm's length */
+check(panoProfile(armAt(190, 192)).arm === null,
+  'a streak too narrow to be an arm and a fist is refused on width');
+check(panoProfile(rgbPano((x, y) => (x >= 40 && x < 220 && y >= 70 && y < 103) ? SKIN : CONCRETE)).arm === null,
+  'and a warm wall filling most of the band is too wide to be an arm');
+/* a phone strip that never looks down to the nadir has nothing for an arm to
+   climb out of, and its clamped last row must not be made to serve as one */
+check(panoProfile(rgbPano(() => SKIN), { hFov: 90 }).arm === null,
+  'a narrow strip that never looks down that far reports no arm');
+
+/* SEEN BUT NOT BELIEVED, which is a different answer from "not seen" and the
+   one the scene panel reports separately. Two arm-shaped things pointing
+   opposite ways are not evidence of a direction — but they ARE evidence that
+   something arm-shaped is in frame, so the reading survives with a strength
+   too low to act on rather than vanishing. */
+const twoArms = panoProfile(rgbPano((x, y) =>
+  (((x >= 56 && x < 72) || (x >= 184 && x < 200)) && y >= 70 && y < 103) ? SKIN : CONCRETE)).arm;
+check(twoArms !== null, 'two arm-shaped things in opposite directions are still noticed');
+check(twoArms && twoArms.strength < ARM_MIN_STRENGTH,
+  `but not believed, because neither is the only warm thing in the band (got ${twoArms?.strength})`);
+
+/* ----- and what it outranks ----- */
+const punchProfile = panoProfile(rgbPano((x, y, Wp, Hp) =>
+  (x >= 184 && x < 200 && y >= 70 && y < 103) ? SKIN
+    : (x >= 74 && x < 82 && y > Hp * 0.55 && y < Hp * 0.78) ? VEST : CONCRETE));
+check(punchProfile.person !== null, 'the inspector in hi-vis is still seen in the same photo');
+check(openingView(punchProfile)?.from === 'arm',
+  'but a punched arm outranks them: one is a statement, the other an assumption');
+check(openingView(punchProfile)?.yaw === punchProfile.arm.yaw,
+  'and with nothing suggested as walkable the punch is taken exactly as read');
+/* the snap, which is the whole reason openingView takes the ways at all: a
+   punch is a couple of degrees of shoulder wobble either way, and landing the
+   opening squarely down the deck beats landing it on the parapet beside it */
+check(openingView(punchProfile, [punchYaw + 7, -140])?.yaw === punchYaw + 7,
+  'a punch snaps onto the opening the photo already suggested was walkable');
+check(openingView(punchProfile, [punchYaw + 120])?.yaw === punchProfile.arm.yaw,
+  'but never onto one right across the frame from where the arm actually pointed');
+check(openingView(twoArms ? panoProfile(rgbPano((x, y) =>
+  (((x >= 56 && x < 72) || (x >= 184 && x < 200)) && y >= 70 && y < 103) ? SKIN
+    : (x >= 96 && x < 128 && y >= 118) ? SKIN : CONCRETE)) : null)?.from === 'facing',
+  'an arm too weak to believe steps aside and lets the weaker readings answer');
+
+/* ---------- where the walk goes on from here ----------
+ * The opening view every photo falls back to. Reads the link this photo
+ * already carries to the NEXT photo in the walk, so it needs no compass, no
+ * GPS and no pixels — but it is only ever as good as that link. */
+
+const walkAhead = [
+  { id: 'a', hotspots: [{ type: 'link', target: 'b', yaw: 40 }, { type: 'link', target: 'c', yaw: 130 }] },
+  { id: 'b', hotspots: [{ type: 'link', target: 'a', yaw: -140 }, { type: 'link', target: 'c', yaw: 25 }] },
+  { id: 'c', hotspots: [{ type: 'link', target: 'b', yaw: -155 }] },
+  { id: 'd', hotspots: [{ type: 'info', yaw: 10 }, { type: 'link', target: 'a', yaw: 90 }] },
+];
+check(pathAheadYaw(walkAhead, 'b') === 25, `a photo opens along its link to the next one (got ${pathAheadYaw(walkAhead, 'b')})`);
+/* capture order is walk order, so "next" is further down the list — not
+   whichever link happens to come first in the hotspot array */
+check(pathAheadYaw(walkAhead, 'a') === 40,
+  `linked to two photos ahead, it opens on the nearer one (got ${pathAheadYaw(walkAhead, 'a')})`);
+check(pathAheadYaw(walkAhead, 'c') === null, 'the last photo of a walk has nothing ahead to open on');
+check(pathAheadYaw(walkAhead, 'd') === null,
+  'and a photo whose only link points back up the walk is left alone rather than opened backwards');
+check(pathAheadYaw(walkAhead, 'nope') === null, 'a photo that is not in this tour yields nothing');
+check(pathAheadYaw(null, 'a') === null, 'and neither does no tour at all');
+check(pathAheadYaw([{ id: 'a', hotspots: [{ type: 'link', target: 'b' }] }, { id: 'b' }], 'a') === null,
+  'a link with no angle on it cannot say which way to open');
+
+/* Which opening views a later pass may turn. The list is short on purpose: an
+   inference may be replaced by a better inference, but nothing may quietly
+   overwrite a reading of what was in the photo or a decision somebody made. */
+check(viewIsFree({ viewFrom: 'path', view: { yaw: 12 } }), 'a view derived from the walk is free to move');
+check(viewIsFree({ viewFrom: 'facing', view: { yaw: 12 } }), 'so is one inferred from the operator');
+check(!viewIsFree({ viewFrom: 'arm', view: { yaw: 12 } }), 'a punched arm is not overwritten by an inference');
+check(!viewIsFree({ viewFrom: 'person', view: { yaw: 12 } }), 'nor is somebody standing at the work');
+check(!viewIsFree({ viewFrom: 'hand', view: { yaw: 12 } }), 'and least of all a view somebody set by hand');
+check(viewIsFree({ view: { yaw: 0 } }), 'an untouched view at yaw 0 is one nothing has ever had a view about');
+/* THE ONE THAT PROTECTS OLD TOURS. Every tour saved before this field existed
+   carries hand-set views wearing no tag at all, and turning those would be the
+   one change nobody could undo by hand — so an untagged view that is not still
+   sitting at zero is treated as somebody's decision. */
+check(!viewIsFree({ view: { yaw: 12 } }),
+  'but an untagged view somebody has already turned is left exactly where it is');
+check(viewIsFree({}), 'a scene with no view block at all is fair game');
 
 /* ---------- the big thing standing on the deck ----------
  * Not a truck classifier and not claimed to be: what it finds is a wide mass
