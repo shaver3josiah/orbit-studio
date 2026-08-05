@@ -78,6 +78,7 @@ const USED = [
   'isPartial', 'vFovOf', 'panoDataFor', 'gpanoCoverage', 'readGps', 'bearing', 'metresBetween', 'wrap180',
   'panoProfile', 'guessNavigableYaws', 'openingView', 'snapToWay', 'deriveHeadings', 'PLAN_MAX_SPAN_M',
   'ARM_MIN_STRENGTH', 'pathAheadYaw', 'viewIsFree', 'viewYawForAim',
+  'viewZoomAbout', 'viewClamp', 'viewFit', 'VIEW_MIN_SCALE', 'VIEW_MAX_SCALE', 'VIEW_KEEP_PX',
   'sunPosition', 'solarHeading', 'correlateYaw', 'yawBetween', 'packProfile', 'unpackProfile',
   'principalAxis', 'triangulate', 'separateMarks',
   'fmtIn', 'defectMeasure', 'defectNeedsMeasure', 'nextDefectCode', 'DEFECT_TYPES', 'DEFECT_MEASURE',
@@ -93,6 +94,7 @@ const {
   isPartial, vFovOf, panoDataFor, gpanoCoverage, readGps, bearing, metresBetween, wrap180,
   panoProfile, guessNavigableYaws, openingView, snapToWay, deriveHeadings, PLAN_MAX_SPAN_M,
   ARM_MIN_STRENGTH, pathAheadYaw, viewIsFree, viewYawForAim,
+  viewZoomAbout, viewClamp, viewFit, VIEW_MIN_SCALE, VIEW_MAX_SCALE, VIEW_KEEP_PX,
   sunPosition, solarHeading, correlateYaw, yawBetween, packProfile, unpackProfile,
   principalAxis, triangulate, separateMarks,
   fmtIn, defectMeasure, defectNeedsMeasure, nextDefectCode, DEFECT_TYPES, DEFECT_MEASURE,
@@ -702,6 +704,97 @@ check(viewIsFree({ view: { yaw: 0 } }), 'an untouched view at yaw 0 is one nothi
 check(!viewIsFree({ view: { yaw: 12 } }),
   'but an untagged view somebody has already turned is left exactly where it is');
 check(viewIsFree({}), 'a scene with no view block at all is fair game');
+
+/* ---------- looking at the map ----------
+ * The map used to zoom by resizing a plate inside a scroll box and then
+ * correcting the scroll offsets to hold the pointer still. That correction can
+ * only work in an axis with somewhere left to scroll, so at 1x — where nothing
+ * overflows and everyone starts — the thing under the cursor jumped sideways.
+ * These three replace the whole arrangement with arithmetic, and the checks
+ * below are the arithmetic's contract rather than a description of it. */
+
+/* THE CONTRACT, and the only one that matters: whatever paper sits under the
+   pointer is still under it afterwards. Swept across scales that grow and
+   shrink, anchors on and off the axis origin, and views pushed well negative,
+   because the old bug was invisible at exactly one of those combinations and
+   perfectly convincing at the rest. */
+const paperUnder = (v, px) => (px - v.x) / v.scale;
+let anchorWorst = 0;
+for (const scale of [0.2, 0.55, 1, 2.5, 8]) {
+  for (const want of [0.2, 0.4, 1, 3.7, 8]) {
+    for (const [px, py] of [[0, 0], [137, 42], [640, 360], [1919, 1079]]) {
+      const v = { scale, x: -412.5, y: 87.25 };
+      const n = viewZoomAbout(v, px, py, want);
+      anchorWorst = Math.max(anchorWorst,
+        Math.abs(paperUnder(n, px) - paperUnder(v, px)),
+        Math.abs(((py - n.y) / n.scale) - ((py - v.y) / v.scale)));
+    }
+  }
+}
+check(anchorWorst < 1e-9,
+  `the paper under the pointer never moves, at any scale or anchor (worst drift ${anchorWorst.toExponential(1)})`);
+
+check(viewZoomAbout({ scale: 1, x: 0, y: 0 }, 100, 100, 99).scale === VIEW_MAX_SCALE,
+  'zoom past the ceiling stops at the ceiling');
+check(viewZoomAbout({ scale: 1, x: 0, y: 0 }, 100, 100, 0.0001).scale === VIEW_MIN_SCALE,
+  'and past the floor, at the floor');
+/* clamped rather than refused, so the anchor still holds on the step that hits
+   the limit — refusing would leave the view where it was and the pointer
+   somewhere else, which is the old bug in miniature */
+const atCeiling = viewZoomAbout({ scale: 4, x: -100, y: -100 }, 300, 300, 99);
+check(Math.abs(paperUnder(atCeiling, 300) - paperUnder({ scale: 4, x: -100, y: -100 }, 300)) < 1e-9,
+  'and the anchor holds on the step that hits the limit, rather than being abandoned there');
+const before = { scale: 2, x: 5, y: 6 };
+viewZoomAbout(before, 10, 10, 4);
+check(before.scale === 2 && before.x === 5 && before.y === 6,
+  'zooming returns a new view and never edits the one it was handed');
+
+/* Keeping the map reachable. The plate can be flung, but never away. */
+const stage = { w: 600, h: 400 };
+check(viewClamp({ scale: 1, x: -300, y: -100 }, 900, stage, 56).x === -300,
+  'a view already on the stage is left exactly where it was put');
+check(viewClamp({ scale: 1, x: -9000, y: 0 }, 900, stage, 56).x === 56 - 900,
+  'dragged off to the left, 56 pixels of paper stay on the right edge');
+check(viewClamp({ scale: 1, x: 9000, y: 0 }, 900, stage, 56).x === 600 - 56,
+  'and dragged off to the right, 56 stay on the left');
+check(viewClamp({ scale: 1, x: 0, y: 9000 }, 900, stage, 56).y === 400 - 56,
+  'the same holds vertically, off its own edge');
+/* THE TRAP THIS AVOIDS. Re-centring the axis where the paper already fits is
+   what the scroll box did, and it is why zoom could not hold its anchor: two
+   rules about where the paper must be, and the gesture loses. A small plate on
+   a big stage has to be allowed to sit off-centre. */
+check(viewClamp({ scale: 0.25, x: 20, y: 20 }, 900, { w: 1600, h: 1200 }, 56).x === 20,
+  'a plate smaller than the stage is not dragged back to the middle behind your back');
+/* A plate WIDER than a narrow stage still has a real range, and the rule is
+   about paper on the stage rather than stage covered: at the far bound the
+   plate's left edge sits `keep` short of the stage's right, which is 56 pixels
+   of plate you can still grab. Checked because it looks like the broken case
+   and is not. */
+check(viewClamp({ scale: 0.2, x: 500, y: 0 }, 900, { w: 100, h: 100 }, 56).x === 100 - 56,
+  'a plate wider than a narrow stage still clamps to the margin rather than centring');
+/* THE ACTUAL DEGENERATE CASE: stage and plate both smaller than two margins,
+   so the lower bound overtakes the upper and there is no range left to pick
+   from. Centre it and say so that way, rather than letting a clamp pick
+   whichever bound happened to sort first and flinging the plate to an edge. */
+const tiny = viewClamp({ scale: 1, x: 500, y: -500 }, 30, { w: 60, h: 60 }, 56);
+check(tiny.x === 15 && tiny.y === 15,
+  `a stage too small for its own margins centres instead of clamping to nonsense (got ${tiny.x}, ${tiny.y})`);
+check(viewClamp({ scale: 3, x: 0, y: 0 }, 900, stage, 56).scale === 3,
+  'clamping moves the paper and never silently rescales it');
+
+/* Fit: the whole walk, centred, with air around it. */
+const fitted = viewFit(900, { w: 600, h: 400 }, 24);
+check(Math.abs(fitted.scale - (400 - 48) / 900) < 1e-9,
+  `fit is limited by the SHORT side, so nothing is cropped (got ${fitted.scale})`);
+check(Math.abs(fitted.x - (600 - 900 * fitted.scale) / 2) < 1e-9
+  && Math.abs(fitted.y - (400 - 900 * fitted.scale) / 2) < 1e-9,
+  'and it centres what it fitted, which is the one place centring is what was asked for');
+check(viewFit(900, { w: 40000, h: 40000 }, 24).scale === VIEW_MAX_SCALE,
+  'a huge stage does not blow the plate past the zoom ceiling');
+check(viewFit(900, { w: 10, h: 10 }, 24).scale === VIEW_MIN_SCALE,
+  'and a stage smaller than the padding does not invert the scale');
+check(VIEW_KEEP_PX > 0 && VIEW_KEEP_PX < 200,
+  'the "never lose the map" margin is a fingertip, not a wall');
 
 /* ---------- the big thing standing on the deck ----------
  * Not a truck classifier and not claimed to be: what it finds is a wide mass
