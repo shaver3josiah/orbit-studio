@@ -39,8 +39,8 @@ RUNTIME_URLS = [
 BLOCKED_EXEC = (
     "found at {path} but Windows refused to RUN it ({err}). "
     "The file is fine - security policy is blocking execution from {where}. "
-    "Move the whole orbit-studio folder somewhere like C:\\Users\\<you>\\orbit-studio "
-    "and try again; AppLocker rules usually target Downloads and Temp specifically. "
+    "Fix it without moving anything:  python fix_ffmpeg.py  "
+    "(copies ffmpeg somewhere execution is allowed and points Orbit Studio at it). "
     "Re-running setup.bat will NOT help, the download already succeeded."
 )
 
@@ -160,7 +160,8 @@ def main() -> None:
         print("  No usable ffmpeg means no frame extraction and no 360 reframing, which is")
         if blocked:
             print("  the whole capture-prep stage. ffmpeg IS installed here and is being blocked")
-            print("  from running - move the folder out of Downloads before anything else.")
+            print("  from running. Run 'python fix_ffmpeg.py' - it relocates ffmpeg to a folder")
+            print("  the policy allows and records that, so the project can stay where it is.")
         else:
             print("  the whole capture-prep stage. Run setup.bat, or put ffmpeg on PATH.")
     if any("numpy" in f for f in failed):
