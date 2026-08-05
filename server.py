@@ -575,6 +575,50 @@ def probe_media(ffprobe_path: Path, path: Path) -> Optional[dict]:
     return {"filename": path.name, "type": media_type, "duration": duration, "width": width, "height": height}
 
 
+NO_READER_FAULT = "__no_reader__"
+
+
+def photo_readers(ffprobe_path: Optional[Path]) -> tuple[bool, bool]:
+    """Which still-image readers actually WORK here, not which are installed.
+
+    Installed and usable are different things on a managed machine: ffprobe.exe can
+    sit in tools/ and be refused execution by AppLocker, and setup.bat may never have
+    run, leaving no Pillow. Both are invisible to the person dropping photos, so this
+    is measured by running them rather than by looking for files.
+    """
+    pillow_ok = False
+    try:
+        from pipeline import photo  # noqa: F401
+        pillow_ok = True
+    except Exception:
+        pass
+    ffprobe_ok = False
+    if ffprobe_path is not None:
+        try:
+            result = subprocess.run([str(ffprobe_path), "-version"],
+                                    capture_output=True, timeout=15)
+            ffprobe_ok = result.returncode == 0
+        except Exception:
+            ffprobe_ok = False
+    return pillow_ok, ffprobe_ok
+
+
+def missing_readers_message(pillow_ok: bool, ffprobe_ok: bool) -> str:
+    if not pillow_ok and not ffprobe_ok:
+        missing = "neither Pillow nor a runnable ffprobe"
+    elif not pillow_ok:
+        missing = "Pillow"
+    else:
+        missing = "a runnable ffprobe"
+    return (
+        f"This machine cannot read images at all - {missing} is available, so nothing "
+        f"is wrong with your photos. Run setup.bat in the Orbit Studio folder, which "
+        f"installs Pillow and fetches ffmpeg. If it has already run, ffprobe.exe may be "
+        f"blocked from executing by security policy - 'python preflight.py' checks both "
+        f"and says which."
+    )
+
+
 def inspect_photo(path: Path, info: Optional[dict]) -> tuple[int, int, Optional[str]]:
     """Return (width, height, fault) for a still, agreeing with the frames stage.
 
@@ -594,7 +638,11 @@ def inspect_photo(path: Path, info: Optional[dict]) -> tuple[int, int, Optional[
     except Exception:
         if info and info.get("width") and info.get("height"):
             return info["width"], info["height"], None
-        return 0, 0, "no picture data could be read from it"
+        # No Pillow AND nothing usable from ffprobe. That is a broken machine, not a
+        # broken photo, and saying "could not be read" here blamed every single file
+        # on a corporate box where setup had never run. The caller turns this sentinel
+        # into one message about the machine instead of twenty about the photos.
+        return 0, 0, NO_READER_FAULT
     return photo.inspect(path)
 
 
@@ -755,25 +803,47 @@ def handle_media_upload(handler: "Handler", project_id: str) -> None:
     dest.write_bytes(file_field["content"])
     query = urllib.parse.urlsplit(handler.path).query
     force = urllib.parse.parse_qs(query).get("force", ["0"])[0] == "1"
-    ffprobe_path = doctor.find_ffprobe(REPO_ROOT)
+    try:
+        ffprobe_path = doctor.find_ffprobe(REPO_ROOT)
+    except Exception:
+        ffprobe_path = None
+    is_image = dest.suffix.lower() in IMAGE_EXTENSIONS
+    pillow_ok, ffprobe_ok = photo_readers(ffprobe_path)
+    if not ffprobe_ok:
+        ffprobe_path = None
+    # A still needs only Pillow; a VIDEO genuinely needs ffprobe, because Pillow
+    # cannot read one. Say which is missing rather than blaming the file.
+    if is_image and not (pillow_ok or ffprobe_ok):
+        send_error(handler, 503, "imaging_tools_missing", missing_readers_message(pillow_ok, ffprobe_ok))
+        return
+    if not is_image and not ffprobe_ok:
+        send_error(handler, 503, "imaging_tools_missing",
+                   "Reading a video needs ffprobe, which is not runnable here. Run setup.bat "
+                   "to fetch ffmpeg, then 'python preflight.py' to confirm it can execute.")
+        return
     info = probe_media(ffprobe_path, dest) if ffprobe_path else None
-    if info is None:
+    if info is None and not is_image:
         send_error(handler, 500, "ffprobe_failed", "could not read media metadata")
         return
-    width = info["width"]
-    height = info["height"]
-    # Same hole as the photoset path: ffprobe exits 0 on a truncated file and reports
-    # no dimensions, which the 2:1 guard below then skips over entirely. photo_fault
-    # only deep-verifies stills; a video with dimensions is left to the frames stage.
-    if info.get("type") == "image":
-        fault = photo_fault(dest, info)
+    if is_image:
+        # Same hole as the photoset path: ffprobe exits 0 on a truncated file and
+        # reports no dimensions, which the 2:1 guard then skips over entirely. Pillow
+        # decides for stills, and supplies the dimensions when ffprobe gave none.
+        width, height, fault = inspect_photo(dest, info if info and info.get("type") == "image" else None)
+        if fault == NO_READER_FAULT:
+            send_error(handler, 503, "imaging_tools_missing", missing_readers_message(pillow_ok, ffprobe_ok))
+            return
         if fault:
             send_error(handler, 400, "unreadable_media", f"{filename}: {fault}")
             return
-    elif not (width and height):
-        send_error(handler, 400, "unreadable_media",
-                   f"{filename} has no readable video in it - it may be corrupt or only partly copied")
-        return
+        info = {"filename": dest.name, "type": "image", "duration": 0.0,
+                "width": width, "height": height}
+    else:
+        width, height = info["width"], info["height"]
+        if not (width and height):
+            send_error(handler, 400, "unreadable_media",
+                       f"{filename} has no readable video in it - it may be corrupt or only partly copied")
+            return
     if width != 2 * height and not force:
         send_error(handler, 400, "not_equirectangular", f"expected width == 2*height, got {width}x{height}")
         return
@@ -802,10 +872,21 @@ def handle_photoset_upload(handler: "Handler", project_id: str) -> None:
         return
     query = urllib.parse.urlsplit(handler.path).query
     force = urllib.parse.parse_qs(query).get("force", ["0"])[0] == "1"
-    ffprobe_path = doctor.find_ffprobe(REPO_ROOT)
-    if ffprobe_path is None:
-        send_error(handler, 500, "ffprobe_failed", "ffprobe not found")
+    # Stills do NOT need ffprobe - Pillow reads them, and reads them better. Requiring
+    # it here failed every photo upload on a machine where the ffmpeg download had been
+    # blocked, for a tool this path never uses. One working reader is the real
+    # requirement, and if there is none, say so once about the machine rather than
+    # twenty times about the photos.
+    try:
+        ffprobe_path = doctor.find_ffprobe(REPO_ROOT)
+    except Exception:
+        ffprobe_path = None
+    pillow_ok, ffprobe_ok = photo_readers(ffprobe_path)
+    if not pillow_ok and not ffprobe_ok:
+        send_error(handler, 503, "imaging_tools_missing", missing_readers_message(pillow_ok, ffprobe_ok))
         return
+    if not ffprobe_ok:
+        ffprobe_path = None
     source_dir = project_dir(project_id) / "source"
     source_dir.mkdir(parents=True, exist_ok=True)
     saved: list[str] = []
@@ -830,8 +911,11 @@ def handle_photoset_upload(handler: "Handler", project_id: str) -> None:
         if dest.suffix.lower() not in IMAGE_EXTENSIONS:
             unsupported.append(part["filename"])
             continue
-        info = probe_media(ffprobe_path, dest)
+        info = probe_media(ffprobe_path, dest) if ffprobe_path else None
         width, height, fault = inspect_photo(dest, info if info and info.get("type") == "image" else None)
+        if fault == NO_READER_FAULT:
+            send_error(handler, 503, "imaging_tools_missing", missing_readers_message(False, False))
+            return
         if fault:
             unreadable.append(f"{part['filename']} ({fault})")
             continue
