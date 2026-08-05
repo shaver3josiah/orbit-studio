@@ -37,15 +37,19 @@ if not defined PY (
 )
 
 set "FAILED="
+set "SKIPPED="
 
 echo.
 echo ==^> pure helpers ^(node tests/tour_pano_test.mjs^)
 echo.
+REM A missing Node is a SKIP, not a failure. Counting it as one meant a machine
+REM without Node - any locked-down work laptop - could never see a clean run, so
+REM a real failure had nothing to stand out against.
 where node >nul 2>nul
 if errorlevel 1 (
   echo   SKIPPED: Node.js was not found on this PC. The panorama and plan-view
   echo   maths are checked by this one; install Node to run it.
-  set "FAILED=!FAILED! pano-SKIPPED-no-node"
+  set "SKIPPED=!SKIPPED! pano-no-node"
 ) else (
   node tests/tour_pano_test.mjs
   if errorlevel 1 set "FAILED=!FAILED! pano"
@@ -75,12 +79,17 @@ echo.
 if errorlevel 1 set "FAILED=!FAILED! splat"
 
 echo.
+if defined SKIPPED echo   SKIPPED:!SKIPPED!
 if defined FAILED (
   echo   FAILED:!FAILED!
   echo.
   pause
   exit /b 1
 )
-echo   All checks passed.
+if defined SKIPPED (
+  echo   Everything that could run here passed.
+) else (
+  echo   All checks passed.
+)
 echo.
 pause

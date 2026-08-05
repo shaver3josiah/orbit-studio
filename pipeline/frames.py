@@ -3,10 +3,16 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-import numpy as np
 from PIL import Image
 
 from pipeline import RunContext, photo
+
+# numpy is NOT imported here. It is used only by the sharpness filter, which only
+# the VIDEO lane runs - a 360 photo set is copied through frame for frame with no
+# scoring. Importing it at module level meant a machine with Pillow but no numpy
+# could not process a photo set at all, for maths that path never reaches. Measured
+# on a corporate laptop where setup had installed Pillow and not numpy.
+# (from __future__ import annotations above keeps the np.ndarray hints as strings.)
 
 DEFAULT_TARGET_FRAMES = 300
 MAX_TARGET_FRAMES = 1200
@@ -48,7 +54,7 @@ def extract_with_ffmpeg(
     return sorted(out_dir.glob("f_*.jpg"))
 
 
-def laplacian_variance(gray: np.ndarray) -> float:
+def laplacian_variance(gray: "np.ndarray") -> float:
     center = gray[1:-1, 1:-1]
     up = gray[:-2, 1:-1]
     down = gray[2:, 1:-1]
@@ -59,6 +65,8 @@ def laplacian_variance(gray: np.ndarray) -> float:
 
 
 def score_frame(path: Path) -> float:
+    import numpy as np  # video lane only; see the note at the top of this module
+
     with Image.open(path) as image:
         gray = np.asarray(image.convert("L"), dtype=np.float64)
     if gray.shape[0] < 3 or gray.shape[1] < 3:

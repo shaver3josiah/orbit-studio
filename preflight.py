@@ -36,6 +36,14 @@ RUNTIME_URLS = [
     ("Colab (training)", "https://colab.research.google.com/"),
 ]
 
+BLOCKED_EXEC = (
+    "found at {path} but Windows refused to RUN it ({err}). "
+    "The file is fine - security policy is blocking execution from {where}. "
+    "Move the whole orbit-studio folder somewhere like C:\\Users\\<you>\\orbit-studio "
+    "and try again; AppLocker rules usually target Downloads and Temp specifically. "
+    "Re-running setup.bat will NOT help, the download already succeeded."
+)
+
 rows: list[tuple[bool, str, str]] = []
 
 
@@ -67,6 +75,14 @@ def check_ffmpeg() -> None:
     try:
         result = subprocess.run([str(path), "-hide_banner", "-filters"],
                                 capture_output=True, text=True, timeout=30)
+    except PermissionError as exc:
+        # WinError 5 on a file that plainly exists is policy, not a bad install.
+        # AppLocker and SRP rules very commonly deny execution from user-writable
+        # paths - Downloads and Temp above all - so re-running setup fixes nothing
+        # and moving the folder usually fixes everything.
+        blocked_dir = "Downloads" if "downloads" in str(path).lower() else "this folder"
+        record(False, "ffmpeg runs", BLOCKED_EXEC.format(path=path, where=blocked_dir, err=exc))
+        return
     except Exception as exc:
         record(False, "ffmpeg runs", f"found at {path} but will not execute: {str(exc)[:50]}")
         return
@@ -140,8 +156,16 @@ def main() -> None:
         print("  Colab is where training runs. Blocked means bundles build but nothing")
         print("  trains; you would need a machine that can reach it for that one step.")
     if any("ffmpeg" in f for f in failed):
+        blocked = any("refused to RUN" in d for ok, _, d in rows if not ok)
         print("  No usable ffmpeg means no frame extraction and no 360 reframing, which is")
-        print("  the whole capture-prep stage. Run setup.bat, or put ffmpeg on PATH.")
+        if blocked:
+            print("  the whole capture-prep stage. ffmpeg IS installed here and is being blocked")
+            print("  from running - move the folder out of Downloads before anything else.")
+        else:
+            print("  the whole capture-prep stage. Run setup.bat, or put ffmpeg on PATH.")
+    if any("numpy" in f for f in failed):
+        print("  numpy is missing. Photo sets and bundling no longer need it, but importing")
+        print("  a trained .splat back does. Fix with:  pip install numpy")
     sys.exit(1)
 
 
