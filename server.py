@@ -575,6 +575,33 @@ def probe_media(ffprobe_path: Path, path: Path) -> Optional[dict]:
     return {"filename": path.name, "type": media_type, "duration": duration, "width": width, "height": height}
 
 
+def photo_fault(path: Path, info: Optional[dict]) -> Optional[str]:
+    """Why this file is not a usable panorama, in words worth showing, or None.
+
+    ffprobe is generous in ways that matter here. It exits 0 on a JPEG whose data
+    is cut off, reporting the dimensions out of the intact header, so a half-copied
+    photo looks perfectly fine and only dies later in the frames stage. And it
+    reports 0x0 for a file carrying a .jpeg name over content that is not a JPEG at
+    all - a HEIC renamed rather than converted, which is the usual way this happens.
+    Pillow actually decoding the pixels is what separates the two.
+    """
+    size = path.stat().st_size
+    if size == 0:
+        return "0 bytes, the copy never finished"
+    if info is None or not (info.get("width") and info.get("height")):
+        return "no JPEG picture inside despite the name, usually a HEIC renamed rather than converted"
+    try:
+        from PIL import Image
+    except Exception:
+        return None  # no Pillow: the checks above still stand, deep verify is skipped
+    try:
+        with Image.open(path) as image:
+            image.load()
+    except Exception as exc:
+        return f"the picture data is damaged or incomplete ({type(exc).__name__})"
+    return None
+
+
 def cors_headers(handler: "Handler") -> None:
     # Echo only local origins instead of "*": the API has destructive routes
     # (DELETE), so arbitrary websites must not pass a CORS preflight against it.
@@ -739,11 +766,17 @@ def handle_media_upload(handler: "Handler", project_id: str) -> None:
         return
     width = info["width"]
     height = info["height"]
-    # Same 0x0 hole as the photoset path: ffprobe exits 0 on a truncated file and
-    # reports no dimensions, which the 2:1 guard below then skips over entirely.
-    if not (width and height):
+    # Same hole as the photoset path: ffprobe exits 0 on a truncated file and reports
+    # no dimensions, which the 2:1 guard below then skips over entirely. photo_fault
+    # only deep-verifies stills; a video with dimensions is left to the frames stage.
+    if info.get("type") == "image":
+        fault = photo_fault(dest, info)
+        if fault:
+            send_error(handler, 400, "unreadable_media", f"{filename}: {fault}")
+            return
+    elif not (width and height):
         send_error(handler, 400, "unreadable_media",
-                   f"{filename} has no readable picture in it - it may be corrupt or only partly copied")
+                   f"{filename} has no readable video in it - it may be corrupt or only partly copied")
         return
     if width != 2 * height and not force:
         send_error(handler, 400, "not_equirectangular", f"expected width == 2*height, got {width}x{height}")
@@ -798,12 +831,9 @@ def handle_photoset_upload(handler: "Handler", project_id: str) -> None:
             unsupported.append(part["filename"])
             continue
         info = probe_media(ffprobe_path, dest)
-        # 0x0 counts as unreadable. ffprobe EXITS 0 on a truncated JPEG and reports
-        # width 0 / height 0, and the 2:1 guard below reads "if width and height ...",
-        # which short-circuits to False - so a corrupt photo passed every check, was
-        # stored as a valid panorama, and only blew up later in the frames stage.
-        if info is None or info.get("type") != "image" or not (info["width"] and info["height"]):
-            unreadable.append(part["filename"])
+        fault = photo_fault(dest, info if info and info.get("type") == "image" else None)
+        if fault:
+            unreadable.append(f"{part['filename']} ({fault})")
             continue
         width, height = info["width"], info["height"]
         if width and height and width != 2 * height and not force:
@@ -825,8 +855,9 @@ def handle_photoset_upload(handler: "Handler", project_id: str) -> None:
         return
     if unreadable:
         send_error(handler, 400, "unreadable_photos",
-                   f"{len(unreadable)} of {len(files)} files could not be read as a photo: "
-                   f"{listing(unreadable)}. They may be corrupt or only partly copied.")
+                   f"{len(unreadable)} of {len(files)} files could not be read as a photo. "
+                   f"{listing(unreadable, limit=3)}. Re-copy them off the camera, or convert "
+                   f"rather than rename if they came off a phone as HEIC.")
         return
     if wrong_aspect:
         send_error(handler, 400, "not_equirectangular",
