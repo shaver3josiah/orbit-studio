@@ -17,5 +17,22 @@ echo Running setup...
 echo.
 powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0setup.ps1"
 
+REM Finish with the preflight verdict rather than leaving the user to wonder.
+REM Setup can succeed at every step it attempts and still leave a machine that
+REM cannot run this - a blocked ffmpeg, a numpy wheel that never existed for the
+REM installed Python - and none of that is visible until a capture fails much
+REM later for reasons that look like bad photos.
+set "PY="
+where python >nul 2>nul && set "PY=python"
+if not defined PY (
+  where py >nul 2>nul && set "PY=py -3"
+)
+if defined PY (
+  echo.
+  echo ==^> Checking this machine can actually run Orbit Studio
+  echo.
+  %PY% "%~dp0preflight.py"
+)
+
 echo.
 pause

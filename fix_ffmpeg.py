@@ -109,7 +109,10 @@ def main() -> int:
     for name in NEEDED:
         found = doctor.find_tool(name, REPO_ROOT, "ffmpeg")
         if found is None:
-            print(f"Could not find {name} anywhere. Run setup.bat first to download it.")
+            # setup.ps1 calls this after its own download step, so reaching here from
+            # setup means the download itself failed - usually an org proxy.
+            print(f"Could not find {name}. If setup just ran, its ffmpeg download was")
+            print("blocked - 360 photo sets and tours still work, video capture prep does not.")
             return 1
         sources[name] = found
     print(f"found ffmpeg:  {sources['ffmpeg']}")

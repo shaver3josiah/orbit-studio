@@ -37,7 +37,23 @@ Write-Host "Installing numpy and pillow..." -ForegroundColor Cyan
 & $pyExe @pyArgs -m pip install --quiet numpy pillow
 if ($LASTEXITCODE -ne 0) {
     Write-Host "System-wide install failed, retrying with --user..." -ForegroundColor Yellow
-    & $pyExe @pyArgs -m pip install --quiet --user numpy pillow
+    & $pyExe @pyArgs -m pip install --user numpy pillow
+}
+# Say which of the two actually landed. --quiet hid a failing numpy install on a
+# machine where pillow succeeded, and the first sign of it was every photo upload
+# failing much later for reasons that looked nothing like a missing library.
+foreach ($lib in @("numpy", "PIL")) {
+    & $pyExe @pyArgs -c "import $lib" 2>$null
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "  $lib ready" -ForegroundColor Green
+    } elseif ($lib -eq "numpy") {
+        Write-Host "  numpy did NOT install. 360 photo sets and bundling still work without it;" -ForegroundColor Yellow
+        Write-Host "  you need it only to import a trained .splat back in. Retry later with:" -ForegroundColor Yellow
+        Write-Host "      $pyExe $pyArgs -m pip install numpy" -ForegroundColor Yellow
+    } else {
+        Write-Host "  pillow did NOT install - photo capture prep needs it. Retry with:" -ForegroundColor Red
+        Write-Host "      $pyExe $pyArgs -m pip install pillow" -ForegroundColor Red
+    }
 }
 
 $ffmpegBin = $null
@@ -83,6 +99,17 @@ $pathsInfo = [ordered]@{
 }
 $pathsInfo | ConvertTo-Json | Set-Content -Path (Join-Path $root "tools\paths.json")
 Write-Host "Wrote tools\paths.json" -ForegroundColor Green
+
+# Downloading ffmpeg is not the same as being allowed to RUN it. On a managed
+# machine AppLocker denies execution from user-writable paths, so a copy sitting in
+# Downloads fails with WinError 5 while looking perfectly installed - and setup used
+# to record that blocked path and call it done. fix_ffmpeg.py proves execution and
+# relocates to a permitted folder if it has to, so the ZIP can stay where it landed.
+if ($ffmpegBin) {
+    Write-Host ""
+    Write-Host "Checking ffmpeg is allowed to run here..." -ForegroundColor Cyan
+    & $pyExe @pyArgs (Join-Path $root "fix_ffmpeg.py")
+}
 
 $demoSplat = Join-Path $root "demo\demo.splat"
 $demoScript = Join-Path $root "make_demo.py"
