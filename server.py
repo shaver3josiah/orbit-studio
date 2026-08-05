@@ -739,7 +739,13 @@ def handle_media_upload(handler: "Handler", project_id: str) -> None:
         return
     width = info["width"]
     height = info["height"]
-    if width and height and width != 2 * height and not force:
+    # Same 0x0 hole as the photoset path: ffprobe exits 0 on a truncated file and
+    # reports no dimensions, which the 2:1 guard below then skips over entirely.
+    if not (width and height):
+        send_error(handler, 400, "unreadable_media",
+                   f"{filename} has no readable picture in it - it may be corrupt or only partly copied")
+        return
+    if width != 2 * height and not force:
         send_error(handler, 400, "not_equirectangular", f"expected width == 2*height, got {width}x{height}")
         return
     project["media"] = info
@@ -775,25 +781,62 @@ def handle_photoset_upload(handler: "Handler", project_id: str) -> None:
     source_dir.mkdir(parents=True, exist_ok=True)
     saved: list[str] = []
     first_info = None
+    # Every bad photo is collected rather than returned on. Dropping 20 panoramas and
+    # being told about the 3rd one, fixing it, and being told about the 7th is a bad
+    # afternoon; a set that is wrong is usually wrong the same way throughout.
+    unsupported: list[str] = []
+    unreadable: list[str] = []
+    wrong_aspect: list[str] = []
     for index, part in enumerate(files, start=1):
         stored = f"{index:03d}_{part['filename']}"
         dest = source_dir / stored
         dest.write_bytes(part["content"])
+        # The browser lets through anything with an image/* MIME type, which includes
+        # HEIC/HEIF off a phone, while probe_media classifies on extension alone - so
+        # a HEIC arrives here and comes back "video". Name the real problem instead.
+        if dest.suffix.lower() not in IMAGE_EXTENSIONS:
+            unsupported.append(part["filename"])
+            continue
         info = probe_media(ffprobe_path, dest)
-        if info is None:
-            send_error(handler, 500, "ffprobe_failed", f"could not read {part['filename']}")
-            return
-        if info.get("type") != "image":
-            send_error(handler, 400, "not_an_image", f"{part['filename']} is not a photo")
-            return
+        # 0x0 counts as unreadable. ffprobe EXITS 0 on a truncated JPEG and reports
+        # width 0 / height 0, and the 2:1 guard below reads "if width and height ...",
+        # which short-circuits to False - so a corrupt photo passed every check, was
+        # stored as a valid panorama, and only blew up later in the frames stage.
+        if info is None or info.get("type") != "image" or not (info["width"] and info["height"]):
+            unreadable.append(part["filename"])
+            continue
         width, height = info["width"], info["height"]
         if width and height and width != 2 * height and not force:
-            send_error(handler, 400, "not_equirectangular",
-                       f"{part['filename']} is {width}x{height}, expected width == 2*height")
-            return
+            wrong_aspect.append(f"{part['filename']} ({width}x{height})")
+            continue
         saved.append(stored)
         if first_info is None:
             first_info = info
+
+    def listing(names: list[str], limit: int = 4) -> str:
+        head = ", ".join(names[:limit])
+        return head if len(names) <= limit else f"{head} and {len(names) - limit} more"
+
+    if unsupported:
+        send_error(handler, 400, "unsupported_format",
+                   f"{len(unsupported)} of {len(files)} files are a format Orbit Studio cannot read: "
+                   f"{listing(unsupported)}. Re-export them as JPEG - on iPhone that means "
+                   f"Settings, Camera, Formats, Most Compatible, or convert the HEICs first.")
+        return
+    if unreadable:
+        send_error(handler, 400, "unreadable_photos",
+                   f"{len(unreadable)} of {len(files)} files could not be read as a photo: "
+                   f"{listing(unreadable)}. They may be corrupt or only partly copied.")
+        return
+    if wrong_aspect:
+        send_error(handler, 400, "not_equirectangular",
+                   f"{len(wrong_aspect)} of {len(files)} are not 2:1 equirectangular: "
+                   f"{listing(wrong_aspect)}. Export the 360 photo from the Insta360 app "
+                   f"rather than a reframed or cropped copy.")
+        return
+    if not saved:
+        send_error(handler, 400, "no_usable_photos", "none of those files were usable panoramas")
+        return
     project["media"] = {
         "type": "imageset",
         "filename": saved[0],

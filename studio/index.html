@@ -3343,9 +3343,16 @@ async function handleStep1Continue() {
     renderCreate();
   } catch (uploadError) {
     if (uploadError.data && uploadError.data.error === "not_equirectangular") {
-      offerForceImport();
+      offerForceImport(uploadError.data.detail);
     } else {
-      toast("Could not upload that footage. Try again.", "danger");
+      // The server says exactly which files were wrong and why. Reducing that to
+      // "Try again" left the only way forward as guessing, over a drop of 20 photos
+      // where the reason is usually one fixable thing about the whole set.
+      const detail = uploadError.data && uploadError.data.detail;
+      const reachable = uploadError.status || detail;
+      toast(detail || (reachable ? "Could not upload those photos. Try again."
+                                 : "Could not reach Orbit Studio. Is the server still running?"),
+            "danger", detail ? 12000 : 6000);
       renderWizardStep();
     }
   }
@@ -3360,15 +3367,18 @@ async function uploadCurrentMedia(force) {
   }
 }
 
-function offerForceImport() {
+function offerForceImport(detail) {
   const host = byId("mediaSummaryHost");
   const warn = document.createElement("div");
   warn.className = "media-summary";
   warn.style.borderLeft = "3px solid var(--warning)";
+  // The server names which files and what shape they are; over a 20-photo drop that
+  // is the difference between "something is wrong" and "these three are cropped".
   warn.innerHTML =
     '<div class="media-summary-icon" style="background:var(--warning-soft);color:var(--warning)">' + svg("warningTriangle") + "</div>" +
     '<div class="media-summary-info"><div class="media-summary-name">This does not look equirectangular</div>' +
-    '<div class="slider-hint">Orbit Studio expects a 2:1 360 frame. You can continue anyway if you are sure.</div></div>';
+    '<div class="slider-hint">' + escapeHtml(detail || "Orbit Studio expects a 2:1 360 frame.") +
+    " You can continue anyway if you are sure.</div></div>";
   host.appendChild(warn);
   const forceBtn = document.createElement("button");
   forceBtn.className = "btn btn-secondary btn-block";
