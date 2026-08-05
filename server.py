@@ -575,31 +575,27 @@ def probe_media(ffprobe_path: Path, path: Path) -> Optional[dict]:
     return {"filename": path.name, "type": media_type, "duration": duration, "width": width, "height": height}
 
 
-def photo_fault(path: Path, info: Optional[dict]) -> Optional[str]:
-    """Why this file is not a usable panorama, in words worth showing, or None.
+def inspect_photo(path: Path, info: Optional[dict]) -> tuple[int, int, Optional[str]]:
+    """Return (width, height, fault) for a still, agreeing with the frames stage.
 
-    ffprobe is generous in ways that matter here. It exits 0 on a JPEG whose data
-    is cut off, reporting the dimensions out of the intact header, so a half-copied
-    photo looks perfectly fine and only dies later in the frames stage. And it
-    reports 0x0 for a file carrying a .jpeg name over content that is not a JPEG at
-    all - a HEIC renamed rather than converted, which is the usual way this happens.
-    Pillow actually decoding the pixels is what separates the two.
+    Pillow decides, via pipeline.photo, because Pillow is what the frames stage
+    runs - measured, ffprobe disagrees in BOTH directions. It reports clean
+    dimensions for a JPEG whose data is cut off (which Pillow can still use, and
+    which strict validation was wrongly turning away), and equally reports clean
+    dimensions for a file with junk ahead of the SOI marker that Pillow cannot open
+    at all. Trusting ffprobe loses good photos and admits unusable ones.
+
+    Pillow may be absent - the tour half of this server runs on stdlib alone - in
+    which case ffprobe's numbers are all there is, and that is still better than
+    refusing the upload.
     """
-    size = path.stat().st_size
-    if size == 0:
-        return "0 bytes, the copy never finished"
-    if info is None or not (info.get("width") and info.get("height")):
-        return "no JPEG picture inside despite the name, usually a HEIC renamed rather than converted"
     try:
-        from PIL import Image
+        from pipeline import photo
     except Exception:
-        return None  # no Pillow: the checks above still stand, deep verify is skipped
-    try:
-        with Image.open(path) as image:
-            image.load()
-    except Exception as exc:
-        return f"the picture data is damaged or incomplete ({type(exc).__name__})"
-    return None
+        if info and info.get("width") and info.get("height"):
+            return info["width"], info["height"], None
+        return 0, 0, "no picture data could be read from it"
+    return photo.inspect(path)
 
 
 def cors_headers(handler: "Handler") -> None:
@@ -813,7 +809,11 @@ def handle_photoset_upload(handler: "Handler", project_id: str) -> None:
     source_dir = project_dir(project_id) / "source"
     source_dir.mkdir(parents=True, exist_ok=True)
     saved: list[str] = []
-    first_info = None
+    # Dimensions come from inspect_photo, NOT from ffprobe's info: ffprobe can return
+    # None for a photo Pillow reads perfectly, and applying EXIF orientation swaps
+    # width and height. Carrying ffprobe's numbers here would have recorded the wrong
+    # size, or crashed outright on first_info["width"] when ffprobe gave nothing.
+    first_size: Optional[tuple[int, int]] = None
     # Every bad photo is collected rather than returned on. Dropping 20 panoramas and
     # being told about the 3rd one, fixing it, and being told about the 7th is a bad
     # afternoon; a set that is wrong is usually wrong the same way throughout.
@@ -831,17 +831,16 @@ def handle_photoset_upload(handler: "Handler", project_id: str) -> None:
             unsupported.append(part["filename"])
             continue
         info = probe_media(ffprobe_path, dest)
-        fault = photo_fault(dest, info if info and info.get("type") == "image" else None)
+        width, height, fault = inspect_photo(dest, info if info and info.get("type") == "image" else None)
         if fault:
             unreadable.append(f"{part['filename']} ({fault})")
             continue
-        width, height = info["width"], info["height"]
         if width and height and width != 2 * height and not force:
             wrong_aspect.append(f"{part['filename']} ({width}x{height})")
             continue
         saved.append(stored)
-        if first_info is None:
-            first_info = info
+        if first_size is None:
+            first_size = (width, height)
 
     def listing(names: list[str], limit: int = 4) -> str:
         head = ", ".join(names[:limit])
@@ -873,8 +872,8 @@ def handle_photoset_upload(handler: "Handler", project_id: str) -> None:
         "filename": saved[0],
         "filenames": saved,
         "count": len(saved),
-        "width": first_info["width"],
-        "height": first_info["height"],
+        "width": first_size[0],
+        "height": first_size[1],
         "duration": 0,
     }
     save_project(project)

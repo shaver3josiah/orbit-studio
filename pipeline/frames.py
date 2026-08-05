@@ -6,7 +6,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
-from pipeline import RunContext
+from pipeline import RunContext, photo
 
 DEFAULT_TARGET_FRAMES = 300
 MAX_TARGET_FRAMES = 1200
@@ -115,8 +115,16 @@ def run_multi_image(project_dir: Path, sources: list[Path], ctx: RunContext) -> 
     total = len(sources)
     for index, source in enumerate(sources, start=1):
         ctx.check_cancelled()
-        with Image.open(source) as image:
+        # photo.open_photo, not a bare Image.open: it carries the truncation
+        # tolerance, the raised decompression-bomb ceiling for big equirects, and the
+        # EXIF-orientation fix, and it is the same call upload validation makes. When
+        # these two disagreed, upload accepted photos this stage then died on, and
+        # refused photos this stage could have handled.
+        image = photo.open_photo(source)
+        try:
             image.convert("RGB").save(out_dir / f"f_{index:05d}.jpg", quality=95)
+        finally:
+            image.close()
         ctx.report(int(index / total * 100) if total else 100, f"copied panorama {index}/{total}")
     ctx.report(100, f"frames complete kept={total} of {total}")
     return {"extracted": total, "kept": total}
