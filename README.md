@@ -21,18 +21,23 @@ Prefer the terminal? From this folder: `python server.py`, then open <http://loc
 
 ### If a script "crashes instantly" after downloading
 
-That is Windows, not the code. When you download this repo as a **ZIP**, Windows stamps every file "came from the internet" (Mark-of-the-Web) and then **blocks `.ps1` scripts** like `setup.ps1` before they run a line. Three ways around it, easiest first:
+Downloading the ZIP is fine — use it. Windows does stamp the files "came from the internet" and will refuse a stamped `.ps1`, but `setup.bat`, `tour.bat`, `start.bat` and every `.py` are unaffected, and `setup.bat` clears the stamp before it runs anything else. Only reach for these if a `.ps1` really does refuse:
 
-- **For the tours, skip the `.ps1` entirely** — run `tour.bat` or `python server.py`. `.bat` and `.py` are not blocked the way `.ps1` is.
-- **Clone instead of downloading the ZIP:** `git clone https://github.com/shaver3josiah/orbit-studio.git`. Cloned files carry no internet stamp, so every script runs normally.
-- **Only need the splat studio?** Run **`setup.bat`** (not `setup.ps1`). It clears the block and runs the setup for you.
+- **For the tours you need none of it** — run `tour.bat` or `python server.py`.
+- **Clone instead of downloading:** `git clone https://github.com/shaver3josiah/orbit-studio.git`. Cloned files carry no stamp.
+
+### On a locked-down work machine
+
+`setup.bat` handles the usual one itself: a security policy that lets `ffmpeg.exe` exist but refuses to run it from `Downloads` (`WinError 5`). Setup proves ffmpeg can actually execute and relocates it to a permitted folder if not, so the project can stay wherever you unzipped it. `python preflight.py` reports what works; `python fix_ffmpeg.py` re-runs just the ffmpeg part.
 
 ## Quickstart (Orbit Studio, the splat pipeline)
 
-1. Right-click `setup.ps1` and choose Run with PowerShell. This one-time step checks Python, installs two small libraries, and fetches ffmpeg if you do not have it.
-2. Export an equirectangular MP4 from the Insta360 app or the free Insta360 Studio.
-3. Double-click `start.bat`, then drop the file in. Orbit Studio preps frames and builds a cloud bundle.
+1. Double-click **`setup.bat`**. One step, and it finishes the job: installs the two libraries, fetches ffmpeg, confirms Windows will actually let ffmpeg run (relocating it if a policy blocks the folder you downloaded into), and prints whether this machine can run the rest.
+2. Export an equirectangular MP4, or a set of 2:1 360 photos, from the Insta360 app or the free Insta360 Studio.
+3. Double-click `start.bat`, then drop the files in. Orbit Studio preps frames and builds a cloud bundle.
 4. Click Open Notebook, run all cells on the free GPU, then drop the returned `artifact.splat` back in and fly.
+
+Run `python preflight.py` any time to re-check the machine on its own.
 
 That is the whole workflow. Everything below explains why it works and what to do when something goes sideways.
 

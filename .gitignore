@@ -3,6 +3,7 @@ tours/
 tools/
 __pycache__/
 *.pyc
+*.log
 .DS_Store
 node_modules/
 results/
