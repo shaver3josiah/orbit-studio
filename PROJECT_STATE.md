@@ -2,6 +2,11 @@
 
 This file is session memory. Read it first in any new chat before touching the project, it saves re-explaining the setup every time.
 
+## Working agreements
+
+- **End every reply with an "Update needed?" line (asked for 2026-08-05).** The user runs this on more than one machine and cannot tell from a code change what they have to do to pick it up. Every response finishes with an explicit line covering four things, even when the answer is "nothing": whether to **re-download / pull**, whether to **re-run setup.bat** (only if `requirements.txt`, `setup.ps1`/`setup.bat`, or the bundled `tools/` change — dependencies have not moved since a345d45), whether to **restart `server.py`** (required for ANY `server.py` edit; the front end is re-read from disk per request but the API process is not — see the Ops lesson bullet), and whether to **hard-refresh the browser** (`send_file` sets no `Cache-Control` or `ETag`, so the browser is free to heuristically cache `studio/index.html`). Notebook edits need no install at all, but the Colab link must be re-opened rather than an already-open tab reused.
+- **Re-downloading the ZIP into a FRESH folder is not a free update.** `tools/` (ffmpeg) and `projects/` (their captures) are both gitignored, so a clean extract silently drops the ffmpeg install and every existing project. Extracting OVER the existing folder keeps both and needs no re-setup.
+
 ## Gear
 
 - Camera: Insta360 X4 Air.
