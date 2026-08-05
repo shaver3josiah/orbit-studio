@@ -2756,6 +2756,29 @@ const aimFromPoint = (from, at) =>
 const headingForAim = (scene, aim) =>
   +(((((aim - (scene?.view?.yaw || 0)) % 360) + 360) % 360)).toFixed(2);
 
+/* The OTHER way to leave an arrow where somebody dragged it, and the one that
+   changes what the tour actually shows.
+
+   facingBearing is a sum of two things — the bearing the camera pointed, and
+   how far the tour swings the view on opening — so an arrow can be made to
+   point anywhere by moving either term. headingForAim moves the first, which
+   says "the photo was facing a different way than recorded". This moves the
+   second, which says "face the same way, but open looking over there".
+
+   Which of the two is right is not a preference: it is whichever term is a
+   CHOICE rather than a fact. Where a photo already knows its bearing, that
+   bearing is a measurement and the opening view is the choice — so this one
+   is used, the measurement survives untouched, and the preview turns with the
+   arrow. Where the photo knows nothing, there is no frame to express "over
+   there" in and only headingForAim can say anything at all.
+
+   Signed the same way round as headingForAim and in the fence beside it,
+   because the failure is identical and identically invisible: every arrow
+   would still land somewhere entirely plausible and every one of them would
+   be wrong by twice the bearing. */
+const viewYawForAim = (scene, aim) =>
+  +wrap180(aim - (scene?.geo?.heading || 0)).toFixed(2);
+
 /* The dart every photo wears on the plan, drawn once and then only ever
    rotated. Its box is four dot-diameters square with the dot at the centre, so
    in this 100-unit viewBox one dot-diameter is 25 units and the centre is 50.
@@ -4643,12 +4666,21 @@ async function renderEditor(tourId) {
       /* The arm punch, said on the plate. It was being acted on and never
          mentioned anywhere, which is indistinguishable from being ignored. */
       const punched = s?.viewFrom === 'arm';
+      /* Which of the two things a drag on THIS arrow will do — see setAim. The
+         control looks identical either way, so the only place the difference
+         can be said is here, and leaving it unsaid is how "the arrow does not
+         change the preview" reads as broken rather than as the other half of
+         the feature doing its job. */
+      const settled = headingIsSeed(s);
+      const does = settled
+        ? 'turn what the tour opens on here'
+        : 'say which way this photo faces, which bearings everything sharing its view';
       const said = [
         bear === null
           ? `${name} has no bearing yet.`
           : `${name} looks ${Math.round(bear)} degrees, ${src}.`,
         punched ? 'It opens where an arm was punched out in the photo.' : '',
-        'Drag this arrow, or press the arrow keys, to turn it.',
+        `Drag this arrow, or press the arrow keys, to ${does}.`,
       ].filter(Boolean).join(' ');
       /* one rotation, no path arithmetic: the dart is drawn pointing north and
          a bearing IS its angle, so turning one mid-drag is a single transform */
@@ -4658,7 +4690,7 @@ async function renderEditor(tourId) {
         aria-label="${esc(said)}" title="${esc([
           bear === null ? 'Not aimed yet' : `${Math.round(bear)}° — ${src}`,
           punched ? 'opens at a punched arm' : '',
-          'drag to turn',
+          settled ? 'drag to turn what the tour shows' : 'drag to set which way it faces',
         ].filter(Boolean).join(' · '))}"
         style="left:${(p.u * 100).toFixed(2)}%;top:${(p.v * 100).toFixed(2)}%"
         ><svg viewBox="0 0 100 100" aria-hidden="true"><path d="${AIM_DART}"/></svg></button>`);
@@ -4803,7 +4835,9 @@ async function renderEditor(tourId) {
         ? 'Drag a photo to where it stood; move-only is on, so dropping it on another will not link them. '
           + 'Click a link to cut it. '
         : 'Drag a photo to where it stood, drop it on another to connect the two, or click a link to cut it. ')
-        + 'Each photo carries an arrow for the way it looks — drag the arrow to turn it. '
+        + 'Each photo carries an arrow for the way it looks: drag one and that photo opens looking there. '
+        + 'On a hollow arrow, where the photo does not know its bearing yet, the drag says which way the '
+        + 'photo faces instead, and everything sharing its view follows. '
         + 'The arrow keys nudge a selected photo and turn a selected arrow; hold Shift for bigger steps.';
     }
     note.textContent = [
@@ -4950,17 +4984,56 @@ async function renderEditor(tourId) {
   const AIM_STEP = 5;     /* degrees per arrow key; Shift multiplies it */
   const AIM_STEP_BIG = 15;
 
+  /* ----- one arrow, two meanings, told apart by what the photo already knows --
+
+     Turning an arrow used to always rewrite the photo's compass bearing and
+     never touch its opening view. On a photo that already had a bearing that
+     was two wrongs at once: it overwrote a measurement with a guess, and it
+     left the tour opening on exactly the same pixels as before — so the arrow
+     moved on the plate and the preview did not move at all, which is the
+     report this fixes. The plate said "the way it looks"; the tour looked the
+     other way; both were reading the same two numbers.
+
+     The split is not a preference. facingBearing is a SUM — where the camera
+     pointed, plus how far the tour swings the view on opening — so an arrow
+     can be aimed by moving either term, and the right one to move is whichever
+     is a choice rather than a fact:
+
+       settled   The photo knows which way it faces, and that is a measurement
+                 or something already decided by hand. So the arrow is a choice
+                 about where to LOOK: the view absorbs it, the bearing is left
+                 alone, and the preview turns with the arrow.
+       unsettled No bearing, or one derived from its neighbours. There is no
+                 frame in which "over there" means a part of THIS photo, so the
+                 only thing a drag can say is which way the photo faces — and
+                 saying it makes this photo a seed, which is what lets one
+                 hand-aimed arrow bearing a whole walk.
+
+     headingIsSeed is exactly that line and already existed, so this reads it
+     rather than inventing a second, subtly different one. A derived bearing
+     has to take the second path or a hand-turned arrow would not even stay
+     put: leave the derived number alone and the next pass over the evidence
+     moves it, and the arrow swings away from where it was dropped.
+
+     Gone with it: the headingWas rescue. It existed because a drag could
+     silently delete a measured bearing, and a measured bearing is now
+     structurally never touched. The scene panel still reads the field, so
+     tours that already carry one still explain themselves. */
   function setAim(s, aim) {
     if (!s) return;
     s.geo = s.geo || {};
-    /* A bearing the camera measured is a fact, and a drag must not silently
-       delete it. Kept alongside the way a solar heading is kept beside a
-       magnetic one, so the scene panel can show both and the inspector can see
-       what they overruled — first overwrite only, since after that the number
-       being replaced is their own. */
-    if (Number.isFinite(s.geo.heading) && s.geo.headingFrom !== 'hand'
-      && !Number.isFinite(s.geo.headingWas)) {
-      s.geo.headingWas = s.geo.heading;
+    if (headingIsSeed(s)) {
+      s.view = { ...(s.view || {}), yaw: viewYawForAim(s, aim), pitch: s.view?.pitch ?? 0 };
+      s.viewFrom = 'hand'; /* a decision, so nothing derived may turn it back */
+      scheduleSave();
+      /* Show it happen on the photo itself when it is the one open. Watching
+         the panorama swing is the feedback that says the drag reached the
+         tour, rather than only the plate — and it is the same rotate a scene
+         switch does, for the same reason. */
+      if (s.id === curSceneId) {
+        editorViewer?.rotate({ yaw: s.view.yaw * DEG, pitch: (s.view.pitch || 0) * DEG });
+      }
+      return;
     }
     s.geo.heading = headingForAim(s, aim);
     s.geo.headingFrom = 'hand';
@@ -5968,7 +6041,7 @@ async function renderEditor(tourId) {
           <li><span class="lg lg-manual" aria-hidden="true"></span>placed by hand</li>
           <li><span class="lg lg-on" aria-hidden="true"></span>the photo you are editing</li>
           <li><span class="lg lg-stray" aria-hidden="true"></span>not in the walk yet</li>
-          <li><span class="lg lg-aim" aria-hidden="true"></span>which way it looks — drag to turn</li>
+          <li><span class="lg lg-aim" aria-hidden="true"></span>which way it looks — drag to turn what the tour shows</li>
         </ul>
         <label class="map-opt">Labels
           <select aria-label="What each photo is labelled with">

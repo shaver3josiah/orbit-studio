@@ -77,7 +77,7 @@ const helpers = await import(
 const USED = [
   'isPartial', 'vFovOf', 'panoDataFor', 'gpanoCoverage', 'readGps', 'bearing', 'metresBetween', 'wrap180',
   'panoProfile', 'guessNavigableYaws', 'openingView', 'snapToWay', 'deriveHeadings', 'PLAN_MAX_SPAN_M',
-  'ARM_MIN_STRENGTH', 'pathAheadYaw', 'viewIsFree',
+  'ARM_MIN_STRENGTH', 'pathAheadYaw', 'viewIsFree', 'viewYawForAim',
   'sunPosition', 'solarHeading', 'correlateYaw', 'yawBetween', 'packProfile', 'unpackProfile',
   'principalAxis', 'triangulate', 'separateMarks',
   'fmtIn', 'defectMeasure', 'defectNeedsMeasure', 'nextDefectCode', 'DEFECT_TYPES', 'DEFECT_MEASURE',
@@ -92,7 +92,7 @@ if (missingFromExports.length) {
 const {
   isPartial, vFovOf, panoDataFor, gpanoCoverage, readGps, bearing, metresBetween, wrap180,
   panoProfile, guessNavigableYaws, openingView, snapToWay, deriveHeadings, PLAN_MAX_SPAN_M,
-  ARM_MIN_STRENGTH, pathAheadYaw, viewIsFree,
+  ARM_MIN_STRENGTH, pathAheadYaw, viewIsFree, viewYawForAim,
   sunPosition, solarHeading, correlateYaw, yawBetween, packProfile, unpackProfile,
   principalAxis, triangulate, separateMarks,
   fmtIn, defectMeasure, defectNeedsMeasure, nextDefectCode, DEFECT_TYPES, DEFECT_MEASURE,
@@ -1366,6 +1366,38 @@ check(headingForAim({ view: { yaw: 30 } }, 10) === 340,
   'the stored heading wraps rather than going negative');
 check(headingForAim({}, 90) === 90 && headingForAim(null, 90) === 90,
   'a photo with no opening view stores the bearing as given');
+
+/* THE SAME ROUND TRIP THROUGH THE OTHER TERM. facingBearing is a sum, so an
+   arrow can be aimed by moving either half of it: headingForAim moves the
+   bearing and leaves the tour opening on the same pixels, viewYawForAim moves
+   the opening view and leaves a measured bearing alone. The second is what
+   makes the preview turn with the arrow, and it fails the same silent way —
+   every arrow still lands somewhere plausible, every one of them wrong by
+   twice the heading, and nothing on screen looks broken. */
+for (const heading of [0, 30, 330, 179, 181]) {
+  for (const aim of [0, 45, 90, 200, 359]) {
+    const s = { geo: { heading }, view: { yaw: 0 } };
+    s.view.yaw = viewYawForAim(s, aim);
+    const back = facingBearing(s);
+    if (Math.abs(wrap180(back - aim)) > 0.01) {
+      check(false, `turning the view to ${aim} on a photo facing ${heading} reads back as ${back}`);
+    }
+  }
+}
+check(true, 'turning the OPENING VIEW to a bearing reads back as that bearing, at every heading');
+
+/* the two are not interchangeable, and the check that says so: on a photo that
+   knows its bearing they write different numbers to different fields, which is
+   the entire point of having both */
+const facing90 = { geo: { heading: 90 }, view: { yaw: 0 } };
+check(viewYawForAim(facing90, 200) === 110 && headingForAim(facing90, 200) === 200,
+  'aiming at 200 turns the view 110 within the photo, or restates the bearing as 200 — never both');
+check(viewYawForAim({ geo: { heading: 350 } }, 10) === 20,
+  'the opening yaw crosses north without going the long way round');
+check(viewYawForAim({ geo: { heading: 10 } }, 350) === -20,
+  'and it is signed, unlike a bearing, because an opening view of -20 is a real one');
+check(viewYawForAim({}, 90) === 90 && viewYawForAim(null, 90) === 90,
+  'a photo with no bearing at all takes the aim as its opening yaw');
 
 /* The dart is a constant path now, turned by a CSS rotation, so there is no
    per-frame geometry left to get wrong. Its PROPORTIONS are still a claim,
