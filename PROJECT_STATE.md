@@ -4,7 +4,12 @@ This file is session memory. Read it first in any new chat before touching the p
 
 ## Working agreements
 
-- **End every reply with an "Update needed?" line (asked for 2026-08-05).** The user runs this on more than one machine and cannot tell from a code change what they have to do to pick it up. Every response finishes with an explicit line covering four things, even when the answer is "nothing": whether to **re-download / pull**, whether to **re-run setup.bat** (only if `requirements.txt`, `setup.ps1`/`setup.bat`, or the bundled `tools/` change — dependencies have not moved since a345d45), whether to **restart `server.py`** (required for ANY `server.py` edit; the front end is re-read from disk per request but the API process is not — see the Ops lesson bullet), and whether to **hard-refresh the browser** (`send_file` sets no `Cache-Control` or `ETag`, so the browser is free to heuristically cache `studio/index.html`). Notebook edits need no install at all, but the Colab link must be re-opened rather than an already-open tab reused.
+- **End every reply with an "Update needed" section, as BULLET POINTS (asked for 2026-08-05, format corrected same day).** The user runs this on more than one machine and cannot tell from a code change what they have to do to pick it up. It was first written as one dense line with `·` separators and they said it read as confusing — so it is a bulleted list now, one item per line, never a run-on. Every response ends with it, even when every answer is "no". Cover exactly these four, and add a fifth line only when something extra is genuinely needed (a Colab runtime reset, a stale port to free):
+  - **Re-download / pull** — any tracked file changed.
+  - **Run setup.bat** — only if `requirements.txt`, `setup.ps1`/`setup.bat`, or the bundled `tools/` changed. Dependencies have not moved since a345d45, so this is almost always "no".
+  - **Restart `server.py`** — required for ANY `server.py` or `pipeline/` edit. The front end is re-read from disk per request; the Python process is not. See the Ops lesson bullet.
+  - **Hard-refresh the browser** — only for `studio/index.html` or `tour/index.html` edits. `send_file` sets no `Cache-Control` or `ETag`, so the browser may heuristically cache them.
+  - Notebook edits need none of the above: the Colab link reads `main` live. But say so explicitly, and note that an already-open Colab tab holds the old copy and must be reopened.
 - **Re-downloading the ZIP into a FRESH folder is not a free update.** `tools/` (ffmpeg) and `projects/` (their captures) are both gitignored, so a clean extract silently drops the ffmpeg install and every existing project. Extracting OVER the existing folder keeps both and needs no re-setup.
 
 ## Gear
