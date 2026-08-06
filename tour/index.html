@@ -4393,6 +4393,12 @@ async function renderEditor(tourId) {
   const redoStack = [];
 
   function applyState(str, message) {
+    /* Before the document moves, not after: a drag still holding a node from
+       the outgoing plate has to be put down without committing, or it commits
+       old coordinates onto the new document. Undo, redo and any future whole-
+       document replace all come through here, which is why this is the only
+       place that needs to say it. */
+    planGesture?.cancel();
     Object.assign(doc, JSON.parse(str));
     lastState = str; /* so scheduleSave below does not re-push what we just replayed */
     if (!doc.scenes.some(s => s.id === curSceneId)) curSceneId = doc.scenes[0]?.id || null;
@@ -4459,6 +4465,17 @@ async function renderEditor(tourId) {
          deleting one only calls scheduleSave — so this is the choke point that
          keeps the check honest between structural re-renders */
       renderPreflight();
+      /* And the plate for the same reason, which it was not getting. Retarget a
+         link in the hotspot panel, delete one, or drag an arrow round inside the
+         panorama, and every one of those writes the exact fields the plan draws
+         its edges and darts from — but each handler called scheduleSave alone,
+         so the map went on showing the tour as it was before the edit until
+         something unrelated happened to rebuild it. Fixing that one handler at a
+         time is how the same bug kept coming back wearing a different hat.
+         ponytail: this rebuilds the plate on every state-changing keystroke, the
+         same cost renderPreflight already pays on the line above — coalesce both
+         behind one timer if a big tour ever makes it felt. */
+      renderPlan();
       /* Inside this branch on purpose: a real edit invalidates the future, but
          undo() and redo() both set lastState before calling here, so replaying
          history lands outside it and the stacks survive. */
@@ -4817,6 +4834,24 @@ async function renderEditor(tourId) {
      long as the editor is open. */
   let planLabels = null;     /* null = decide from the crowd, else name|stop|station|none */
   let planMoveOnly = false;  /* true = a drag always moves, and never links */
+
+  /* The drag or turn currently in the pointer's hand, so something else can put
+     it down cleanly.
+
+     Both gestures bind their listeners onto the one node they captured, which
+     is why neither of them re-renders mid-move: renderPlan empties the plate,
+     and a captured node that has been thrown away stops reporting. Nothing
+     stopped anything ELSE from emptying it, though — Ctrl+Z is bound on the
+     document with no idea a drag is in progress, and undo rebuilds the whole
+     plate synchronously. The gesture would evaporate: no commit, no release,
+     the .dragging class stranded on a detached node. Worse, a queued pointerup
+     reaching that node afterwards would run the commit against closures full of
+     pre-undo coordinates, writing a position measured on the old plate onto the
+     document that just replaced it — putting back a mangled copy of the very
+     edit Undo was asked to remove.
+
+     One slot, because a pointer has one gesture. */
+  let planGesture = null;
 
   function renderPlan() {
     const box = document.getElementById('plan-box');
@@ -5318,11 +5353,16 @@ async function renderEditor(tourId) {
         });
         drawAt(aim);
       };
-      const up = () => {
+      /* same split as the dot drag, for the same reason */
+      const cancel = () => {
         g.removeEventListener('pointermove', move);
         g.removeEventListener('pointerup', up);
         g.removeEventListener('pointercancel', up);
         g.classList.remove('turning');
+        planGesture = null;
+      };
+      const up = () => {
+        cancel();
         if (aim === null) return;
         setAim(scene(), aim);
         renderPlan();
@@ -5332,6 +5372,7 @@ async function renderEditor(tourId) {
       g.addEventListener('pointermove', move);
       g.addEventListener('pointerup', up);
       g.addEventListener('pointercancel', up);
+      planGesture = { cancel };
     });
 
     /* Same reasoning as makeNudgeable: PSV binds the arrow keys on window to
@@ -5443,13 +5484,21 @@ async function renderEditor(tourId) {
           band.setAttribute('y2', (at.v * 100).toFixed(2));
         }
       };
-      const up = () => {
+      /* Everything a release does EXCEPT commit, so applyState can end the
+         gesture without also applying it. Splitting it out rather than adding a
+         second teardown is what keeps the two paths from drifting: there is one
+         description of how this gesture lets go. */
+      const cancel = () => {
         dot.removeEventListener('pointermove', move);
         dot.removeEventListener('pointerup', up);
         dot.removeEventListener('pointercancel', up);
         dot.classList.remove('dragging');
         band?.toggleAttribute('hidden', true);
         for (const other of box.querySelectorAll('.plan-dot.target')) other.classList.remove('target');
+        planGesture = null;
+      };
+      const up = () => {
+        cancel();
         if (!at) return;
         /* the click that follows this pointer sequence would otherwise also
            jump the editor to the scene, which is not what a drag asked for */
@@ -5466,6 +5515,7 @@ async function renderEditor(tourId) {
       dot.addEventListener('pointermove', move);
       dot.addEventListener('pointerup', up);
       dot.addEventListener('pointercancel', up);
+      planGesture = { cancel };
     });
   }
 
@@ -7011,6 +7061,14 @@ async function renderEditor(tourId) {
        wrong bearing presented as a derived one. */
     if (aimed) h.aim = 'set';
     from.hotspots.push(h);
+    /* This is the only place h.aim is ever written, and h.aim is the whole of
+       what deriveHeadings' plan pass reads — so the re-derivation belongs here,
+       beside the write, and not in the callers. It used to sit in autoLink
+       alone: linking from the plan or by clicking in the panorama produced the
+       same evidence and derived nothing from it, because those two call sites
+       had not been told to ask. fillBearings already coalesces on a timer, so
+       auto-linking forty photos still costs exactly one pass. */
+    fillBearings({ quiet: true });
   }
 
   function toggleBuildMode() {
