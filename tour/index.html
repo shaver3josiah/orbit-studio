@@ -2677,13 +2677,45 @@ function planPositions(scenes) {
     ? { ...inBox, from: sightings.length }
     : null;
 
+  /* ---- and the thing they were all looking at ----
+
+     Exactly the crossing the vehicle already gets, over a different set of
+     sightings. A hi-vis figure in shot is somebody standing AT what is being
+     inspected — openingView says so in as many words, and ranks the reading
+     second only to a punched arm — so every photo that opened on one is a
+     bearing to the same pier, and enough of them cross at it.
+
+     Only 'person'. An arm is a statement about the way AHEAD, not about a
+     thing in the distance, so including it would drag the crossing off down
+     the deck — the same reading, aimed at a different question. And only from
+     photos standing somewhere real with a bearing they were told: a sighting
+     taken from a capture-order placeholder is a line drawn from nowhere, and
+     one taken from a derived bearing would let this pass feed on its own
+     output at one remove.
+
+     Placed after the box is fitted, for the reason the vehicle is. */
+  const subjectSightings = [];
+  for (const s of list) {
+    const at = byId.get(s.id);
+    if (!at || !plannedReal(at) || s.viewFrom !== 'person' || !headingIsSeed(s)) continue;
+    const b = facingBearing(s);
+    if (b !== null) subjectSightings.push({ x: at.x, y: at.y, bearing: b });
+  }
+  const subject = triangulate(subjectSightings);
+
   const end = t => toBox({ x: axis.mx + axis.dx * t, y: axis.my + axis.dy * t });
   return {
     pts: pts.map(p => ({ ...p, ...toBox(p) })),
     deck: { from: end(tMin), to: end(tMax) },
-    span, scaled, oriented: !!origin, toMetres, vehicle, strays,
+    span, scaled, oriented: !!origin, toMetres, vehicle, strays, subject,
   };
 }
+
+/* A plan position that is a POSITION, as against a placeholder for one. The
+   capture-order spread is a guess at where a photo stands; measuring an angle
+   or a distance off it produces an invention wearing the clothes of a
+   measurement, which is why three separate passes ask this same question. */
+const plannedReal = p => p?.kind === 'gps' || p?.kind === 'manual';
 
 /* True bearing from one plan position to the next — x east, y north, north up,
    the same frame planPositions works in. */
@@ -3084,7 +3116,7 @@ function deriveHeadings(scenes, pts, cache) {
      a placeholder for a position, and a bearing measured off it would be an
      invention wearing the clothes of a measurement. */
   const at = new Map((pts || []).map(p => [p.id, p]));
-  const real = id => at.get(id)?.kind === 'gps' || at.get(id)?.kind === 'manual';
+  const real = id => plannedReal(at.get(id));
   const answer = list.map((s, i) => (seed[i] || heading[i] === null ? null
     : { heading: heading[i], from: 'match', hops: hops[i] }));
   list.forEach((s, i) => {
@@ -3164,10 +3196,19 @@ function deriveHeadings(scenes, pts, cache) {
    GPS is the strongest opening the pixels found and NOT a resolved
    ahead-versus-behind. Down a straight deck both directions look equally
    walkable, so this can open a photo facing back the way you came. Turning one
-   arrow, or punching an arm at the shot, is the fix; a real answer needs the
-   walk direction carried photo to photo through correlateYaw, which is the
-   upgrade path if the flip turns out to be common in the field. */
-function pathAheadYaw(scenes, id) {
+   arrow, or punching an arm at the shot, is the fix; the walk direction
+   carried photo to photo through correlateYaw is the real answer, and
+   deriveOpeningViews below now does exactly that — so this is the fallback for
+   the photos no match could reach, rather than the first answer tried.
+
+   The stored link angle is the LAST resort within that, because it is not
+   always evidence. deriveHeadings refuses to read an arrow the linker guessed
+   the angle of — "reading one back would close a loop" — and this used to read
+   the very same arrows with no such check, one field over. So where the plan
+   actually knows where both ends stand, the bearing between them is taken
+   instead: it is knowable without consulting the arrow at all, which is what
+   makes it immune to the loop. */
+function pathAheadYaw(scenes, id, pts) {
   const list = scenes || [];
   const i = list.findIndex(s => s.id === id);
   if (i < 0) return null;
@@ -3178,9 +3219,22 @@ function pathAheadYaw(scenes, id) {
     const k = ahead.get(h.target);
     /* the nearest one FORWARD, so a photo linked both to its neighbour and to
        something across the site opens on the neighbour */
-    if (k !== undefined && (best === null || k < best.k)) best = { k, yaw: +wrap180(h.yaw).toFixed(2) };
+    if (k !== undefined && (best === null || k < best.k)) {
+      best = { k, target: h.target, yaw: +wrap180(h.yaw).toFixed(2) };
+    }
   }
-  return best ? best.yaw : null;
+  if (!best) return null;
+  /* Both ends really placed, far enough apart that the bearing between them is
+     mostly direction rather than the error in where they stand, and a bearing
+     of our own to express the answer in — the same three gates the plan pass
+     applies, because it is the same geometry read the other way round. */
+  const at = new Map((pts || []).map(p => [p.id, p]));
+  const here = at.get(id), there = at.get(best.target);
+  if (Number.isFinite(list[i].geo?.heading) && plannedReal(here) && plannedReal(there)
+      && Math.hypot(there.x - here.x, there.y - here.y) >= HEADING_PLAN_BASELINE_M) {
+    return viewYawForAim(list[i], planBearing(here, there));
+  }
+  return best.yaw;
 }
 
 /* Which opening views a later pass is allowed to move, and it is the short
@@ -3195,9 +3249,65 @@ function pathAheadYaw(scenes, id) {
    about — but only while it still sits at yaw 0, because a tour saved before
    this field existed carries hand-set views wearing no tag, and quietly
    turning those would be the one change nobody could undo by hand. */
-const VIEW_DERIVED = new Set(['facing', 'path']);
+const VIEW_DERIVED = new Set(['facing', 'path', 'match', 'subject']);
 const viewIsFree = s =>
   VIEW_DERIVED.has(s?.viewFrom) || (!s?.viewFrom && !s?.view?.yaw);
+
+/* ---------- carrying an opening view the way a bearing is carried ----------
+
+   pathAheadYaw's own note names the fix for its ahead-versus-behind blindness:
+   the walk direction carried photo to photo through correlateYaw. That machine
+   already exists and is already paid for — deriveHeadings walks the same pair
+   graph, breadth first from the photos that know, three hops at most, and
+   throws away any answer its neighbours cannot agree on. Writing a second BFS
+   beside it would be writing the same search twice and getting to maintain the
+   two of them.
+
+   So this does not write one. A bearing and an opening view turn between two
+   photos by the SAME measured angle in opposite directions — deriveHeadings
+   carries heading[j] = heading[k] - turn, and what we want is
+   yaw[j] = yaw[k] + turn — so negating one field IS the other, and this is
+   deriveHeadings run over a relabelled list. It reuses the hop cap, the
+   confidence gate, the neighbour-agreement check and, because the cache is
+   keyed on scene ids that survive the relabelling, every correlation the
+   heading pass just paid for. No pair is measured twice.
+
+   Seeds are the views nothing may overwrite — a punched arm, a hi-vis figure,
+   a hand drag — which is exactly what viewIsFree already answers, so the two
+   passes cannot drift about what counts as trusted.
+
+   pts is withheld on purpose. deriveHeadings' second pass reads link angles as
+   evidence about which way a camera FACED; that says nothing about where
+   somebody chose to look, and letting it answer here would put a bearing's
+   answer in a view's field.
+
+   ponytail: a 'match' view whose evidence later disappears keeps the angle it
+   was last given rather than being withdrawn, unlike a derived bearing. A
+   stale opening view is a worse guess; a stale bearing is a false claim about
+   the world, and only the second one is worth the withdrawal machinery. */
+function deriveOpeningViews(scenes, cache) {
+  const list = scenes || [];
+  const asHeading = list.map(s => (viewIsFree(s)
+    ? { ...s, geo: { ...(s.geo || {}), heading: undefined } }
+    : {
+      ...s,
+      geo: {
+        ...(s.geo || {}),
+        heading: ((-(s.view?.yaw || 0) % 360) + 360) % 360,
+        headingFrom: 'hand', /* any non-derived tag; this is what makes it a seed */
+      },
+    }));
+  /* deriveHeadings reports a change against the field it was handed, and every
+     free scene was handed nothing — so without this every reachable photo comes
+     back every pass, and a tour that agrees with itself would still cost a save
+     and an empty step in Undo. Same rule, applied where the answer actually
+     lives. */
+  const was = new Map(list.map(s => [s.id, s.view?.yaw ?? 0]));
+  return deriveHeadings(asHeading, undefined, cache)
+    .filter(f => f.from === 'match' && f.heading !== null)
+    .map(f => ({ id: f.id, yaw: +wrap180(-f.heading).toFixed(2) }))
+    .filter(v => Math.abs(wrap180(v.yaw - was.get(v.id))) >= 0.01);
+}
 
 /* The photos the finished tour cannot reach.
 
@@ -5426,24 +5536,44 @@ async function renderEditor(tourId) {
      better to go on opens facing the way the walk carries on from it. See
      pathAheadYaw in the fence for where that angle comes from and what it
      inherits. */
-  function fillStartViews() {
+  function fillStartViews(plan) {
+    const at = new Map((plan?.pts || []).map(p => [p.id, p]));
     let opened = 0;
     for (const s of doc.scenes) {
       if (!viewIsFree(s)) continue;
+      /* A view carried along a shared skyline is a measured angle; the walk
+         guess below is capture order. Letting the weaker one land on top of the
+         stronger every pass would undo deriveOpeningViews as fast as it ran —
+         and 'match' has to stay in VIEW_DERIVED regardless, or it would seed
+         the next pass off its own output. */
+      if (s.viewFrom === 'match') continue;
       /* The plan arrow is heading + view.yaw, so turning a photo's opening view
          turns its arrow with it. That is the right behaviour and it is exactly
          why a photo somebody has already aimed by hand must not have its view
          moved out from under it — the arrow would drift off the doorway they
          pointed it at, and nothing on screen would say why. */
       if (s.geo?.headingFrom === 'hand') continue;
-      const ahead = pathAheadYaw(doc.scenes, s.id);
-      if (ahead === null) continue;
+
+      /* Where enough photos crossed on the thing being inspected, open on it.
+         A photo standing almost on top of the crossing gets no useful angle
+         from it — mostly the error in where the crossing landed — and one with
+         no bearing has no frame to say "over there" in at all. */
+      const here = at.get(s.id);
+      let aim = null, from = 'subject';
+      if (plan?.subject && Number.isFinite(s.geo?.heading) && plannedReal(here)
+          && Math.hypot(plan.subject.x - here.x, plan.subject.y - here.y) >= HEADING_PLAN_BASELINE_M) {
+        aim = viewYawForAim(s, planBearing(here, plan.subject));
+      } else {
+        aim = pathAheadYaw(doc.scenes, s.id, plan?.pts);
+        from = 'path';
+      }
+      if (aim === null) continue;
       const was = s.view?.yaw ?? 0;
       /* an unchanged answer costs no save and leaves no empty step in Undo,
          same rule deriveHeadings applies to a bearing it agrees with */
-      if (s.viewFrom === 'path' && Math.abs(wrap180(was - ahead)) < 0.01) continue;
-      s.view = { ...(s.view || {}), yaw: ahead, pitch: s.view?.pitch ?? 0 };
-      s.viewFrom = 'path';
+      if (s.viewFrom === from && Math.abs(wrap180(was - aim)) < 0.01) continue;
+      s.view = { ...(s.view || {}), yaw: aim, pitch: s.view?.pitch ?? 0 };
+      s.viewFrom = from;
       opened++;
     }
     return opened;
@@ -5482,7 +5612,11 @@ async function renderEditor(tourId) {
     dirty || saveTimer ? 'Unsaved changes…' : 'Saved');
 
   function runFill({ quiet = false } = {}) {
-    const found = deriveHeadings(doc.scenes, planPositions(doc.scenes)?.pts, turnCache);
+    /* one plate for all three passes: the bearings, the crossing on the thing
+       being inspected, and the walk guess all read the same positions, and
+       laying them out twice in one tick would be two answers to one question */
+    const plan = planPositions(doc.scenes);
+    const found = deriveHeadings(doc.scenes, plan?.pts, turnCache);
     for (const f of found) {
       const s = doc.scenes.find(x => x.id === f.id);
       if (!s) continue;
@@ -5498,7 +5632,18 @@ async function renderEditor(tourId) {
       s.geo.heading = f.heading;
       s.geo.headingFrom = f.from;
     }
-    const opened = fillStartViews();
+    /* Carried views first, so the capture-order guess only ever fills what no
+       shared skyline could reach. The other way round the guess would win by
+       arriving second. */
+    const carried = deriveOpeningViews(doc.scenes, turnCache);
+    for (const c of carried) {
+      const s = doc.scenes.find(x => x.id === c.id);
+      if (!s) continue;
+      s.view = { ...(s.view || {}), yaw: c.yaw, pitch: s.view?.pitch ?? 0 };
+      s.viewFrom = 'match';
+    }
+    const guessed = fillStartViews(plan);
+    const opened = carried.length + guessed;
     if (!found.length && !opened) {
       /* A pass that found nothing has to say so out loud. "No bearing could be
          worked out" and "nobody ever looked" are the same blank plate
@@ -5522,7 +5667,8 @@ async function renderEditor(tourId) {
       const how = [
         byMatch ? `${byMatch} carried along shared views` : '',
         found.length - byMatch ? `${found.length - byMatch} read off the plan` : '',
-        opened ? `${opened} opened at the way ahead` : '',
+        carried.length ? `${carried.length} opened the way the photos beside them open` : '',
+        guessed ? `${guessed} opened at the way ahead` : '',
       ].filter(Boolean).join(', ');
       toast(`${found.length
         ? `Worked out ${found.length} bearing${found.length === 1 ? '' : 's'}`

@@ -77,7 +77,7 @@ const helpers = await import(
 const USED = [
   'isPartial', 'vFovOf', 'panoDataFor', 'gpanoCoverage', 'readGps', 'bearing', 'metresBetween', 'wrap180',
   'panoProfile', 'guessNavigableYaws', 'openingView', 'snapToWay', 'deriveHeadings', 'PLAN_MAX_SPAN_M',
-  'ARM_MIN_STRENGTH', 'pathAheadYaw', 'viewIsFree', 'viewYawForAim',
+  'ARM_MIN_STRENGTH', 'pathAheadYaw', 'viewIsFree', 'viewYawForAim', 'deriveOpeningViews', 'plannedReal',
   'viewZoomAbout', 'viewClamp', 'viewFit', 'VIEW_MIN_SCALE', 'VIEW_MAX_SCALE', 'VIEW_KEEP_PX',
   'sunPosition', 'solarHeading', 'correlateYaw', 'yawBetween', 'packProfile', 'unpackProfile',
   'principalAxis', 'triangulate', 'separateMarks',
@@ -93,7 +93,7 @@ if (missingFromExports.length) {
 const {
   isPartial, vFovOf, panoDataFor, gpanoCoverage, readGps, bearing, metresBetween, wrap180,
   panoProfile, guessNavigableYaws, openingView, snapToWay, deriveHeadings, PLAN_MAX_SPAN_M,
-  ARM_MIN_STRENGTH, pathAheadYaw, viewIsFree, viewYawForAim,
+  ARM_MIN_STRENGTH, pathAheadYaw, viewIsFree, viewYawForAim, deriveOpeningViews, plannedReal,
   viewZoomAbout, viewClamp, viewFit, VIEW_MIN_SCALE, VIEW_MAX_SCALE, VIEW_KEEP_PX,
   sunPosition, solarHeading, correlateYaw, yawBetween, packProfile, unpackProfile,
   principalAxis, triangulate, separateMarks,
@@ -1723,6 +1723,105 @@ const disagreeing = deriveHeadings(
 );
 check(!disagreeing.some(p => p.id === 'a'),
   'two links putting one photo 90 degrees apart produce no bearing at all');
+
+/* ---------- what a real position is ----------
+ * Three separate passes refuse to measure anything off a dot that was only
+ * spread along the walk by capture order, so all three ask this one question. */
+check(plannedReal({ kind: 'gps' }) && plannedReal({ kind: 'manual' }),
+  'a GPS fix and a hand-dragged dot are both positions somebody is claiming');
+check(!plannedReal({ kind: 'guess' }),
+  'a dot laid out by capture order is a placeholder for a position, not one');
+check(!plannedReal(undefined), 'and a photo with no dot at all is not one either');
+
+/* ---------- carrying an opening view along a shared skyline ----------
+ * The same search deriveHeadings runs, over the other field. A bearing and an
+ * opening view turn by the same measured angle in opposite directions, so the
+ * sign is the whole risk here: get it backwards and every photo still opens
+ * somewhere entirely plausible, and every one of them is wrong by twice the
+ * turn. */
+const viewCarried = deriveOpeningViews([
+  shifted('a', 0, { viewFrom: 'hand', view: { yaw: 10 } }),
+  shifted('b', 37),
+]);
+check(viewCarried.length === 1 && viewCarried[0].id === 'b',
+  `a photo with no view of its own is opened from the one that shares its skyline (got ${viewCarried.length})`);
+check(viewCarried[0] && near(viewCarried[0].yaw, wrap180(10 + wrap180(37 * COL)), 0.05),
+  `and a photo turned 37 columns opens that much LATER in its own frame, where a bearing would start earlier `
+  + `(got ${viewCarried[0]?.yaw}, wanted ${wrap180(10 + wrap180(37 * COL)).toFixed(2)})`);
+const viewBackwards = deriveOpeningViews([
+  shifted('a', 0),
+  shifted('b', 37, { viewFrom: 'hand', view: { yaw: 10 } }),
+]);
+check(viewBackwards.length === 1 && near(viewBackwards[0].yaw, wrap180(10 - wrap180(37 * COL)), 0.05),
+  `carrying a view backwards reverses the turn (got ${viewBackwards[0]?.yaw})`);
+
+check(deriveOpeningViews([
+  shifted('a', 0, { viewFrom: 'path', view: { yaw: 10 } }),
+  shifted('b', 37),
+]).length === 0,
+  'a view the walk merely guessed is not evidence — seeding off it would feed the search its own output');
+check(deriveOpeningViews([shifted('a', 0), shifted('b', 37)]).length === 0,
+  'with no trusted view anywhere, nothing is invented');
+check(deriveOpeningViews([]).length === 0 && deriveOpeningViews(null).length === 0,
+  'no scenes carries nothing rather than throwing');
+/* the trap the bearing pass does not have: every free scene is handed a blank
+   field, so without a comparison against the view already stored, a tour that
+   agrees with itself would re-propose every photo on every pass — a save and an
+   empty step in Undo, for ever */
+check(deriveOpeningViews([
+  shifted('a', 0, { viewFrom: 'hand', view: { yaw: 10 } }),
+  shifted('b', 37, { viewFrom: 'match', view: { yaw: +wrap180(10 + wrap180(37 * COL)).toFixed(2) } }),
+]).length === 0,
+  'a carried view that is already right is not re-proposed, so nothing is saved for nothing');
+
+/* ---------- the walk guess prefers a real bearing to a guessed arrow ----------
+ * pathAheadYaw reads the stored link angle, which the linker very often guessed
+ * — the same angle deriveHeadings refuses as evidence. Where the plan knows
+ * where both ends stand, the bearing between them is knowable without consulting
+ * the arrow at all, which is what makes it immune to that loop. */
+const aheadScenes = [
+  { id: 'a', geo: { heading: 90 }, hotspots: [{ type: 'link', target: 'b', yaw: 40 }] },
+  { id: 'b' },
+];
+const northPts = planPositions([placed('a', 0, 0, []), placed('b', 0, 100, [])]).pts;
+check(pathAheadYaw(aheadScenes, 'a') === 40,
+  'with no plan handed in, the stored arrow is still all there is');
+check(near(pathAheadYaw(aheadScenes, 'a', northPts), -90, 0.05),
+  `b sits due north, the camera faces east, so it opens 90 to its left whatever the arrow claims `
+  + `(got ${pathAheadYaw(aheadScenes, 'a', northPts)})`);
+check(pathAheadYaw(aheadScenes, 'a', planPositions([{ id: 'a' }, { id: 'b' }]).pts) === 40,
+  'two dots guessed into place say nothing, so the arrow is believed again');
+check(pathAheadYaw(aheadScenes, 'a', planPositions([placed('a', 0, 0, []), placed('b', 0, 4, [])]).pts) === 40,
+  'and neither does a baseline too short to carry an angle');
+check(pathAheadYaw([{ id: 'a', hotspots: [{ type: 'link', target: 'b', yaw: 40 }] }, { id: 'b' }], 'a', northPts) === 40,
+  'a photo with no bearing of its own has no frame to say "over there" in, so it keeps the arrow');
+
+/* ---------- where everybody was looking ----------
+ * The crossing the vehicle already gets, over a different set of sightings: a
+ * hi-vis figure in shot is somebody standing AT the thing being inspected. */
+const eyes = (id, x, y, heading, viewFrom = 'person') => ({
+  id, plan: { x, y }, viewFrom, view: { yaw: 0 }, geo: { heading, headingFrom: 'recorded' },
+});
+const crossed = planPositions([eyes('a', 0, 0, 45), eyes('b', 100, 0, 315)]);
+check(crossed.subject && near(crossed.subject.x, 50, 0.5) && near(crossed.subject.y, 50, 0.5),
+  `two photos looking north-east and north-west from 100 m apart cross at the pier between them `
+  + `(got ${crossed.subject && `${crossed.subject.x.toFixed(1)}, ${crossed.subject.y.toFixed(1)}`})`);
+check(planPositions([eyes('a', 0, 0, 45), placed('b', 100, 0, [])]).subject === null,
+  'one sighting is not a crossing');
+check(planPositions([eyes('a', 0, 0, 45), eyes('b', 1, 0, 45)]).subject === null,
+  'and two too nearly parallel to cross land in the next county, so they produce nothing');
+check(planPositions([eyes('a', 0, 0, 45, 'arm'), eyes('b', 100, 0, 315, 'arm')]).subject === null,
+  'a punched arm points at the way AHEAD, not at the work, so it never votes on where the work is');
+check(planPositions([
+  { ...eyes('a', 0, 0, 45), geo: { heading: 45, headingFrom: 'match' } },
+  { ...eyes('b', 100, 0, 315), geo: { heading: 315, headingFrom: 'match' } },
+]).subject === null,
+  'nor does a bearing that was itself worked out — this pass must not feed on its own output at one remove');
+check(planPositions([
+  { id: 'a', viewFrom: 'person', view: { yaw: 0 }, geo: { heading: 45, headingFrom: 'recorded' } },
+  { id: 'b', viewFrom: 'person', view: { yaw: 0 }, geo: { heading: 315, headingFrom: 'recorded' } },
+]).subject === null,
+  'and a sighting taken from a placeholder dot is a line drawn from nowhere');
 
 /* ---------- the photos the finished tour cannot reach ---------- */
 
