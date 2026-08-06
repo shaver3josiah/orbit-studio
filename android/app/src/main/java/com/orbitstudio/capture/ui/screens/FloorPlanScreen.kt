@@ -40,6 +40,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -88,7 +89,9 @@ import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sqrt
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 // Home Sketch editor — Bridge Sketch's tactile drafting language on a phone, scoped to what
 // the reconstruction pipeline can use: rooms, walls, windows, doors, obstacles, plus the walk
@@ -118,6 +121,7 @@ fun FloorPlanScreen(nav: NavController, planId: String) {
     // tool draws with, so the room sketch reads as the same drafting surface.
     val pal = SketchColors.palette(dark = false)
     val repo = remember { Plans.repo(context) }
+    val scope = rememberCoroutineScope()
 
     var plan by remember { mutableStateOf<FloorPlan?>(null) }
     var loadError by remember { mutableStateOf(false) }
@@ -165,29 +169,34 @@ fun FloorPlanScreen(nav: NavController, planId: String) {
 
     fun commit(updated: FloorPlan) {
         val prev = plan
-        runCatching { repo.updatePlan(updated) }
-            .onSuccess {
-                if (prev != null) {
-                    undoStack.add(prev)
-                    if (undoStack.size > 40) undoStack.removeAt(0)
-                    redoStack.clear()
-                }
-                plan = updated
-            }
-            .onFailure { feedback = "Could not save. Try again." }
+        // Every drag-commit and rename keystroke lands here; writing plans.json
+        // synchronously blocked the main thread on each one. State updates
+        // optimistically right away, and the write moves to Dispatchers.IO like
+        // CaptureScreen's shot-save — a failure only surfaces as feedback, it
+        // doesn't roll back the sketch.
+        if (prev != null) {
+            undoStack.add(prev)
+            if (undoStack.size > 40) undoStack.removeAt(0)
+            redoStack.clear()
+        }
+        plan = updated
+        scope.launch(Dispatchers.IO) {
+            runCatching { repo.updatePlan(updated) }
+                .onFailure { feedback = "Could not save. Try again." }
+        }
     }
     fun undo() {
         val target = undoStack.removeLastOrNull() ?: return
         plan?.let { redoStack.add(it) }
-        runCatching { repo.updatePlan(target) }
         plan = target
         selectedId = null
+        scope.launch(Dispatchers.IO) { runCatching { repo.updatePlan(target) } }
     }
     fun redo() {
         val target = redoStack.removeLastOrNull() ?: return
         plan?.let { undoStack.add(it) }
-        runCatching { repo.updatePlan(target) }
         plan = target
+        scope.launch(Dispatchers.IO) { runCatching { repo.updatePlan(target) } }
     }
 
     Column(
@@ -242,7 +251,14 @@ fun FloorPlanScreen(nav: NavController, planId: String) {
                     pan = pan,
                     selectedId = selectedId,
                     pathCells = if (showPath) {
-                        p.rooms.find { it.id == selectedId }?.let { PlanMath.walkPath(it, p.features, p.scaleMPerCell) }
+                        // previewRect updates on every pointer-move sample during a drag,
+                        // recomposing this whole scope — remember so the walk only
+                        // re-solves when the room/features/scale it's drawn from change.
+                        p.rooms.find { it.id == selectedId }?.let { room ->
+                            remember(room, p.features, p.scaleMPerCell) {
+                                PlanMath.walkPath(room, p.features, p.scaleMPerCell)
+                            }
+                        }
                     } else null,
                     previewRect = previewRect,
                     isRubberBand = tool == SketchTool.ROOM || tool == SketchTool.WALL ||

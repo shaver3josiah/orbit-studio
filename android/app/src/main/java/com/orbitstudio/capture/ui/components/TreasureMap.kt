@@ -22,6 +22,7 @@ import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import com.orbitstudio.capture.ui.theme.OrbitColors
 import kotlin.math.min
@@ -65,6 +66,20 @@ fun TreasureMap(
     var accumulatedHeading by remember { mutableFloatStateOf(headingDeg) }
     accumulatedHeading = shortestPathTarget(accumulatedHeading, headingDeg)
     val animatedHeading by animateFloatAsState(accumulatedHeading, tween(150), label = "mkHeading")
+
+    // Hoisted out of the draw lambda: the pulse animation keeps this Canvas redrawing
+    // every frame, and a fresh android.graphics.Paint per frame was needless churn.
+    val density = LocalDensity.current
+    val stationLabelPaint = remember(density) {
+        android.graphics.Paint().apply {
+            color = android.graphics.Color.WHITE
+            textSize = with(density) { 11.dp.toPx() }
+            isAntiAlias = true
+            textAlign = android.graphics.Paint.Align.CENTER
+            isFakeBoldText = true
+            setShadowLayer(3f, 0f, 0f, android.graphics.Color.BLACK)
+        }
+    }
 
     Canvas(modifier = modifier) {
         if (roomCols < 1 || roomRows < 1) return@Canvas
@@ -150,18 +165,10 @@ fun TreasureMap(
         }
 
         // Dot numbers, small and out of the road's way.
-        val paint = android.graphics.Paint().apply {
-            color = android.graphics.Color.WHITE
-            textSize = 11.dp.toPx()
-            isAntiAlias = true
-            textAlign = android.graphics.Paint.Align.CENTER
-            isFakeBoldText = true
-            setShadowLayer(3f, 0f, 0f, android.graphics.Color.BLACK)
-        }
         stationCells.forEachIndexed { i, cell ->
             val at = cellPx(cell)
             drawContext.canvas.nativeCanvas.drawText(
-                (i + 1).toString(), at.x, at.y - dotR - 4.dp.toPx(), paint,
+                (i + 1).toString(), at.x, at.y - dotR - 4.dp.toPx(), stationLabelPaint,
             )
         }
 

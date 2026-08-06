@@ -3458,6 +3458,9 @@ function appendConsoleLine(data) {
   line.className = cls;
   line.textContent = "[" + data.stage + "] " + (data.line || data.state);
   log.appendChild(line);
+  // Long jobs can emit thousands of lines; keep only the most recent so the
+  // console DOM doesn't grow unbounded over a session.
+  while (log.childElementCount > 500) log.removeChild(log.firstChild);
   log.scrollTop = log.scrollHeight;
   const pctEl = byId("consolePct");
   const fillEl = byId("consoleFill");
