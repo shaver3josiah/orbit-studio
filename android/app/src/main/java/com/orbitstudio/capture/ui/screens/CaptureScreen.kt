@@ -13,6 +13,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -554,16 +555,11 @@ private fun Viewfinder(nav: NavController, scanId: String) {
         )
         // Pano alignment instrument: artificial-horizon line + reticle over the preview.
         // Fly the line into the brackets and hold; green ring = auto-fire window open.
+        // Pulled into its own composable: this sits directly in the root Box's own scope,
+        // so a sensor read right here recomposed the whole screen on every tick instead
+        // of just this overlay.
         if (panoMode && panoTargets.isNotEmpty() && sensorsAvailable) {
-            val target = panoTargets.getOrNull(panoCaptured)
-            if (target != null) {
-                SweepLevelOverlay(
-                    rollDeg = sensors.rollDeg,
-                    pitchErrorDeg = target.pitchDeg - sensors.pitchDeg,
-                    aligned = PanoSweep.aligned(target, sensors.headingDeg, sensors.pitchDeg, sensors.yawRateDegPerSec),
-                    modifier = Modifier.fillMaxSize(),
-                )
-            }
+            panoTargets.getOrNull(panoCaptured)?.let { target -> PanoAlignmentOverlay(sensors, target) }
         }
 
         focusRingAt?.let { at ->
@@ -625,64 +621,12 @@ private fun Viewfinder(nav: NavController, scanId: String) {
 
         // Plan view: person-with-a-flashlight minimap, top-right under the ribbon.
         // Hidden when there is no rotation sensor — a frozen compass helps no one.
+        // Pulled into its own composable for the same reason as the pano overlay above:
+        // sensors.headingDeg (and stepCount, while walking between pano stations) tick
+        // on essentially every frame the operator moves, and this sits directly in the
+        // root Box's own scope.
         if (sensorsAvailable) {
-            val geom = roomGeom
-            val mapModifier = Modifier
-                .align(Alignment.TopEnd)
-                .windowInsetsPadding(
-                    WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Right),
-                )
-                .padding(top = 56.dp, end = 12.dp)
-            if (panoMode && geom != null) {
-                // Minimap marker, kart-style but honest: pinned to the station dot while
-                // sweeping (a measured anchor), dead-reckoned up the route by hardware
-                // step counts while walking to the next dot, clamped at that dot.
-                val stations = geom.stationIndices
-                val marker: Pair<Float, Float>? = when {
-                    stations.isEmpty() -> null
-                    panoTargets.isNotEmpty() || currentStation == 0 || currentStation >= stations.size -> {
-                        val idx = stations[currentStation.coerceIn(0, stations.size - 1)]
-                        geom.path[idx].first.toFloat() to geom.path[idx].second.toFloat()
-                    }
-                    else -> PanoSweep.positionAlongPath(
-                        path = geom.path,
-                        scaleMPerCell = geom.scaleMPerCell,
-                        fromIndex = stations[currentStation - 1],
-                        toIndex = stations[currentStation],
-                        metersWalked = (sensors.stepCount - stepAnchor).coerceAtLeast(0) * 0.7f,
-                    )
-                }
-                TreasureMap(
-                    roomCols = geom.cols,
-                    roomRows = geom.rows,
-                    pathCells = geom.path,
-                    stationCells = geom.stationCells,
-                    currentStation = currentStation,
-                    markerCell = marker,
-                    headingDeg = sensors.headingDeg + geom.startDirDeg,
-                    modifier = mapModifier.size(150.dp),
-                )
-            } else if (geom != null) {
-                // Still mode with a sketched room: the route stays on screen while
-                // shooting — the line to follow, not just a heading radar.
-                TreasureMap(
-                    roomCols = geom.cols,
-                    roomRows = geom.rows,
-                    pathCells = geom.path,
-                    stationCells = geom.stationCells,
-                    currentStation = -1,
-                    markerCell = null,
-                    headingDeg = sensors.headingDeg + geom.startDirDeg,
-                    modifier = mapModifier.size(150.dp),
-                )
-            } else {
-                PlanView(
-                    headingDeg = sensors.headingDeg,
-                    shotHeadingsDeg = shotHeadings,
-                    targetHeadingDeg = targetHeading,
-                    modifier = mapModifier.size(112.dp),
-                )
-            }
+            PlanViewSection(sensors, roomGeom, panoMode, panoTargets, currentStation, stepAnchor, shotHeadings, targetHeading)
         }
 
         // Bottom coaching stack: guidance, meters, stages, shutter row. Scrim reaches the
@@ -1076,6 +1020,85 @@ private fun Viewfinder(nav: NavController, scanId: String) {
             toast = toast,
             onDismiss = { toast = null },
             modifier = Modifier.fillMaxSize().padding(bottom = 168.dp),
+        )
+    }
+}
+
+@Composable
+private fun PanoAlignmentOverlay(sensors: CoachSensors, target: PanoSweep.SweepTarget) {
+    SweepLevelOverlay(
+        rollDeg = sensors.rollDeg,
+        pitchErrorDeg = target.pitchDeg - sensors.pitchDeg,
+        aligned = PanoSweep.aligned(target, sensors.headingDeg, sensors.pitchDeg, sensors.yawRateDegPerSec),
+        modifier = Modifier.fillMaxSize(),
+    )
+}
+
+@Composable
+private fun BoxScope.PlanViewSection(
+    sensors: CoachSensors,
+    geom: RoomGeom?,
+    panoMode: Boolean,
+    panoTargets: List<PanoSweep.SweepTarget>,
+    currentStation: Int,
+    stepAnchor: Int,
+    shotHeadings: List<Float>,
+    targetHeading: Float?,
+) {
+    val mapModifier = Modifier
+        .align(Alignment.TopEnd)
+        .windowInsetsPadding(
+            WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Right),
+        )
+        .padding(top = 56.dp, end = 12.dp)
+    if (panoMode && geom != null) {
+        // Minimap marker, kart-style but honest: pinned to the station dot while
+        // sweeping (a measured anchor), dead-reckoned up the route by hardware
+        // step counts while walking to the next dot, clamped at that dot.
+        val stations = geom.stationIndices
+        val marker: Pair<Float, Float>? = when {
+            stations.isEmpty() -> null
+            panoTargets.isNotEmpty() || currentStation == 0 || currentStation >= stations.size -> {
+                val idx = stations[currentStation.coerceIn(0, stations.size - 1)]
+                geom.path[idx].first.toFloat() to geom.path[idx].second.toFloat()
+            }
+            else -> PanoSweep.positionAlongPath(
+                path = geom.path,
+                scaleMPerCell = geom.scaleMPerCell,
+                fromIndex = stations[currentStation - 1],
+                toIndex = stations[currentStation],
+                metersWalked = (sensors.stepCount - stepAnchor).coerceAtLeast(0) * 0.7f,
+            )
+        }
+        TreasureMap(
+            roomCols = geom.cols,
+            roomRows = geom.rows,
+            pathCells = geom.path,
+            stationCells = geom.stationCells,
+            currentStation = currentStation,
+            markerCell = marker,
+            headingDeg = sensors.headingDeg + geom.startDirDeg,
+            modifier = mapModifier.size(150.dp),
+        )
+    } else if (geom != null) {
+        // Still mode with a sketched room: the route stays on screen while
+        // shooting — the line to follow, not just a heading radar.
+        TreasureMap(
+            roomCols = geom.cols,
+            roomRows = geom.rows,
+            pathCells = geom.path,
+            stationCells = geom.stationCells,
+            currentStation = -1,
+            markerCell = null,
+            headingDeg = sensors.headingDeg + geom.startDirDeg,
+            modifier = mapModifier.size(150.dp),
+        )
+    } else {
+        PlanView(
+            headingDeg = sensors.headingDeg,
+            shotHeadingsDeg = shotHeadings,
+            targetHeadingDeg = targetHeading,
+            modifier = mapModifier.size(112.dp),
         )
     }
 }
