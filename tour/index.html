@@ -495,30 +495,79 @@
     color: var(--ink-3); font-size: 13px; line-height: 11px; text-align: center;
   }
   .lg-aim::before { content: '\2191'; }
-  /* `safe` centring: a centred grid item that outgrows its scroll box gets its
-     top and left pushed off the start edge, where no amount of scrolling
-     reaches them — so zoomed in past the window, the top-left quarter of the
-     plan would simply be unreachable. `safe` falls back to start alignment at
-     exactly that point. */
-  .map-scroll {
-    flex: 1; overflow: auto; display: grid; place-items: safe center; padding: var(--s5);
+  /* The map splits in two: a stage you fly over, and a rail that reads. The
+     prose used to sit on the plate and zoom with it, so magnifying the photos
+     magnified the instructions along with them — the plate is a drawing and
+     the note is a caption, and only one of them is a place. */
+  .map-body { flex: 1; display: flex; min-height: 0; }
+  /* The stage owns the gesture outright. touch-action:none because a pinch here
+     is the map's, not the page's: without it a tablet zooms the whole editor
+     and the map never sees the fingers at all. overscroll-behavior stops a pan
+     that runs out of map from turning into the page rubber-banding underneath. */
+  .map-stage {
+    flex: 1; position: relative; overflow: hidden; min-width: 0;
+    touch-action: none; overscroll-behavior: contain;
+    cursor: grab; background: var(--bg);
   }
-  /* One plate, sized by the zoom control in the header. The dots, the arrows
-     and the grid are all in percentages, so growing the sheet is the whole of
-     zooming — nothing re-lays-out, and .map-scroll pans what no longer fits.
-
-     Zooming anchors on the pointer by scrolling (see toggleMap), which means it
-     is exact in an axis that HAS somewhere to scroll, and grows from the middle
-     in one that does not — an axis where the whole plate already fits, so
-     nothing is off screen to go looking for. On a wide window that is the
-     horizontal one until about 2.4x. Making it exact at every zoom means
-     driving pan from a transform rather than from a scroll box, and that trades
-     real scrollbars, momentum and keyboard scrolling for hand-rolled ones;
-     worth doing only if this ever stops feeling right in the hand. */
-  .map-sheet { width: calc(min(70vh, 92vw) * var(--map-zoom, 1)); }
-  .map-zoom, .map-opt { display: flex; align-items: center; gap: var(--s2); font-size: var(--t-sm); color: var(--ink-2); }
-  .map-zoom input { width: 120px; }
+  .map-stage:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .map-stage.panning { cursor: grabbing; }
+  /* Where the two halves of the view meet the screen. Width carries the scale
+     so the dots stay 15px while the walk spreads out under them; the transform
+     carries the pan, so the gesture that runs at sixty frames a second never
+     touches layout. transform-origin is the corner because the view's x and y
+     ARE the corner — see viewZoomAbout. */
+  .map-paper {
+    position: absolute; top: 0; left: 0; transform-origin: 0 0;
+    will-change: transform; backface-visibility: hidden;
+  }
+  .map-paper .plan-box { margin: 0; width: 100%; }
+  /* Reading matter, at a width you can read it at, on the panel neutral rather
+     than the stage's own ground so the eye knows which is which. */
+  .map-aside {
+    flex: none; width: clamp(240px, 27%, 340px); overflow: auto;
+    padding: var(--s4) var(--s5); border-left: 1px solid var(--line);
+    background: var(--surface);
+  }
+  .map-aside .plan-how { font-size: var(--t-md); margin: 0 0 var(--s3); text-wrap: pretty; }
+  .map-aside #plan-note { font-size: var(--t-sm); margin: 0; text-wrap: pretty; }
+  .map-aside #plan-reset { width: auto; margin-top: var(--s4); }
+  .map-aside .plan-box { display: none; } /* it lives on the stage; this is only its old slot */
+  /* Under a tablet there is no room for a rail beside the stage, so it goes
+     under it and the stage keeps the height it needs to be a map. */
+  @media (max-width: 720px) {
+    .map-body { flex-direction: column; }
+    .map-stage { flex: 1 1 60%; }
+    .map-aside {
+      width: auto; flex: 0 1 auto; max-height: 38%;
+      border-left: 0; border-top: 1px solid var(--line);
+    }
+  }
+  .map-opt { display: flex; align-items: center; gap: var(--s2); font-size: var(--t-sm); color: var(--ink-2); }
   .map-opt select { font-size: var(--t-sm); padding: 2px var(--s2); }
+  /* Minus, a readout, plus, and Fit — the vocabulary every map tool shares, so
+     nobody has to be taught it. The readout is an <output> and not a label: it
+     is a live value, it announces itself when it changes, and pressing it is
+     the way back to 100%. */
+  .map-zoom { display: flex; align-items: center; gap: 2px; }
+  .map-zoom .icon-btn { width: 28px; height: 28px; font-size: var(--t-md); }
+  .map-zoom output {
+    min-width: 4.5ch; padding: 0 var(--s2); border: 0; background: none;
+    font: inherit; font-size: var(--t-sm); font-variant-numeric: tabular-nums;
+    color: var(--ink-2); text-align: center; cursor: pointer; border-radius: var(--r-xs);
+  }
+  .map-zoom output:hover { color: var(--ink); background: var(--line); }
+  .map-zoom output:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .map-zoom .map-fit { margin-left: var(--s2); }
+  /* How the stage is flown, said once where somebody looking for it will look:
+     over the map itself, quiet, and out of the way of the plate. */
+  .map-keys {
+    position: absolute; left: var(--s4); bottom: var(--s4); margin: 0;
+    padding: var(--s2) var(--s3); border-radius: var(--r-sm);
+    background: var(--scrim-strong); backdrop-filter: blur(6px);
+    font-size: var(--t-xs); color: var(--ink-2); pointer-events: none;
+    max-width: min(38ch, calc(100% - var(--s5)));
+  }
+  @media (max-width: 720px) { .map-keys { display: none; } }
   /* `.plan > summary` below is the same specificity and comes later, so this
      has to out-weigh it or the overlay wears the sidebar's collapse chrome —
      a second "Plan view" title and an expand button already expanded. */
@@ -672,6 +721,13 @@
      photo. Never a lighter grey: these carry meaning, so they hold the 3:1 a
      meaningful graphic owes its background, in both themes. */
   .plan-aim.unset path { fill: none; }
+  /* An arm punched at the way ahead is the one direction on this plate that
+     somebody actually stated rather than something worked out for them, so it
+     is drawn heavier and a shade darker: a claim, not a derivation. Weight and
+     not hue, because .on already owns the accent and because a difference only
+     a colour carries is not a difference every reader gets. */
+  .plan-aim.punched { color: var(--ink-2); }
+  .plan-aim.punched path { stroke-width: 9; }
   .plan-aim.on, .plan-aim:hover, .plan-aim:focus-visible { color: var(--accent); }
   .plan-aim:focus { outline: none; }
   .plan-aim:focus-visible { outline: 2px solid var(--accent); outline-offset: -6px; border-radius: var(--r-sm); }
@@ -1644,6 +1700,46 @@ const FACE_MIN_SHARE = 0.015;
 const FACE_MAX_SHARE = 0.45;
 const FACE_MIN_FOCUS = 0.5;   /* 1 = every skin pixel in one direction */
 
+/* ---------- the arm punch ----------
+
+   The one direction on an inspection nobody has to infer, because somebody
+   stated it: at each stop the photographer punches an arm out the way the walk
+   goes on, and the 360 camera over their head records it. Every other reading
+   in this file is archaeology on what happened to be in frame. This one is a
+   person pointing.
+
+   What it looks like in an equirectangular frame is specific enough to test
+   for. The operator is underfoot, so a raised arm leaves the body somewhere
+   near the nadir and CLIMBS toward the horizon at one azimuth, ending in a
+   fist. So the shape is: skin, in one narrow range of columns, running from
+   the underfoot line most of the way up to eye level, and still several
+   columns wide where it stops.
+
+   ponytail: the same warm-and-not-grey colour rule the facing reader uses —
+   no limb model, no pose estimation. What is actually detected is "a narrow
+   vertical streak of skin-coloured pixels climbing out of the nadir", so a
+   scaffold pole in bare timber, a rusted hanger or a bare forearm resting on
+   a parapet can all present the same shape. Three things keep it honest: the
+   streak has to CLIMB (a deck does not), it has to be narrow (a timber soffit
+   is skin-coloured all the way round), and the strength below has to clear
+   ARM_MIN_STRENGTH before anything acts on it. Those four numbers are the
+   field-tuning knobs; a real pose model is the upgrade path if a site starts
+   reading wrong. The fist is not found separately — a hand is a few degrees
+   at arm's length and the width test is what stands in for it. */
+const ARM_TOP_ALT = -8;         /* an arm held out level, near enough */
+const ARM_MIN_SHARE = 0.3;      /* of the band's rows, before a column counts */
+/* narrower than this is a finger of rust, wider is a wall in a warm colour */
+const ARM_MIN_DEG = 8;
+const ARM_MAX_DEG = 70;
+/* How much of the band, bottom to top, the skin has to climb. This is the test
+   that separates an arm from everything else warm on a bridge: rust, timber and
+   dry soil all sit where they sit, and none of them reaches out of the nadir. */
+const ARM_MIN_REACH = 0.5;
+/* "Overwhelming evidence", as the one number everything downstream reads.
+   Below this the photo keeps whatever the walk suggested and the arm is not
+   mentioned; above it, a person pointing beats an inference every time. */
+const ARM_MIN_STRENGTH = 0.55;
+
 /* How far a pixel has to depart from the deck's own colour to count as
    something standing on it, and how much of a column has to depart before the
    column counts. Brightness OR saturation, never darkness — a shadow is the
@@ -1677,6 +1773,16 @@ function panoProfile(image, { hFov = 360, tilt = 0 } = {}) {
   const lum = (x, y) => {
     const i = (y * W + x) * 4;
     return 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
+  };
+  /* Warm, not grey, not red-on-black. Hoisted out of the facing reader because
+     the arm punch below asks the same question of the same pixels — two copies
+     of a colour rule drift apart, and then the two readings disagree about
+     whether the same operator is in shot. */
+  const isSkin = (x, y) => {
+    const i = (y * W + x) * 4;
+    const r = d[i], g = d[i + 1], b = d[i + 2];
+    return !(r < SKIN_MIN_RED || g < 40 || b < 20 || r <= b || r - g < SKIN_MIN_WARMTH
+      || Math.max(r, g, b) - Math.min(r, g, b) <= 15);
   };
   const rowAt = deg => clamp(Math.round(H * (0.5 - (deg - tilt) / vFov)), 0, H - 1);
   const altAt = row => tilt + vFov * (0.5 - (row + 0.5) / H);
@@ -1795,10 +1901,7 @@ function panoProfile(image, { hFov = 360, tilt = 0 } = {}) {
       let sx = 0, sy = 0, n = 0;
       for (let y = top; y < H; y++) {
         for (let x = 0; x < W; x++) {
-          const i = (y * W + x) * 4;
-          const r = d[i], g = d[i + 1], b = d[i + 2];
-          if (r < SKIN_MIN_RED || g < 40 || b < 20 || r <= b || r - g < SKIN_MIN_WARMTH
-            || Math.max(r, g, b) - Math.min(r, g, b) <= 15) continue;
+          if (!isSkin(x, y)) continue;
           const th = 2 * Math.PI * (x + 0.5) / W;
           sx += Math.cos(th); sy += Math.sin(th); n++;
         }
@@ -1807,6 +1910,79 @@ function panoProfile(image, { hFov = 360, tilt = 0 } = {}) {
       const focus = n ? Math.hypot(sx, sy) / n : 0;
       if (share >= FACE_MIN_SHARE && share <= FACE_MAX_SHARE && focus >= FACE_MIN_FOCUS) {
         facing = yawAt(((Math.atan2(sy, sx) / (2 * Math.PI)) * W % W + W) % W);
+      }
+    }
+  }
+
+  /* ---- the arm punched out at the way ahead ----
+     See ARM_TOP_ALT and the block above it for the shape this looks for, what
+     else on a bridge can wear that shape, and which of the numbers to turn. */
+  let arm = null;
+  {
+    const top = rowAt(ARM_TOP_ALT);
+    const bot = Math.max(top + 1, rowAt(UNDERFOOT_ALT));
+    const band = bot - top;
+    /* A strip that never looks below the parapet has no nadir for an arm to
+       climb out of. Same guard the facing reader carries, for the same reason:
+       clamping would hand back the last row and every photo would grow an arm
+       along its bottom edge. */
+    if (band >= 4 && altAt(H - 1) < UNDERFOOT_ALT) {
+      const share = new Float64Array(W);
+      const climb = new Float64Array(W);
+      for (let x = 0; x < W; x++) {
+        let n = 0, highest = bot;
+        for (let y = top; y < bot; y++) {
+          if (!isSkin(x, y)) continue;
+          n++;
+          if (y < highest) highest = y;
+        }
+        share[x] = n / band;
+        climb[x] = (bot - highest) / band; /* 1 = the skin reaches eye level */
+      }
+      /* Longest circular run of mostly-skin columns, scanned twice round so an
+         arm held across the 0/360 seam is found as one run rather than two
+         stumps at opposite ends of the frame — the same scan the vehicle finder
+         does, guarding against the same 180-degree error. */
+      let best = null, run = 0;
+      for (let k = 0; k < W * 2; k++) {
+        if (share[k % W] >= ARM_MIN_SHARE) {
+          run++;
+          if (run <= W && (!best || run > best.len)) best = { len: run, end: k };
+        } else run = 0;
+      }
+      const degPer = hFov / W;
+      if (best && best.len * degPer >= ARM_MIN_DEG && best.len * degPer <= ARM_MAX_DEG) {
+        /* weighted by how much skin each column holds, so the bearing lands on
+           the arm itself rather than on the middle of whatever the run picked
+           up at its edges */
+        let sx = 0, sy = 0, reach = 0;
+        for (let i = 0; i < best.len; i++) {
+          const x = (best.end - i + W) % W;
+          const th = 2 * Math.PI * (x + 0.5) / W;
+          sx += Math.cos(th) * share[x]; sy += Math.sin(th) * share[x];
+          if (climb[x] > reach) reach = climb[x];
+        }
+        /* Focus over the WHOLE band, not just the run. A timber soffit is
+           skin-coloured in every direction at once, and without this it would
+           offer up its widest warm patch as somebody pointing. This is the
+           refusal that carries the feature. */
+        let ax = 0, ay = 0, all = 0;
+        for (let x = 0; x < W; x++) {
+          const th = 2 * Math.PI * (x + 0.5) / W;
+          ax += Math.cos(th) * share[x]; ay += Math.sin(th) * share[x]; all += share[x];
+        }
+        const focus = all ? Math.hypot(ax, ay) / all : 0;
+        if (reach >= ARM_MIN_REACH) {
+          arm = {
+            yaw: yawAt(((Math.atan2(sy, sx) / (2 * Math.PI)) * W % W + W) % W),
+            width: +(best.len * degPer).toFixed(1),
+            reach: +reach.toFixed(2),
+            /* the two independent ways this could be wrong, multiplied: how far
+               out of the nadir it actually climbs, and whether it is the only
+               warm thing in the band or merely the widest of many */
+            strength: +(reach * focus).toFixed(2),
+          };
+        }
       }
     }
   }
@@ -1876,7 +2052,7 @@ function panoProfile(image, { hFov = 360, tilt = 0 } = {}) {
     }
   }
 
-  return { W, hFov, wall, floor, sun, person, facing, vehicle };
+  return { W, hFov, wall, floor, sun, person, facing, arm, vehicle };
 }
 
 /* Where the photo suggests you can walk. Reads the bands panoProfile built;
@@ -1921,21 +2097,37 @@ function guessNavigableYaws(profile, count = 3) {
 
 /* Which way a scene should open, off what the photo turned out to contain.
    Yaw 0 is the middle of the file, which is wherever the camera happened to be
-   pointing, so almost anything beats it — but only two readings are worth
+   pointing, so almost anything beats it — but only three readings are worth
    having, in this order:
 
+     arm      somebody punched an arm out at the way ahead. This is the only
+              one of the three that is a STATEMENT rather than an inference, so
+              it outranks both of the others and is the "overwhelming evidence"
+              everything downstream defers to — but only once it clears
+              ARM_MIN_STRENGTH, because a weak arm reading is a warm patch.
      person   somebody in hi-vis standing out in the scene. On an inspection
               they are nearly always at the thing being inspected.
      facing   nobody out there, but whoever held the camera is underfoot, and
               the top of their head says which way they were looking. A worse
-              bet than the first, and still a far better one than the middle of
-              the file.
+              bet than the first two, and still a far better one than the
+              middle of the file.
 
    A hi-vis hit BELOW the underfoot line is the operator, not a second person,
    and gets no vote on bearing at all — it is the one case where the old guess
-   confidently aimed at nothing. Returns null when the photo suggests neither,
-   because "no idea" has to stay one of the answers. */
-function openingView(profile) {
+   confidently aimed at nothing. Returns null when the photo suggests none of
+   them, because "no idea" has to stay one of the answers.
+
+   The arm snaps onto whatever the photo already suggested was walkable, when
+   the caller has that list: a punch is a couple of degrees of shoulder wobble
+   either way, and landing the opening view squarely down the deck rather than
+   at the parapet beside it is exactly what snapToWay is for. It is the only
+   reading that snaps — the other two aim AT something in frame, and nudging
+   them onto a gap in the wall would aim them off it. */
+function openingView(profile, ways) {
+  const a = profile?.arm;
+  if (a && a.strength >= ARM_MIN_STRENGTH) {
+    return { yaw: snapToWay(a.yaw, ways), pitch: 0, from: 'arm' };
+  }
   const p = profile?.person;
   if (p && p.alt > UNDERFOOT_ALT) return { yaw: p.yaw, pitch: 0, from: 'person' };
   if (Number.isFinite(profile?.facing)) return { yaw: profile.facing, pitch: 0, from: 'facing' };
@@ -2583,6 +2775,94 @@ function niceMetres(span) {
   return [5, 2, 1].map(m => m * pow).find(v => v <= raw) || pow;
 }
 
+/* ---------- looking at the map: one transform, three pure functions ----------
+
+   The full-size map used to zoom by growing the plate inside a scrolling box
+   and then correcting the scroll offsets to keep the pointer over the same
+   spot. That correction can only work in an axis that HAS somewhere to scroll,
+   and a scroll box centres its child until the child overflows — so at the one
+   zoom level everybody starts from, neither axis had anywhere to go and the
+   thing under the cursor jumped a hundred and twenty pixels sideways on the
+   first notch. Measured, not guessed. Every symptom people call "clunky" came
+   out of that one structural mismatch: pan lived in the scroll box, zoom lived
+   in the layout, and nothing owned the relationship between them.
+
+   So the map now owns one value instead:
+
+     view = { scale, x, y }   paper pixels -> stage pixels
+     screen = paper * scale + (x, y)
+
+   Everything else is read off that. Pan adds to x and y. Zoom changes scale
+   and rewrites x and y so a chosen screen point keeps the same paper under it.
+   Nothing reads back the result of its own write to decide whether it landed,
+   so there is no measure-apply-measure round trip left to be wrong, and no
+   configuration of window and content in which the anchor stops holding. The
+   only thing still measured is where the stage itself sits on screen, which is
+   an input to the gesture rather than a correction to it.
+
+   These three are the whole of it. They are pure — plain numbers in, a new
+   view out, no element ever touched — which is what puts the arithmetic that
+   used to hide inside an event handler under test instead.
+
+   ponytail: the paper's WIDTH still carries the scale rather than a CSS
+   transform, and that is deliberate rather than left over. Every mark on the
+   plate is sized in pixels and positioned in percentages, so growing the box
+   spreads the photos apart without inflating them, which is the entire point
+   of zooming a crowded plate — and it keeps getBoundingClientRect() the honest
+   answer for the drag, aim and snap handlers, none of which had to change by a
+   character. Pan is a transform, because pan is the gesture that has to hold
+   sixty frames a second; zoom is one layout per step of a discrete gesture.
+   If a plate ever grows enough marks for that layout to show, scaling a
+   transform and baking the size on settle is the upgrade path. */
+const VIEW_MIN_SCALE = 0.2;
+const VIEW_MAX_SCALE = 8;
+/* How much paper may never leave the stage, in screen pixels. The map cannot
+   be thrown away and lost: there is always a corner left to grab and drag
+   back. Bigger than a fingertip, smaller than a photo dot's label. */
+const VIEW_KEEP_PX = 56;
+
+/* Zoom so that whatever paper sits under (px, py) is still under it after.
+
+   Derived rather than fitted: the paper coordinate under the point is
+   (px - x) / scale, and asking for it to land back on px at the new scale
+   gives x' = px - (px - x) * (scale' / scale). One multiply per axis, exact at
+   every scale, and it never needs to know how big the stage or the paper is —
+   which is precisely why it cannot develop the old version's blind spot. */
+function viewZoomAbout(view, px, py, scale, min = VIEW_MIN_SCALE, max = VIEW_MAX_SCALE) {
+  const s = clamp(scale, min, max);
+  const k = s / view.scale;
+  return { scale: s, x: px - (px - view.x) * k, y: py - (py - view.y) * k };
+}
+
+/* Keep `keep` pixels of paper on the stage in both axes, and otherwise leave
+   the view exactly where it was put.
+
+   Deliberately NOT re-centring the axis where the paper already fits. That is
+   the trap the scroll box fell into: centring is a rule about where the paper
+   must be, and a zoom anchored on a point is a rule about where the paper must
+   be, and when both apply the anchor is the one that loses. Free positioning
+   costs nothing and keeps the anchor exact everywhere. */
+function viewClamp(view, paper, stage, keep = VIEW_KEEP_PX) {
+  const span = (size, room) => {
+    const lo = keep - size * view.scale, hi = room - keep;
+    /* zoomed far enough out that the paper is smaller than the margin, so
+       there is no range left to pick from — centre it and say so that way */
+    return lo > hi ? [(room - size * view.scale) / 2, (room - size * view.scale) / 2] : [lo, hi];
+  };
+  const [xlo, xhi] = span(paper, stage.w);
+  const [ylo, yhi] = span(paper, stage.h);
+  return { scale: view.scale, x: clamp(view.x, xlo, xhi), y: clamp(view.y, ylo, yhi) };
+}
+
+/* The whole plate, centred, with room to breathe. What "Fit" and first open
+   both want, and the only place centring is ever correct — because here it is
+   what was asked for rather than something imposed on a gesture. */
+function viewFit(paper, stage, pad = 24, min = VIEW_MIN_SCALE, max = VIEW_MAX_SCALE) {
+  const room = Math.min(stage.w - pad * 2, stage.h - pad * 2);
+  const scale = clamp(room / paper, min, max);
+  return { scale, x: (stage.w - paper * scale) / 2, y: (stage.h - paper * scale) / 2 };
+}
+
 /* Which way a photo looks, as a compass bearing: where the shutter pointed,
    turned by however far the tour swings the view on opening — the same sum the
    viewer's compass needle is drawn from, so the plan and the needle can never
@@ -2612,6 +2892,29 @@ const aimFromPoint = (from, at) =>
    and every one of them would be wrong by twice the opening yaw. */
 const headingForAim = (scene, aim) =>
   +(((((aim - (scene?.view?.yaw || 0)) % 360) + 360) % 360)).toFixed(2);
+
+/* The OTHER way to leave an arrow where somebody dragged it, and the one that
+   changes what the tour actually shows.
+
+   facingBearing is a sum of two things — the bearing the camera pointed, and
+   how far the tour swings the view on opening — so an arrow can be made to
+   point anywhere by moving either term. headingForAim moves the first, which
+   says "the photo was facing a different way than recorded". This moves the
+   second, which says "face the same way, but open looking over there".
+
+   Which of the two is right is not a preference: it is whichever term is a
+   CHOICE rather than a fact. Where a photo already knows its bearing, that
+   bearing is a measurement and the opening view is the choice — so this one
+   is used, the measurement survives untouched, and the preview turns with the
+   arrow. Where the photo knows nothing, there is no frame to express "over
+   there" in and only headingForAim can say anything at all.
+
+   Signed the same way round as headingForAim and in the fence beside it,
+   because the failure is identical and identically invisible: every arrow
+   would still land somewhere entirely plausible and every one of them would
+   be wrong by twice the bearing. */
+const viewYawForAim = (scene, aim) =>
+  +wrap180(aim - (scene?.geo?.heading || 0)).toFixed(2);
 
 /* The dart every photo wears on the plan, drawn once and then only ever
    rotated. Its box is four dot-diameters square with the dot at the centre, so
@@ -2837,6 +3140,64 @@ function deriveHeadings(scenes, pts, cache) {
 
   return out;
 }
+
+/* ---------- opening each photo at the way ahead ----------
+
+   A tour that opens every photo at yaw 0 opens it wherever the camera happened
+   to be held, which on a walk is nobody's decision at all. The readings in
+   panoProfile answer this when somebody is in shot; this answers it the rest
+   of the time, and it needs no compass, no GPS and no pixels.
+
+   The link to the NEXT photo in the walk already carries the angle. The linker
+   chose it from GPS and a compass where those existed, and from the openings
+   the pixels found where they did not — so reading it back turns "which way
+   should this photo open" from an unanswerable question into one the tour has
+   already answered somewhere else. Walk into the photo, and it is looking
+   where you are about to go.
+
+   Capture order IS walk order — the deck loop, then the elevations, then the
+   underside — so "next" means further down the scene list, not nearest on the
+   plan: two photos can stand a metre apart and be forty minutes and one
+   abutment away from each other in the walk.
+
+   ponytail: this inherits whatever the linker knew, which on a tour with no
+   GPS is the strongest opening the pixels found and NOT a resolved
+   ahead-versus-behind. Down a straight deck both directions look equally
+   walkable, so this can open a photo facing back the way you came. Turning one
+   arrow, or punching an arm at the shot, is the fix; a real answer needs the
+   walk direction carried photo to photo through correlateYaw, which is the
+   upgrade path if the flip turns out to be common in the field. */
+function pathAheadYaw(scenes, id) {
+  const list = scenes || [];
+  const i = list.findIndex(s => s.id === id);
+  if (i < 0) return null;
+  const ahead = new Map(list.slice(i + 1).map((s, k) => [s.id, k]));
+  let best = null;
+  for (const h of list[i].hotspots || []) {
+    if (h.type !== 'link' || !h.target || !Number.isFinite(h.yaw)) continue;
+    const k = ahead.get(h.target);
+    /* the nearest one FORWARD, so a photo linked both to its neighbour and to
+       something across the site opens on the neighbour */
+    if (k !== undefined && (best === null || k < best.k)) best = { k, yaw: +wrap180(h.yaw).toFixed(2) };
+  }
+  return best ? best.yaw : null;
+}
+
+/* Which opening views a later pass is allowed to move, and it is the short
+   list on purpose. 'arm' is somebody pointing and 'person' is somebody standing
+   at the thing being inspected — both are readings of what is actually in the
+   photo. 'hand' is a decision with a person's name on it. None of the three
+   may be overwritten by an inference. 'facing' and 'path' ARE inferences, so
+   they have to stay free to move when better evidence turns up, for the same
+   reason a derived heading does.
+
+   A view with no provenance at all is one nothing has ever had an opinion
+   about — but only while it still sits at yaw 0, because a tour saved before
+   this field existed carries hand-set views wearing no tag, and quietly
+   turning those would be the one change nobody could undo by hand. */
+const VIEW_DERIVED = new Set(['facing', 'path']);
+const viewIsFree = s =>
+  VIEW_DERIVED.has(s?.viewFrom) || (!s?.viewFrom && !s?.view?.yaw);
 
 /* The photos the finished tour cannot reach.
 
@@ -3850,8 +4211,8 @@ async function preparePano(file) {
     return {
       thumb, pano, geo, shot, ways, upload, width, height,
       converted: upload !== file, fill: edgeColours(bmp, aspect),
-      prof: packProfile(profile), open: openingView(profile),
-      vehicle: profile?.vehicle || null,
+      prof: packProfile(profile), open: openingView(profile, ways),
+      vehicle: profile?.vehicle || null, arm: profile?.arm || null,
     };
   } finally {
     bmp.close();
@@ -4403,8 +4764,16 @@ async function renderEditor(tourId) {
        the tour that needs correcting, would be the one you cannot correct.
        Every dot carries its id either way: a dot too crowded to pick is still a
        perfectly good place to DROP one, so linking never hits the cap.
-       Read up here as well as at the dots, because the arrows below answer to
-       the same cap for the same reason. */
+
+       The ARROWS are not capped, and used to be. They answered to this number
+       because they were written alongside the dots, not because they crowd the
+       way dots do: a dart's body sits a dot-diameter and a half out from the
+       centre it belongs to and radiates away from the crush, and only the dart
+       path takes hits, never its box. Past twenty-four photos the old rule drew
+       no arrow at all on anything unaimed and let you turn only the one you had
+       selected — so correcting a bearing meant selecting a photo, turning it,
+       selecting the next, and a forty-photo viaduct, which is precisely the
+       tour whose bearings need work, was the one tour you could not work on. */
     const pickable = plan.pts.length <= PLAN_PICKABLE_MAX;
 
     /* ----- which way each photo looks -----
@@ -4420,21 +4789,46 @@ async function renderEditor(tourId) {
        handle nobody can reach is noise, and a filled arrow on a photo that never
        recorded a heading would be the plate asserting a direction it does not
        know — the exact claim the old code drew no wedge rather than make. */
-    const aimMark = (p, bear, live) => {
+    const aimMark = (p, bear) => {
       const s = doc.scenes.find(x => x.id === p.id);
       const name = s?.name || 'this photo';
-      const said = bear === null
-        ? `${name} has no bearing yet. Drag this arrow, or press the arrow keys, to say which way it looks.`
-        : `${name} looks ${Math.round(bear)} degrees. Drag this arrow, or press the arrow keys, to change it.`;
-      const hand = bear === null ? '' : ` ${s?.geo?.headingFrom === 'hand' ? 'aimed by hand' : 'from its own compass'}`;
+      /* Where the number came from, in the two words a tooltip has room for.
+         It used to read "aimed by hand" or, for everything else, "from its own
+         compass" — which was a plain untruth on the derived ones, and those are
+         the majority on any tour that had bearings worked out for it. */
+      const src = {
+        hand: 'aimed by hand', sun: 'from the sun', magnetic: 'from a magnetic compass',
+        match: 'carried from a photo sharing this view', plan: 'read off the map',
+      }[s?.geo?.headingFrom] || 'recorded by the camera';
+      /* The arm punch, said on the plate. It was being acted on and never
+         mentioned anywhere, which is indistinguishable from being ignored. */
+      const punched = s?.viewFrom === 'arm';
+      /* Which of the two things a drag on THIS arrow will do — see setAim. The
+         control looks identical either way, so the only place the difference
+         can be said is here, and leaving it unsaid is how "the arrow does not
+         change the preview" reads as broken rather than as the other half of
+         the feature doing its job. */
+      const settled = headingIsSeed(s);
+      const does = settled
+        ? 'turn what the tour opens on here'
+        : 'say which way this photo faces, which bearings everything sharing its view';
+      const said = [
+        bear === null
+          ? `${name} has no bearing yet.`
+          : `${name} looks ${Math.round(bear)} degrees, ${src}.`,
+        punched ? 'It opens where an arm was punched out in the photo.' : '',
+        `Drag this arrow, or press the arrow keys, to ${does}.`,
+      ].filter(Boolean).join(' ');
       /* one rotation, no path arithmetic: the dart is drawn pointing north and
          a bearing IS its angle, so turning one mid-drag is a single transform */
-      const mark = el(`<button class="plan-aim${p.id === curSceneId ? ' on' : ''}${bear === null ? ' unset' : ''}"
-        data-aim-id="${esc(p.id)}" ${live
-          ? `role="slider" aria-valuemin="0" aria-valuemax="359" aria-valuenow="${Math.round(bear ?? 0)}"
-             aria-label="${esc(said)}" title="${esc(bear === null
-               ? 'Not aimed yet — drag to turn' : `${Math.round(bear)}°${hand} — drag to turn`)}"`
-          : 'tabindex="-1" aria-hidden="true"'}
+      const mark = el(`<button class="plan-aim${p.id === curSceneId ? ' on' : ''}${bear === null ? ' unset' : ''}${punched ? ' punched' : ''}"
+        data-aim-id="${esc(p.id)}"
+        role="slider" aria-valuemin="0" aria-valuemax="359" aria-valuenow="${Math.round(bear ?? 0)}"
+        aria-label="${esc(said)}" title="${esc([
+          bear === null ? 'Not aimed yet' : `${Math.round(bear)}° — ${src}`,
+          punched ? 'opens at a punched arm' : '',
+          settled ? 'drag to turn what the tour shows' : 'drag to set which way it faces',
+        ].filter(Boolean).join(' · '))}"
         style="left:${(p.u * 100).toFixed(2)}%;top:${(p.v * 100).toFixed(2)}%"
         ><svg viewBox="0 0 100 100" aria-hidden="true"><path d="${AIM_DART}"/></svg></button>`);
       mark.style.transform = `translate(-50%, -50%) rotate(${bear ?? 0}deg)`;
@@ -4486,16 +4880,13 @@ async function renderEditor(tourId) {
       if (line) cutLink(line.dataset.a, line.dataset.b);
     });
 
-    /* Arrows before dots, so a defect badge is never buried under one — and
-       they answer to the same crowding cap the dots do, since a plate too
-       packed to pick from is not one you can aim without mis-hitting. */
+    /* Arrows before dots, so a defect badge is never buried under one. Every
+       photo gets one and every one of them turns, whatever the count — see the
+       cap above for why these do not answer to it. */
     for (const p of plan.pts) {
-      const bear = facingBearing(doc.scenes.find(x => x.id === p.id));
-      const live = pickable || p.id === curSceneId;
-      if (bear === null && !live) continue;
-      const mark = aimMark(p, bear, live);
+      const mark = aimMark(p, facingBearing(doc.scenes.find(x => x.id === p.id)));
       box.append(mark);
-      if (live) makeAimable(mark, box, p);
+      makeAimable(mark, box, p);
     }
 
     const defects = defectCounts(doc);
@@ -4569,6 +4960,8 @@ async function renderEditor(tourId) {
     const counts = plan.pts.reduce((a, p) => (a[p.kind]++, a), { gps: 0, manual: 0, guess: 0 });
     const aimed = plan.pts.filter(p => facingBearing(doc.scenes.find(s => s.id === p.id)) !== null).length;
     const handAimed = doc.scenes.filter(s => s.geo?.headingFrom === 'hand').length;
+    const punched = doc.scenes.filter(s => s.viewFrom === 'arm').length;
+    const ahead = doc.scenes.filter(s => s.viewFrom === 'path').length;
     const marked = [...defects.values()].reduce((a, n) => a + n, 0);
     const lostCount = doc.scenes.length > 1 ? stray.size : 0;
     /* What you can DO is a different kind of sentence from what the plate is
@@ -4579,7 +4972,9 @@ async function renderEditor(tourId) {
         ? 'Drag a photo to where it stood; move-only is on, so dropping it on another will not link them. '
           + 'Click a link to cut it. '
         : 'Drag a photo to where it stood, drop it on another to connect the two, or click a link to cut it. ')
-        + 'Each photo carries an arrow for the way it looks — drag the arrow to turn it. '
+        + 'Each photo carries an arrow for the way it looks: drag one and that photo opens looking there. '
+        + 'On a hollow arrow, where the photo does not know its bearing yet, the drag says which way the '
+        + 'photo faces instead, and everything sharing its view follows. '
         + 'The arrow keys nudge a selected photo and turn a selected arrow; hold Shift for bigger steps.';
     }
     note.textContent = [
@@ -4616,10 +5011,24 @@ async function renderEditor(tourId) {
           + 'with it follows.'
         : 'Every photo knows which way it faces — turn an arrow and whatever was derived from it follows.',
       handAimed ? `${handAimed} aimed by hand.` : '',
+      /* The punch, counted where the arrows are. It was being read off the
+         pixels and acted on with nothing anywhere to say it had happened, so
+         from the field it was indistinguishable from a feature that did not
+         work — which is the report that started this. */
+      punched
+        ? `${punched} open${punched === 1 ? 's' : ''} where an arm was punched out at the way ahead — `
+          + 'drawn heavier, and the surest direction on this plate because somebody stated it. '
+          + 'Drag one if it read the wrong warm thing.'
+        : '',
+      ahead
+        ? `${ahead} open along the walk, which is a guess at where you go next rather than a bearing — `
+          + 'down a straight deck it cannot tell ahead from behind, so turn any that opens backwards.'
+        : '',
       plan.vehicle
         ? `The truck is plant on the deck, crossed from ${plan.vehicle.from} photos that saw it — a guess at a big bright object, so check it is a truck and not a skip.`
         : '',
-      pickable ? '' : 'Too many to pick up at this size — use Ctrl+K to jump, then drag the highlighted dot. Any dot can still be dropped on.',
+      pickable ? '' : 'Too many DOTS to pick up at this size — use Ctrl+K to jump, then drag the highlighted one. '
+        + 'Any dot can still be dropped on, and every arrow still turns.',
       /* said once, when it happens, rather than left as a silent disappearance */
       planLabels === null && labelMode === 'none'
         ? `Names are off above ${PLAN_LABEL_MAX} photos because they overlap into a smear — the map header puts them back, or swaps them for the station or the photo stop.`
@@ -4712,17 +5121,56 @@ async function renderEditor(tourId) {
   const AIM_STEP = 5;     /* degrees per arrow key; Shift multiplies it */
   const AIM_STEP_BIG = 15;
 
+  /* ----- one arrow, two meanings, told apart by what the photo already knows --
+
+     Turning an arrow used to always rewrite the photo's compass bearing and
+     never touch its opening view. On a photo that already had a bearing that
+     was two wrongs at once: it overwrote a measurement with a guess, and it
+     left the tour opening on exactly the same pixels as before — so the arrow
+     moved on the plate and the preview did not move at all, which is the
+     report this fixes. The plate said "the way it looks"; the tour looked the
+     other way; both were reading the same two numbers.
+
+     The split is not a preference. facingBearing is a SUM — where the camera
+     pointed, plus how far the tour swings the view on opening — so an arrow
+     can be aimed by moving either term, and the right one to move is whichever
+     is a choice rather than a fact:
+
+       settled   The photo knows which way it faces, and that is a measurement
+                 or something already decided by hand. So the arrow is a choice
+                 about where to LOOK: the view absorbs it, the bearing is left
+                 alone, and the preview turns with the arrow.
+       unsettled No bearing, or one derived from its neighbours. There is no
+                 frame in which "over there" means a part of THIS photo, so the
+                 only thing a drag can say is which way the photo faces — and
+                 saying it makes this photo a seed, which is what lets one
+                 hand-aimed arrow bearing a whole walk.
+
+     headingIsSeed is exactly that line and already existed, so this reads it
+     rather than inventing a second, subtly different one. A derived bearing
+     has to take the second path or a hand-turned arrow would not even stay
+     put: leave the derived number alone and the next pass over the evidence
+     moves it, and the arrow swings away from where it was dropped.
+
+     Gone with it: the headingWas rescue. It existed because a drag could
+     silently delete a measured bearing, and a measured bearing is now
+     structurally never touched. The scene panel still reads the field, so
+     tours that already carry one still explain themselves. */
   function setAim(s, aim) {
     if (!s) return;
     s.geo = s.geo || {};
-    /* A bearing the camera measured is a fact, and a drag must not silently
-       delete it. Kept alongside the way a solar heading is kept beside a
-       magnetic one, so the scene panel can show both and the inspector can see
-       what they overruled — first overwrite only, since after that the number
-       being replaced is their own. */
-    if (Number.isFinite(s.geo.heading) && s.geo.headingFrom !== 'hand'
-      && !Number.isFinite(s.geo.headingWas)) {
-      s.geo.headingWas = s.geo.heading;
+    if (headingIsSeed(s)) {
+      s.view = { ...(s.view || {}), yaw: viewYawForAim(s, aim), pitch: s.view?.pitch ?? 0 };
+      s.viewFrom = 'hand'; /* a decision, so nothing derived may turn it back */
+      scheduleSave();
+      /* Show it happen on the photo itself when it is the one open. Watching
+         the panorama swing is the feedback that says the drag reached the
+         tour, rather than only the plate — and it is the same rotate a scene
+         switch does, for the same reason. */
+      if (s.id === curSceneId) {
+        editorViewer?.rotate({ yaw: s.view.yaw * DEG, pitch: (s.view.pitch || 0) * DEG });
+      }
+      return;
     }
     s.geo.heading = headingForAim(s, aim);
     s.geo.headingFrom = 'hand';
@@ -4973,9 +5421,68 @@ async function renderEditor(tourId) {
      hand re-aims everything downstream of it instead of leaving a photo
      pointing at an answer its own source has since moved away from. */
   const turnCache = new Map();
+
+  /* The default the arm punch is the exception to: any photo with nothing
+     better to go on opens facing the way the walk carries on from it. See
+     pathAheadYaw in the fence for where that angle comes from and what it
+     inherits. */
+  function fillStartViews() {
+    let opened = 0;
+    for (const s of doc.scenes) {
+      if (!viewIsFree(s)) continue;
+      /* The plan arrow is heading + view.yaw, so turning a photo's opening view
+         turns its arrow with it. That is the right behaviour and it is exactly
+         why a photo somebody has already aimed by hand must not have its view
+         moved out from under it — the arrow would drift off the doorway they
+         pointed it at, and nothing on screen would say why. */
+      if (s.geo?.headingFrom === 'hand') continue;
+      const ahead = pathAheadYaw(doc.scenes, s.id);
+      if (ahead === null) continue;
+      const was = s.view?.yaw ?? 0;
+      /* an unchanged answer costs no save and leaves no empty step in Undo,
+         same rule deriveHeadings applies to a bearing it agrees with */
+      if (s.viewFrom === 'path' && Math.abs(wrap180(was - ahead)) < 0.01) continue;
+      s.view = { ...(s.view || {}), yaw: ahead, pitch: s.view?.pitch ?? 0 };
+      s.viewFrom = 'path';
+      opened++;
+    }
+    return opened;
+  }
+
+  /* ----- saying so while it happens -----
+
+     deriveHeadings correlates every pair of photos the first time a tour is
+     opened: a second or so at forty photos, on the main thread. Up to now that
+     second looked exactly like nothing happening, and every caller but two
+     passed quiet, so the passes that run while you work said nothing at either
+     end. "The guess does not seem to have been made" was the accurate reading
+     of a screen that never once mentioned it.
+
+     Deferring the work by a tick rather than making this async is what lets the
+     line paint before the loop starts, and it costs no call site an await. It
+     coalesces too: a burst of arrow-key nudges wants ONE pass over the
+     evidence, not one per keystroke racing the others to write the answer. */
+  let fillTimer = null;
+  let fillQuiet = true;
   function fillBearings({ quiet = false } = {}) {
+    /* Coalescing must not swallow the voice. addScenes auto-links (quiet) and
+       then asks for the report, so treating the second call as a duplicate of
+       the first would fold the whole answer into silence — which is the bug
+       this function exists to fix, reintroduced by the fix. A pass speaks if
+       any call that merged into it wanted it to. */
+    fillQuiet = fillTimer ? fillQuiet && quiet : quiet;
+    if (fillTimer) return;
+    if (doc.scenes.length > 1) setStatus('saving', 'Working out which way each photo looks…');
+    fillTimer = setTimeout(() => { fillTimer = null; runFill({ quiet: fillQuiet }); }, 0);
+  }
+
+  /* Back to whatever the save state actually is. Only needed on the path where
+     nothing changed, since anything that did ends in scheduleSave. */
+  const settleStatus = () => setStatus(dirty || saveTimer ? 'saving' : '',
+    dirty || saveTimer ? 'Unsaved changes…' : 'Saved');
+
+  function runFill({ quiet = false } = {}) {
     const found = deriveHeadings(doc.scenes, planPositions(doc.scenes)?.pts, turnCache);
-    if (!found.length) return 0;
     for (const f of found) {
       const s = doc.scenes.find(x => x.id === f.id);
       if (!s) continue;
@@ -4991,6 +5498,22 @@ async function renderEditor(tourId) {
       s.geo.heading = f.heading;
       s.geo.headingFrom = f.from;
     }
+    const opened = fillStartViews();
+    if (!found.length && !opened) {
+      /* A pass that found nothing has to say so out loud. "No bearing could be
+         worked out" and "nobody ever looked" are the same blank plate
+         otherwise, and on a walk with no GPS and no shared views the answer is
+         the first one every single time — which is a thing to act on, not a
+         silence to wonder about. */
+      settleStatus();
+      if (!quiet) {
+        toast(doc.scenes.length < 2
+          ? 'Add a second photo and the directions start filling themselves in'
+          : 'Nothing new could be worked out from these photos. Turn one arrow on the map by hand and '
+            + 'everything that shares a view with it follows — or punch an arm at the way ahead in the next shot.');
+      }
+      return 0;
+    }
     scheduleSave();
     renderPlan();
     renderSceneMeta();
@@ -4999,11 +5522,13 @@ async function renderEditor(tourId) {
       const how = [
         byMatch ? `${byMatch} carried along shared views` : '',
         found.length - byMatch ? `${found.length - byMatch} read off the plan` : '',
+        opened ? `${opened} opened at the way ahead` : '',
       ].filter(Boolean).join(', ');
-      toast(`Worked out ${found.length} bearing${found.length === 1 ? '' : 's'} — ${how}. `
-        + 'Turn any arrow that looks wrong; Ctrl+Z undoes the lot');
+      toast(`${found.length
+        ? `Worked out ${found.length} bearing${found.length === 1 ? '' : 's'}`
+        : 'Aimed the walk'} — ${how}. Turn any arrow that looks wrong; Ctrl+Z undoes the lot`);
     }
-    return found.length;
+    return found.length + opened;
   }
 
   /* One persistent line rather than a toast per file. A toast erases the one
@@ -5044,7 +5569,7 @@ async function renderEditor(tourId) {
           `<progress max="${total}" value="${done}"></progress>`
         : `Uploading ${esc(file.name)}…`;
       try {
-        const { thumb, pano, geo, shot, ways, upload, width, height, converted, fill, prof, open, vehicle } = await preparePano(file);
+        const { thumb, pano, geo, shot, ways, upload, width, height, converted, fill, prof, open, vehicle, arm } = await preparePano(file);
         const panoName = await uploadFile(doc.id, upload);
         const thumbName = await uploadFile(doc.id, new File([thumb], 'thumb.jpg', { type: 'image/jpeg' }));
         const scene = {
@@ -5067,6 +5592,10 @@ async function renderEditor(tourId) {
         if (ways?.length) scene.ways = ways; /* directions the photo suggests are open */
         if (prof) scene.prof = prof; /* the two bands, for matching this photo against its neighbours */
         if (vehicle) scene.vehicle = vehicle; /* which way the plant on the deck lies from here */
+        /* kept even when it was too weak to act on, so the scene panel can say
+           "an arm was seen but not believed" rather than saying nothing and
+           leaving somebody wondering whether the punch registered at all */
+        if (arm) scene.arm = arm;
         doc.scenes.push(scene);
         if (doc.scenes.length === 1) {
           doc.settings.startScene = scene.id;
@@ -5461,7 +5990,14 @@ async function renderEditor(tourId) {
         if (!s) return;
         const p = editorViewer.getPosition();
         s.view = { yaw: +(p.yaw / DEG).toFixed(2), pitch: +(p.pitch / DEG).toFixed(2), zoom: Math.round(editorViewer.getZoomLevel()) };
-        delete s.viewFrom; /* a person chose it, so stop calling it a guess */
+        /* Tagged rather than untagged. It used to delete the field, which read
+           as "a person chose it" — but a photo nothing ever had an opinion
+           about carries no tag either, and once the walk started filling
+           opening views in, those two became indistinguishable and a view
+           somebody had set by hand could be quietly turned back. Same word the
+           bearings use for the same thing, and renderSceneMeta has no sentence
+           for it, so it still prints nothing. */
+        s.viewFrom = 'hand';
         toast('Start view saved for this scene');
         scheduleSave();
         renderSceneShape();
@@ -5514,6 +6050,17 @@ async function renderEditor(tourId) {
       showLoader: true,
       panoData: panoDataFor(s),
     });
+    /* Show the photo the way the tour will. setPanorama carries the previous
+       scene's camera angle over, so the editor spent every scene change looking
+       wherever the LAST photo had been left — the stored opening view was
+       invisible here, and the walk read as though nothing had been aimed.
+
+       Worse, and the reason this is a fix rather than a nicety: "Set start view
+       from here" saves the live camera. With the old angle carried in, pressing
+       it on the photo you just opened saved the previous photo's direction over
+       a perfectly good one, and nothing on screen said so. The runtime viewer
+       has always done this on node-changed; the editor simply never did. */
+    editorViewer.rotate({ yaw: (s.view?.yaw || 0) * DEG, pitch: (s.view?.pitch || 0) * DEG });
     refreshMarkers();
   }
 
@@ -5608,14 +6155,224 @@ async function renderEditor(tourId) {
      close. renderPlan() re-runs after each move because the declutter pass
      spaces crowded dots in pixels, and the right spacing at 288px is not the
      right spacing at 900px. */
+  /* ----- flying the stage -----
+
+     The three pure functions in the fence decide WHERE the view goes; this
+     decides when. It is the only code that writes to the paper, and it writes
+     in exactly one place (draw), so there is no second path that can leave the
+     element and the view disagreeing about where the map is.
+
+     Two speeds, and the distinction is the whole feel of the thing:
+
+       direct    a finger, a trackpad, a wheel. Applied on the frame it arrives
+                 and never eased — easing a drag is the same as adding lag to
+                 it, and the map stops feeling attached to the hand.
+       commanded a button, a key, a double-click. Eased over 220ms, because
+                 nothing is holding on to the map and a jump cut costs the
+                 reader the thread of where they were.
+
+     One gesture handler covers one finger, two fingers and a mouse: pan by how
+     far the middle of the contacts moved, zoom by how much they spread. With a
+     single pointer the spread is zero and the zoom term drops out on its own,
+     so there is no mode to enter, leave, or get stuck in. */
+  const ZOOM_PER_PX = 0.0015;  /* one mouse notch is about 16%, a pinch is smooth */
+  const ZOOM_STEP = 1.4;       /* one press of + or -; a double-click is the same */
+  const PAN_STEP = 64;         /* one arrow key, in screen pixels */
+
+  function createMapViewport(stage, paper, { base, onScale }) {
+    let view = { scale: 1, x: 0, y: 0 };
+    let frame = 0, tween = 0;
+    /* where the stage sits on screen, so a client coordinate can be turned into
+       a stage one. Re-read at the start of each gesture rather than held: the
+       drawer, the window and the sidebar can all move it between gestures. */
+    let originX = 0, originY = 0;
+    const syncOrigin = () => { const r = stage.getBoundingClientRect(); originX = r.left; originY = r.top; };
+    const stageSize = () => ({ w: stage.clientWidth, h: stage.clientHeight });
+    const middle = () => ({ x: stage.clientWidth / 2, y: stage.clientHeight / 2 });
+
+    const draw = () => {
+      frame = 0;
+      const px = `${(base * view.scale).toFixed(2)}px`;
+      paper.style.width = px;
+      paper.style.height = px;
+      paper.style.transform = `translate3d(${view.x.toFixed(2)}px, ${view.y.toFixed(2)}px, 0)`;
+      onScale?.(view.scale);
+    };
+    /* Every change to the view goes through here: clamped once, drawn once, on
+       the next frame. A burst of wheel events in one frame costs one paint.
+
+       `now` is for the changes that are not a burst — the first view, and a
+       resize. Batching those buys nothing and costs a frame in which the paper
+       has no size at all, which the plate renders as a two-pixel stub: a
+       visible collapse on every open, and a permanent one if the map is opened
+       while the tab is in the background and no frame is coming. */
+    const set = (next, now = false) => {
+      view = viewClamp(next, base, stageSize());
+      if (now) { cancelAnimationFrame(frame); frame = 0; draw(); return; }
+      if (!frame) frame = requestAnimationFrame(draw);
+    };
+    const stop = () => { cancelAnimationFrame(tween); tween = 0; };
+    const REDUCED = matchMedia('(prefers-reduced-motion: reduce)');
+    const easeOutQuart = t => 1 - Math.pow(1 - t, 4);
+    const glide = to => {
+      stop();
+      if (REDUCED.matches) { set(to); return; }
+      const from = view, t0 = performance.now();
+      const step = now => {
+        const k = easeOutQuart(Math.min(1, (now - t0) / 220));
+        set({
+          scale: from.scale + (to.scale - from.scale) * k,
+          x: from.x + (to.x - from.x) * k,
+          y: from.y + (to.y - from.y) * k,
+        });
+        tween = k < 1 ? requestAnimationFrame(step) : 0;
+      };
+      tween = requestAnimationFrame(step);
+    };
+
+    const fit = ({ animate = false } = {}) => {
+      syncOrigin();
+      const to = viewFit(base, stageSize());
+      animate ? glide(to) : set(to, true);
+    };
+    const zoomAt = (px, py, scale, animate) => {
+      const to = viewZoomAbout(view, px, py, scale);
+      animate ? glide(to) : set(to);
+    };
+    const zoomStep = k => { const m = middle(); zoomAt(m.x, m.y, view.scale * k, true); };
+
+    /* ----- pointers ----- */
+    const pointers = new Map();
+    let last = null;
+    const contacts = () => {
+      const ps = [...pointers.values()];
+      const x = ps.reduce((a, p) => a + p.x, 0) / ps.length;
+      const y = ps.reduce((a, p) => a + p.y, 0) / ps.length;
+      return { x, y, spread: ps.length > 1 ? Math.hypot(ps[0].x - ps[1].x, ps[0].y - ps[1].y) : 0 };
+    };
+    /* A mark owns its own drag: the dot moves a photo, the dart turns one, the
+       hairline cuts a link. None of those is a pan, and the stage must not
+       start one underneath them. */
+    const onMark = t => !!t?.closest?.('.plan-dot, .plan-aim, .plan-cuts line, .map-keys');
+
+    stage.addEventListener('pointerdown', e => {
+      if (onMark(e.target)) return;
+      if (e.pointerType === 'mouse' && e.button !== 0 && e.button !== 1) return;
+      e.preventDefault();
+      stop();
+      syncOrigin();
+      /* capture so a pan that leaves the stage keeps running — it is the one
+         gesture people habitually drag past the edge of the window */
+      try { stage.setPointerCapture(e.pointerId); } catch { /* the pan still works */ }
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      last = contacts();
+      stage.classList.add('panning');
+      stage.focus({ preventScroll: true }); /* so the arrow keys land here next */
+    });
+
+    stage.addEventListener('pointermove', e => {
+      if (!pointers.has(e.pointerId)) return;
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      const now = contacts();
+      const panned = { scale: view.scale, x: view.x + (now.x - last.x), y: view.y + (now.y - last.y) };
+      /* spread is 0 with one contact, so this whole term vanishes rather than
+         needing a branch, and a pinch pans and zooms in the same breath */
+      set(now.spread && last.spread
+        ? viewZoomAbout(panned, now.x - originX, now.y - originY, view.scale * (now.spread / last.spread))
+        : panned);
+      last = now;
+    });
+
+    const release = e => {
+      if (!pointers.delete(e.pointerId)) return;
+      /* lifting one finger of a pinch must not read as a jump: the remaining
+         contact becomes the new reference rather than being compared against
+         the pair's old middle */
+      last = pointers.size ? contacts() : null;
+      if (!pointers.size) stage.classList.remove('panning');
+    };
+    stage.addEventListener('pointerup', release);
+    stage.addEventListener('pointercancel', release);
+
+    /* A trackpad pinch arrives as a wheel with ctrlKey set — the browser
+       synthesises it — so one handler is both the pinch and Ctrl+wheel. Plain
+       wheel pans in BOTH axes, which is what a map does and what a scroll box
+       could never do: it only ever offered the vertical one without Shift. */
+    stage.addEventListener('wheel', e => {
+      e.preventDefault();
+      stop();
+      syncOrigin();
+      /* Firefox reports a mouse wheel in LINES and a page key in PAGES. Taking
+         the raw number on faith makes one notch nearly nothing there and right
+         in Chrome, which is the bug that gets shipped because it works on the
+         machine it was written on. */
+      const unit = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? stage.clientHeight : 1;
+      const dy = e.deltaY * unit;
+      if (e.ctrlKey || e.metaKey) {
+        zoomAt(e.clientX - originX, e.clientY - originY, view.scale * Math.exp(-dy * ZOOM_PER_PX));
+      } else {
+        set({ scale: view.scale, x: view.x - e.deltaX * unit, y: view.y - dy });
+      }
+    }, { passive: false });
+
+    stage.addEventListener('dblclick', e => {
+      if (onMark(e.target)) return;
+      syncOrigin();
+      zoomAt(e.clientX - originX, e.clientY - originY,
+        view.scale * (e.altKey || e.shiftKey ? 1 / ZOOM_STEP : ZOOM_STEP), true);
+    });
+
+    /* The whole map from the keyboard, because a pointer is not the only way in
+       and a plate you can only fly with a trackpad is a plate some people
+       cannot use. Marks stop their own keys before this sees them, so aiming an
+       arrow never also pans the stage. */
+    stage.addEventListener('keydown', e => {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      const nudge = { ArrowLeft: [1, 0], ArrowRight: [-1, 0], ArrowUp: [0, 1], ArrowDown: [0, -1] }[e.key];
+      if (nudge) {
+        e.preventDefault();
+        const d = PAN_STEP * (e.shiftKey ? 3 : 1);
+        set({ scale: view.scale, x: view.x + nudge[0] * d, y: view.y + nudge[1] * d });
+        return;
+      }
+      if (e.key === '+' || e.key === '=') { e.preventDefault(); zoomStep(ZOOM_STEP); }
+      else if (e.key === '-' || e.key === '_') { e.preventDefault(); zoomStep(1 / ZOOM_STEP); }
+      else if (e.key === '0') { e.preventDefault(); const m = middle(); zoomAt(m.x, m.y, 1, true); }
+      else if (e.key === 'f' || e.key === 'F') { e.preventDefault(); fit({ animate: true }); }
+    });
+
+    /* A window that narrows must not strand the plate off the side of a stage
+       that no longer reaches it. Re-clamping the view it already has is the
+       whole fix, and it leaves a deliberate position deliberate. */
+    const watch = new ResizeObserver(() => { syncOrigin(); set(view, true); });
+    watch.observe(stage);
+
+    return {
+      fit,
+      zoomStep,
+      reset: () => { const m = middle(); zoomAt(m.x, m.y, 1, true); },
+      destroy: () => { stop(); cancelAnimationFrame(frame); watch.disconnect(); },
+    };
+  }
+
   const mapOpen = () => document.querySelector('.map-view');
+  let mapViewport = null;
   function toggleMap(want = !mapOpen()) {
     const plan = document.getElementById('plan-section');
     if (!plan) return;
     if (!want) {
       const ov = mapOpen();
       if (!ov) return;
+      /* Put the plate back in its own slot before the section goes home, or it
+         would travel back to the sidebar without the drawing it exists to show.
+         Both ends are reached through their own subtree for the same reason the
+         open path is: whichever of the two is detached at the time, an id
+         lookup against the document would miss it. */
+      const plate = ov.querySelector('#plan-box');
+      if (plate) plan.querySelector('#plan-note').before(plate);
       document.getElementById('link-summary').after(plan);
+      mapViewport?.destroy();
+      mapViewport = null;
       ov.remove();
       renderPlan();
       document.getElementById('open-map')?.focus();
@@ -5631,7 +6388,7 @@ async function renderEditor(tourId) {
           <li><span class="lg lg-manual" aria-hidden="true"></span>placed by hand</li>
           <li><span class="lg lg-on" aria-hidden="true"></span>the photo you are editing</li>
           <li><span class="lg lg-stray" aria-hidden="true"></span>not in the walk yet</li>
-          <li><span class="lg lg-aim" aria-hidden="true"></span>which way it looks — drag to turn</li>
+          <li><span class="lg lg-aim" aria-hidden="true"></span>which way it looks — drag to turn what the tour shows</li>
         </ul>
         <label class="map-opt">Labels
           <select aria-label="What each photo is labelled with">
@@ -5644,76 +6401,35 @@ async function renderEditor(tourId) {
         <label class="map-opt" title="Dragging a photo onto another will not link them">
           <input type="checkbox" id="map-moveonly"> Move only
         </label>
-        <label class="map-zoom" title="Pinch on a trackpad, or Ctrl+scroll, to zoom about the pointer">Zoom
-          <input type="range" min="1" max="4" step="0.25" value="1" aria-label="Zoom the map">
-        </label>
+        <div class="map-zoom">
+          <button type="button" class="icon-btn" data-zoom="out" title="Zoom out (−)" aria-label="Zoom out">&minus;</button>
+          <output title="Zoom level — press to go back to 100%" role="button" tabindex="0"
+                  aria-live="polite" aria-label="Zoom, 100 percent. Press to reset.">100%</output>
+          <button type="button" class="icon-btn" data-zoom="in" title="Zoom in (+)" aria-label="Zoom in">+</button>
+          <button type="button" class="btn map-fit" title="Show the whole walk (F)">Fit</button>
+        </div>
         <button class="btn map-close" title="Back to editing (Esc)">Back to editing</button>
       </header>
-      <div class="map-scroll"><div class="map-sheet"></div></div>
+      <div class="map-body">
+        <div class="map-stage" tabindex="0" role="group"
+             aria-label="The walk, as a map. Drag to move it. Arrow keys pan, plus and minus zoom, F fits the whole walk.">
+          <div class="map-paper"></div>
+          <p class="map-keys">Drag to move · scroll to pan · pinch or Ctrl+scroll to zoom · double-click to zoom in</p>
+        </div>
+        <aside class="map-aside"></aside>
+      </div>
     </div>`);
-    ov.querySelector('.map-sheet').append(plan);
+    ov.querySelector('.map-aside').append(plan);
     plan.open = true;
-    /* ----- zooming -----
-       The plate is percentages all the way down, so zooming is one custom
-       property and the scroll box handles the rest — no re-render, no
-       re-layout of anything on it.
+    /* The plate is a place and the note is a caption, so only the plate goes on
+       the stage. It is the same element the sidebar uses either way, which is
+       what keeps renderPlan, every drag handler and Undo working across the
+       move without knowing the map exists.
 
-       Zoom about a POINT, though, or it is not zooming, it is resizing. The
-       thing under the cursor has to still be under the cursor afterwards;
-       without that the plate slides out from under the gesture and a pinch
-       feels like somebody wired a trackpad to a slider. Worked in client
-       coordinates against the plate itself rather than in scroll offsets,
-       because .map-scroll centres its child until it overflows and then stops
-       centring — so the child's position inside the scrolled content is not a
-       constant there is any arithmetic to do with. Measure, apply, measure,
-       correct. */
-    const scroll = ov.querySelector('.map-scroll');
-    const zoomInput = ov.querySelector('.map-zoom input');
-    let mapZoom = 1;
-    const setZoom = (want, ax, ay) => {
-      const z = clamp(want, +zoomInput.min, +zoomInput.max);
-      if (z === mapZoom) return;
-      const plate = document.getElementById('plan-box');
-      if (!plate) return;
-      const was = plate.getBoundingClientRect();
-      /* where the anchor sits on the plate, as a fraction of it — the one
-         thing that must not change */
-      const fx = was.width ? (ax - was.left) / was.width : 0.5;
-      const fy = was.height ? (ay - was.top) / was.height : 0.5;
-      mapZoom = z;
-      ov.style.setProperty('--map-zoom', String(z));
-      zoomInput.value = String(z); /* the slider is the readout as well as the control */
-      const now = plate.getBoundingClientRect();
-      scroll.scrollLeft += now.left - (ax - fx * now.width);
-      scroll.scrollTop += now.top - (ay - fy * now.height);
-    };
-    /* dragging the slider has no pointer to zoom about, so it holds the middle
-       of what you are looking at still, which is the next best anchor */
-    zoomInput.addEventListener('input', e => {
-      const r = scroll.getBoundingClientRect();
-      setZoom(+e.target.value, r.left + r.width / 2, r.top + r.height / 2);
-    });
-    /* A trackpad pinch arrives as a wheel event with ctrlKey set: the browser
-       synthesises it, and it is the same event Ctrl+wheel sends, so one handler
-       is both gestures and neither had to be invented. Everything else stays
-       the browser's — two fingers with no modifier is an ordinary scroll and
-       .map-scroll pans on it for free, which is what every canvas does and what
-       nobody has to be taught.
-
-       passive:false because the default action here is zooming the whole PAGE,
-       which is never what somebody pinching a map meant. Only over the plate,
-       so a pinch on the header is still the browser's.
-
-       ponytail: no touch-pinch handler. On a touchscreen the browser's own
-       two-finger zoom already works and is the affordance people expect;
-       intercepting it to reimplement it worse is the trade nobody wins. */
-    scroll.addEventListener('wheel', e => {
-      if (!e.ctrlKey && !e.metaKey) return;
-      e.preventDefault();
-      /* multiplicative, so a pinch covers the same visual distance per finger
-         travel at 1x as at 4x. 0.012 puts one mouse-wheel notch near 12%. */
-      setZoom(mapZoom * Math.exp(-e.deltaY * 0.012), e.clientX, e.clientY);
-    }, { passive: false });
+       Reached through `plan` and not getElementById: the overlay is still
+       detached at this point, so a document lookup finds nothing and append()
+       would quietly add the string "null" to the stage instead. */
+    ov.querySelector('.map-paper').append(plan.querySelector('#plan-box'));
     /* The select opens showing what is actually on the plate, including the
        choice the crowd made for you — otherwise it reads "Name" over a plate
        with no names on it, and the first thing you do is prove it wrong. */
@@ -5725,9 +6441,41 @@ async function renderEditor(tourId) {
       renderPlan(); /* the dots' own aria-label says which of the two a drag will do */
     });
     ov.querySelector('.map-close').addEventListener('click', () => toggleMap(false));
+
+    /* In the document before the viewport is built: it measures the stage to
+       work out what "fit" means, and an element that has not been laid out yet
+       measures zero. */
     document.getElementById('main-pane').append(ov);
     renderPlan();
-    ov.querySelector('.map-close').focus();
+
+    const readout = ov.querySelector('.map-zoom output');
+    mapViewport = createMapViewport(ov.querySelector('.map-stage'), ov.querySelector('.map-paper'), {
+      /* The plate's own resolution, so 100% means one honest thing rather than
+         "however wide the window happened to be". Fit picks the scale that
+         shows the whole walk, and the readout says what that came to. */
+      base: 900,
+      onScale: scale => {
+        const pct = `${Math.round(scale * 100)}%`;
+        if (readout.textContent === pct) return; /* a live region announces every write */
+        readout.textContent = pct;
+        readout.setAttribute('aria-label', `Zoom, ${pct}. Press to reset.`);
+      },
+    });
+    mapViewport.fit();
+
+    const zoomBtn = ov.querySelector('[data-zoom="in"]');
+    zoomBtn.addEventListener('click', () => mapViewport.zoomStep(ZOOM_STEP));
+    ov.querySelector('[data-zoom="out"]').addEventListener('click', () => mapViewport.zoomStep(1 / ZOOM_STEP));
+    ov.querySelector('.map-fit').addEventListener('click', () => mapViewport.fit({ animate: true }));
+    /* an <output> is not a button, so it needs the keyboard half saying so */
+    readout.addEventListener('click', () => mapViewport.reset());
+    readout.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); mapViewport.reset(); }
+    });
+
+    /* Focus the stage, not the close button: it is the thing you came here to
+       use, it takes the arrow keys, and its label reads out how to fly it. */
+    ov.querySelector('.map-stage').focus();
   }
 
   async function startTour() {
@@ -6417,14 +7165,31 @@ async function renderEditor(tourId) {
       }
     }
     const guessedView = {
+      arm: 'Somebody punched an arm out at the way ahead in this photo, and it opens there.'
+        + ' The surest direction on the tour, because it was stated rather than worked out.',
       person: 'Opens facing someone in hi-vis, on the assumption they are at whatever is being inspected.',
       facing: 'Nobody was standing out in this one, so it opens whichever way the person under the camera'
         + ' was looking, read off the top of their head at the base of the photo.',
+      path: 'Nothing in this photo said which way to look, so it opens along the walk, facing the photo'
+        + ' you go to next. Down a straight deck that cannot tell ahead from behind, so check it.',
     }[s.viewFrom];
     if (guessedView) {
       derived.push(`${guessedView} Turn to what you want and press “Set start view from here” to override.`);
     }
-    box.querySelector('#sc-derived').textContent = derived.join(' ');
+    /* An arm that was SEEN and not believed. Saying nothing here is what made
+       the punch feel like a feature that does not work: a weak reading and no
+       reading looked identical from the field, and the two want opposite
+       responses — punch again more clearly, versus do not bother. */
+    if (s.arm && s.viewFrom !== 'arm') {
+      derived.push(`Something arm-shaped was found ${Math.round(s.arm.yaw)}° off the middle of this photo,`
+        + ` but only ${Math.round(s.arm.strength * 100)}% convincing, so nothing was aimed at it.`
+        + ` A punch reads best held out level and clear of the body.`);
+    }
+    /* A photo nothing could be said about has to say THAT, or the panel is
+       blank for the same reason whether the readings failed or never ran. */
+    box.querySelector('#sc-derived').textContent = derived.length ? derived.join(' ')
+      : 'Nothing has been worked out about this photo yet — no bearing, and no reading of which way it should open.'
+        + ' Turn its arrow on the map to set one, and every photo sharing this view follows.';
 
     box.querySelector('#sc-stop').addEventListener('change', e => {
       s.stop = e.target.value || undefined; scheduleSave(); renderCoverage(); renderSceneList();
