@@ -72,6 +72,36 @@ def project_dir(project_id: str) -> Path:
 PROJECTS_IO_LOCK = threading.Lock()
 
 
+def write_json_atomic(path: Path, data: dict) -> None:
+    """Write a JSON document so a crash cannot leave a half-written one behind.
+
+    `path.write_text` truncates the file and then writes it, so a process that
+    dies in between — a crash, a task-kill, a full disk, a machine that reboots
+    for an update — leaves an empty or partial file where a tour or a project
+    used to be. Both readers treat unparseable JSON as absent (`return None`,
+    `continue`), so the document does not merely fail to load: it disappears
+    from the list with no error, and the next save writes over the wreckage.
+
+    Writing a sibling temp file and renaming it onto the target makes the
+    replacement atomic on the same volume: a reader sees the old document or
+    the new one, never a mixture, and an interrupted write leaves the old one
+    untouched. `os.replace` rather than `os.rename` because rename refuses an
+    existing destination on Windows, which is every save after the first.
+
+    The temp file is a sibling, not a temp-directory file, because os.replace
+    is only atomic within one filesystem. The ingest path already writes this
+    way (see handle_ingest_bundle); this is the same idea for the two documents
+    that describe everything else.
+    """
+    tmp = path.with_name(f"{path.name}.{os.getpid()}.tmp")
+    try:
+        tmp.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        os.replace(tmp, path)
+    except Exception:
+        tmp.unlink(missing_ok=True)
+        raise
+
+
 def load_project(project_id: str) -> Optional[dict]:
     path = project_dir(project_id) / "project.json"
     with PROJECTS_IO_LOCK:
@@ -87,7 +117,50 @@ def save_project(project: dict) -> None:
     path = project_dir(project["id"]) / "project.json"
     with PROJECTS_IO_LOCK:
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(project, indent=2), encoding="utf-8")
+        write_json_atomic(path, project)
+
+
+def update_project(project_id: str, mutate) -> Optional[dict]:
+    """Read, change and write a project under ONE hold of the lock.
+
+    load_project and save_project each take PROJECTS_IO_LOCK and let it go
+    again, so a caller doing the obvious load / change / save has no lock at
+    all across the part that matters. Two threads both read the same document,
+    each changes a different field, and the second write puts back everything
+    it read — including the first thread's field, at its old value. Nothing
+    errors; one of the two edits simply never happened.
+
+    That is not hypothetical here. A job's progress callback writes status,
+    stage, pct and message on every tick of a run that lasts minutes, while the
+    studio UI writes keyframes to the same document from the screen the user is
+    watching that run on. Whichever read first loses everything it changed.
+
+    save_tour_if_current already fixed exactly this for tours, and says in its
+    own note why doing the read and the write under separate holds did not
+    work. This is that fix for projects. No timestamp compare, because this is
+    contention between threads of one process rather than between two editors:
+    there is no stale client to refuse, only a window to close.
+
+    `mutate` changes the project in place and returns nothing. Returns the
+    written document, or None if the project is gone.
+
+    Deliberately NOT for the handlers that upload media, ingest a bundle or run
+    a stage: those do disk and network work between reading and writing, and
+    holding a process-wide lock across that would trade a rare lost field for a
+    server that stalls every other request behind one upload.
+    """
+    path = project_dir(project_id) / "project.json"
+    with PROJECTS_IO_LOCK:
+        if not path.exists():
+            return None
+        try:
+            project = json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            return None
+        mutate(project)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        write_json_atomic(path, project)
+    return project
 
 
 def list_projects() -> list[dict]:
@@ -193,7 +266,7 @@ def _write_tour(path: Path, tour: dict) -> None:
     and they all still load.
     """
     tour["v"] = TOUR_SCHEMA_VERSION
-    path.write_text(json.dumps(tour, indent=2), encoding="utf-8")
+    write_json_atomic(path, tour)
 
 
 def save_tour_if_current(tour: dict, seen: Optional[str]) -> Optional[dict]:
@@ -359,14 +432,14 @@ class JobRunner:
             if self.busy_project_id is not None:
                 raise BusyError(f"project {self.busy_project_id} is currently processing")
             self.busy_project_id = project_id
-        project = load_project(project_id)
-        if project is not None:
+        def queued(project: dict) -> None:
             project["status"] = "processing"
             project["stage"] = stage
             project["pct"] = 0
             project["message"] = f"queued {stage}"
             project["settings"] = settings
-            save_project(project)
+
+        update_project(project_id, queued)
         self.jobs.put({"project_id": project_id, "stage": stage, "settings": settings})
 
     def cancel(self, project_id: str) -> bool:
@@ -393,14 +466,15 @@ class JobRunner:
             self.holder = holder
 
         def progress(pct: int, line: str) -> None:
-            current = load_project(project_id)
-            if current is None:
+            def tick(current: dict) -> None:
+                current["status"] = "processing"
+                current["stage"] = stage
+                current["pct"] = pct
+                current["message"] = line
+
+            # the tick that used to clobber a keyframe edit saved alongside it
+            if update_project(project_id, tick) is None:
                 return
-            current["status"] = "processing"
-            current["stage"] = stage
-            current["pct"] = pct
-            current["message"] = line
-            save_project(current)
             self.bus.publish({"id": project_id, "stage": stage, "pct": pct, "line": line, "state": "running"})
 
         ctx = RunContext(progress=progress, holder=holder)
@@ -409,33 +483,28 @@ class JobRunner:
             if project is None:
                 raise RuntimeError("project not found")
             result = execute_stage(project_dir(project_id), project, stage, settings, ctx)
-            project = load_project(project_id) or project
-            if isinstance(result, dict):
-                if "frames" in result and isinstance(result["frames"], dict):
-                    project["counts"]["frames"] = result["frames"].get("kept", project["counts"]["frames"])
-                if "crops" in result:
-                    project["counts"]["crops"] = result["crops"]
-            project["status"] = "ready" if project.get("artifact") else "new"
-            project["stage"] = None
-            project["pct"] = 100
-            project["message"] = f"{stage} complete"
-            save_project(project)
-            self.bus.publish({"id": project_id, "stage": stage, "pct": 100, "line": project["message"], "state": "done"})
+            message = f"{stage} complete"
+
+            def finish(current: dict) -> None:
+                if isinstance(result, dict):
+                    if "frames" in result and isinstance(result["frames"], dict):
+                        current["counts"]["frames"] = result["frames"].get("kept", current["counts"]["frames"])
+                    if "crops" in result:
+                        current["counts"]["crops"] = result["crops"]
+                current["status"] = "ready" if current.get("artifact") else "new"
+                current["stage"] = None
+                current["pct"] = 100
+                current["message"] = message
+
+            update_project(project_id, finish)
+            self.bus.publish({"id": project_id, "stage": stage, "pct": 100, "line": message, "state": "done"})
         except CancelledError:
-            project = load_project(project_id)
-            if project is not None:
-                project["status"] = "error"
-                project["stage"] = None
-                project["message"] = "cancelled"
-                save_project(project)
+            update_project(project_id, lambda current: current.update(
+                {"status": "error", "stage": None, "message": "cancelled"}))
             self.bus.publish({"id": project_id, "stage": stage, "pct": 0, "line": "cancelled", "state": "error"})
         except Exception as exc:
-            project = load_project(project_id)
-            if project is not None:
-                project["status"] = "error"
-                project["stage"] = None
-                project["message"] = str(exc)
-                save_project(project)
+            update_project(project_id, lambda current: current.update(
+                {"status": "error", "stage": None, "message": str(exc)}))
             self.bus.publish({"id": project_id, "stage": stage, "pct": 0, "line": str(exc), "state": "error"})
         finally:
             with self.lock:
@@ -1193,8 +1262,14 @@ def handle_keyframes_post(handler: "Handler", project_id: str) -> None:
         send_error(handler, 400, "bad_request", "invalid json body")
         return
     keyframes = payload.get("keyframes", [])
-    project["keyframes"] = keyframes
-    save_project(project)
+    # The body read above waits on a client and must not hold the projects
+    # directory while it does, so only the read-change-write goes under the
+    # lock — the same division save_tour_if_current makes for tours. Without
+    # it, a progress tick from a running job re-saved the whole document and
+    # put the old keyframes back a moment after this returned 200.
+    if update_project(project_id, lambda current: current.update({"keyframes": keyframes})) is None:
+        send_error(handler, 404, "not_found", "project not found")
+        return
     send_json(handler, 200, {"keyframes": keyframes})
 
 
