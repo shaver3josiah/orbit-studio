@@ -1,5 +1,3 @@
-@file:OptIn(androidx.camera.camera2.interop.ExperimentalCamera2Interop::class)
-
 package com.orbitstudio.capture.capture
 
 import android.content.Context

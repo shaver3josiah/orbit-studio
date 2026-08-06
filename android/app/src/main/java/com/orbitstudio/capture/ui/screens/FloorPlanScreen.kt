@@ -832,7 +832,9 @@ private fun SketchCanvasArea(
                         val onSelect = tool == SketchTool.SELECT && moveRect != null
                         val isResize = onSelect &&
                             resizeGripAt()?.let { (first.position - it).getDistance() <= gripGrab } == true
-                        val isMove = onSelect && !isResize && moveRect != null &&
+                        // onSelect already carries moveRect != null, so the compiler
+                        // keeps the smart cast without repeating the check here.
+                        val isMove = onSelect && !isResize &&
                             startCell.first in (moveRect[0] - 1)..(moveRect[0] + moveRect[2]) &&
                             startCell.second in (moveRect[1] - 1)..(moveRect[1] + moveRect[3])
                         var isTransform = false
@@ -861,7 +863,7 @@ private fun SketchCanvasArea(
                                 val ch = pressed.first()
                                 if (!isDrag && (ch.position - first.position).getDistance() > slop) isDrag = true
                                 if (isDrag) {
-                                    if (isResize && moveRect != null) {
+                                    if (isResize) {
                                         // Grow/shrink from the fixed top-left corner.
                                         val cc = liveCellOf(ch.position)
                                         val rect = intArrayOf(
@@ -871,7 +873,7 @@ private fun SketchCanvasArea(
                                         )
                                         curRect = rect
                                         onPreview(rect)
-                                    } else if (isMove && moveRect != null) {
+                                    } else if (isMove) {
                                         val cc = liveCellOf(ch.position)
                                         val rect = intArrayOf(
                                             moveRect[0] + (cc.first - startCell.first),
