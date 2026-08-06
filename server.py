@@ -778,6 +778,40 @@ def read_body(handler: "Handler") -> bytes:
     return handler.rfile.read(length)
 
 
+# What read_body can be asked for before the machine, rather than the policy,
+# is the thing that says no. read_body holds the whole body in memory and
+# parse_multipart then slices copies out of it, so a request is worth roughly
+# two to three times its own size in RAM — on a field laptop that is where a
+# large upload stops being slow and starts being a MemoryError. A trained splat
+# is the one thing here that is legitimately huge, so this is set where an
+# artifact still fits and a runaway request does not.
+#
+# ponytail: a ceiling, not a fix. The fix is to stream the body to disk instead
+# of buffering it, which handle_ingest_bundle already does — but it can, because
+# its body is a raw zip. These routes are multipart, and streaming one means
+# writing an incremental multipart parser, which is a great deal of delicate
+# code to save a local single-user tool from a size nobody has hit yet. When
+# somebody does hit it, that parser is the upgrade, and this line is what will
+# have told them so instead of an OOM.
+MAX_PROJECT_UPLOAD_BYTES = 2 * 1024 * 1024 * 1024
+
+
+def body_too_large(handler: "Handler", limit: int) -> bool:
+    """Refuse an over-size upload before reading a byte of it.
+
+    Lifted out of the one route that had it so the others can say it too: an
+    uncapped route does not fail politely, it fails as whatever the machine
+    does when it runs out of memory, several seconds after the user let go of
+    the file. Returns True when it has already sent the 413.
+    """
+    length = int(handler.headers.get("Content-Length", 0) or 0)
+    if length <= limit:
+        return False
+    send_error(handler, 413, "too_large", f"upload exceeds {limit // (1024 * 1024)}MB limit")
+    handler.close_connection = True  # body was never read; keep-alive would misparse it
+    return True
+
+
 def read_json_body(handler: "Handler") -> Optional[dict]:
     raw = read_body(handler)
     if not raw:
@@ -858,6 +892,8 @@ def handle_media_upload(handler: "Handler", project_id: str) -> None:
     if project is None:
         send_error(handler, 404, "not_found", "project not found")
         return
+    if body_too_large(handler, MAX_PROJECT_UPLOAD_BYTES):
+        return
     content_type = handler.headers.get("Content-Type", "")
     if "multipart/form-data" not in content_type:
         send_error(handler, 400, "bad_request", "expected multipart/form-data")
@@ -934,6 +970,8 @@ def handle_photoset_upload(handler: "Handler", project_id: str) -> None:
     if project is None:
         send_error(handler, 404, "not_found", "project not found")
         return
+    if body_too_large(handler, MAX_PROJECT_UPLOAD_BYTES):
+        return
     content_type = handler.headers.get("Content-Type", "")
     if "multipart/form-data" not in content_type:
         send_error(handler, 400, "bad_request", "expected multipart/form-data")
@@ -985,7 +1023,13 @@ def handle_photoset_upload(handler: "Handler", project_id: str) -> None:
         if dest.suffix.lower() not in IMAGE_EXTENSIONS:
             unsupported.append(part["filename"])
             continue
-        info = probe_media(ffprobe_path, dest) if ffprobe_path else None
+        # Only when Pillow is missing. inspect_photo hands the whole question to
+        # pipeline.photo whenever Pillow imports — measured, and the docstring
+        # there says why — so on every ordinary machine this subprocess was
+        # spawned per photo, waited on, and its answer thrown away. Forty photos
+        # is forty pointless process launches on the thread the browser is
+        # blocked on. ffprobe's numbers still stand in where they are all there is.
+        info = probe_media(ffprobe_path, dest) if (ffprobe_path and not pillow_ok) else None
         width, height, fault = inspect_photo(dest, info if info and info.get("type") == "image" else None)
         if fault == NO_READER_FAULT:
             send_error(handler, 503, "imaging_tools_missing", missing_readers_message(False, False))
@@ -1159,6 +1203,8 @@ def handle_result_upload(handler: "Handler", project_id: str) -> None:
     project = load_project(project_id)
     if project is None:
         send_error(handler, 404, "not_found", "project not found")
+        return
+    if body_too_large(handler, MAX_PROJECT_UPLOAD_BYTES):
         return
     content_type = handler.headers.get("Content-Type", "")
     if "multipart/form-data" not in content_type:
@@ -1375,10 +1421,7 @@ def handle_tour_file_upload(handler: "Handler", tour_id: str) -> None:
     if "multipart/form-data" not in content_type:
         send_error(handler, 400, "bad_request", "expected multipart/form-data")
         return
-    length = int(handler.headers.get("Content-Length", 0) or 0)
-    if length > MAX_TOUR_UPLOAD_BYTES:
-        send_error(handler, 413, "too_large", f"upload exceeds {MAX_TOUR_UPLOAD_BYTES // (1024 * 1024)}MB limit")
-        handler.close_connection = True  # body was never read; keep-alive would misparse it
+    if body_too_large(handler, MAX_TOUR_UPLOAD_BYTES):
         return
     _, params = parse_content_type(content_type)
     fields = parse_multipart(read_body(handler), params.get("boundary", ""))
