@@ -4393,12 +4393,6 @@ async function renderEditor(tourId) {
   const redoStack = [];
 
   function applyState(str, message) {
-    /* Before the document moves, not after: a drag still holding a node from
-       the outgoing plate has to be put down without committing, or it commits
-       old coordinates onto the new document. Undo, redo and any future whole-
-       document replace all come through here, which is why this is the only
-       place that needs to say it. */
-    planGesture?.cancel();
     Object.assign(doc, JSON.parse(str));
     lastState = str; /* so scheduleSave below does not re-push what we just replayed */
     if (!doc.scenes.some(s => s.id === curSceneId)) curSceneId = doc.scenes[0]?.id || null;
@@ -4860,6 +4854,15 @@ async function renderEditor(tourId) {
     const resetBtn = document.getElementById('plan-reset');
     const how = document.getElementById('plan-how');
     if (!box || !note || !spanEl) return;
+    /* Here, and not at the callers, because HERE is where the damage is done:
+       the line below throws away every node on the plate, including the one a
+       drag or a turn is currently holding by pointer capture. Guarding undo
+       alone was guarding the caller I happened to be looking at — the scene
+       list rebuilds the plate too, and addScenes calls it once per uploaded
+       file, so dragging a dot while a batch finishes uploading hit exactly the
+       hazard the undo guard was written for. Put the gesture down first and
+       every caller, present and future, is covered by the one line. */
+    planGesture?.cancel();
     box.innerHTML = '';
     /* cleared up here, not where it is set: every early return below leaves the
        plate on screen, and a metre grid left over from the last render would
