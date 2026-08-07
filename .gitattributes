@@ -1,0 +1,28 @@
+# Line endings that are not a matter of taste.
+#
+# This is a Windows-first repo, so a checkout hands most files CRLF and that is
+# right for them. Two kinds of file break if they get it, and both are load
+# bearing now that CI runs on Linux:
+#
+#   gradlew is a shell script. With CRLF, Linux reads the carriage return as
+#   part of the interpreter path and fails with "bad interpreter: /bin/sh^M" —
+#   a message that says nothing about line endings to anyone who has not met it
+#   before.
+#
+#   .bat is the exact opposite: cmd wants CRLF, and test.bat is what a person
+#   double-clicks.
+#
+# Left deliberately narrow. A repo-wide `* text=auto eol=lf` would renormalise
+# every tracked file in one commit, which is a large diff that hides whatever
+# else is in it, to fix a problem only these files have.
+
+android/gradlew text eol=lf
+*.sh          text eol=lf
+
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Never line-ending-convert the wrapper jar. Git detects this on its own, but
+# the failure if it ever did not is a corrupt jar and an unbuildable app, so it
+# is worth one line to state rather than infer.
+*.jar binary

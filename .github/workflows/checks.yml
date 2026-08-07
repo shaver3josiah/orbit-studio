@@ -1,0 +1,79 @@
+# Runs what test.bat runs, plus the Android build, on every push.
+#
+# The gap this closes is not that the checks were missing — there are 519 of
+# them and they are good ones. It is that running them was optional, and twice
+# in one afternoon that turned out not to be often enough: the Android app was
+# pushed uncompiled because no toolchain looked present in the checkout, and a
+# rewrite of the server's save path was pushed without the server suite, which
+# had a check for the very handler that changed. Both were caught afterwards by
+# hand. Neither should have needed a person to notice.
+#
+# The check list is not repeated here. tests/run_all.py owns it, test.bat calls
+# it, and so does this — one list, so a check added anywhere is a check
+# everywhere. See the note at the top of that file.
+
+name: checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# A second push supersedes the first: nobody needs the results of a commit that
+# has already been replaced, and the Android job is the slow one.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    # Windows as well as Linux, deliberately. This is a Windows-first tool —
+    # setup.ps1, test.bat, the AppLocker workarounds in the tour — and the
+    # tour's save path now leans on os.replace precisely because Windows will
+    # not rename onto an existing file. A guarantee that only ever runs on
+    # Linux is not the guarantee anyone here needs.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # The pure-helper suite lifts its functions straight out of tour/index.html
+      # and runs them, so it needs a JS runtime.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # numpy and Pillow are the splat lane only. run_all.py skips that suite
+      # rather than failing when they are absent, so this is what turns the skip
+      # into a real check instead of a quiet pass.
+      - run: python -m pip install --upgrade pip && pip install -r requirements.txt
+
+      - run: python tests/run_all.py
+
+  android:
+    # Ubuntu only: the Android SDK is preinstalled on that image, and the
+    # Kotlin being compiled is the same either way.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17' # matches sourceCompatibility/jvmTarget in app/build.gradle.kts
+          cache: gradle
+
+      # compileDebugKotlin, not assemble: this is here to answer "does the
+      # Kotlin compile", which is the question that went unanswered, and it does
+      # it in a fraction of the time a full APK takes. Signing an artifact is a
+      # release concern and does not belong in the check that guards a push.
+      - run: ./gradlew :app:compileDebugKotlin --console=plain
+        working-directory: android
