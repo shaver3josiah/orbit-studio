@@ -56,6 +56,18 @@ jobs:
       # into a real check instead of a quiet pass.
       - run: python -m pip install --upgrade pip && pip install -r requirements.txt
 
+      # The splat suite shells out to ffmpeg to build its own test video, and
+      # find_tool looks on PATH first, so installing it here is all that is
+      # needed. Installed rather than skipped around: the suite covers the
+      # server routes that keyframes, posters and result uploads go through,
+      # and a check that quietly does not run is the thing this workflow exists
+      # to stop. If a build turns up without the v360 filter the suite skips
+      # just that reframing step on its own, which is already its behaviour.
+      - if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - if: runner.os == 'Windows'
+        run: choco install ffmpeg -y --no-progress
+
       - run: python tests/run_all.py
 
   android:
